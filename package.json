@@ -1,0 +1,25 @@
+{
+  "name": "lemmy-bot",
+  "version": "1.0.0",
+  "description": "A bot API for Lemmy, the fediverse link aggregator.",
+  "main": "index.ts",
+  "scripts": {
+    "start": "ts-node index.ts"
+  },
+  "author": "",
+  "license": "GNU Affero General Public License v3.0",
+  "devDependencies": {
+    "@types/node": "^18.11.10",
+    "@types/websocket": "^1.0.5",
+    "typescript": "^4.9.3",
+    "ts-node": "^10.9.1"
+  },
+  "dependencies": {
+    "@sniptt/monads": "^0.5.10",
+    "class-transformer": "^0.5.1",
+    "lemmy-js-client": "0.17.0-rc.55",
+    "node-fetch": "2.6.6",
+    "reflect-metadata": "^0.1.13",
+    "websocket": "^1.0.34"
+  }
+}
