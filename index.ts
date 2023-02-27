@@ -6,9 +6,9 @@ const bot = new LemmyBot({
   instanceDomain: 'localhost:8536',
   username: 'ReplyBot',
   password: 'lemmylemmy',
-  handlePost({ alreadyReplied, botActions: { replyToPost }, post }) {
-    if (!alreadyReplied && post.post.body?.includes('butt')) {
-      replyToPost(post, 'Nice butt');
+  handlePost: async ({ alreadyReported, botActions: { reportPost }, post }) => {
+    if (!alreadyReported && post.post.name.toLowerCase().includes('joos')) {
+      reportPost(post, 'Me am joo and iz offended');
     }
   },
 });

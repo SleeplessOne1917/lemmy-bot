@@ -27,6 +27,30 @@ export const getPosts = (connection: Connection) => {
   connection.send(getPostsRequest);
 };
 
+export const createPostReport = async ({
+  connection,
+  auth,
+  id,
+  reason,
+}: {
+  connection: Connection;
+  auth: string;
+  id: number;
+  reason: string;
+}) => {
+  await useDatabaseFunctions(async ({ addPostReport }) => {
+    const createPostReportRequest = lemmyWSClient.createPostReport({
+      auth,
+      post_id: id,
+      reason,
+    });
+
+    await addPostReport(id);
+
+    connection.send(createPostReportRequest);
+  });
+};
+
 export const getComments = (connection: Connection) => {
   const getCommentsRequest = lemmyWSClient.getComments({
     sort: CommentSortType.New,
@@ -36,7 +60,7 @@ export const getComments = (connection: Connection) => {
   connection.send(getCommentsRequest);
 };
 
-export const createComment = ({
+export const createComment = async ({
   connection,
   auth,
   postId,
@@ -49,22 +73,24 @@ export const createComment = ({
   parentId?: number;
   content: string;
 }) => {
-  useDatabaseFunctions(async ({ addCommentResponse, addPostResponse }) => {
-    const createCommentRequest = lemmyWSClient.createComment({
-      auth,
-      content,
-      post_id: postId,
-      parent_id: parentId,
-    });
+  await useDatabaseFunctions(
+    async ({ addCommentResponse, addPostResponse }) => {
+      const createCommentRequest = lemmyWSClient.createComment({
+        auth,
+        content,
+        post_id: postId,
+        parent_id: parentId,
+      });
 
-    if (parentId) {
-      await addCommentResponse(parentId);
-    } else {
-      await addPostResponse(postId);
+      if (parentId) {
+        await addCommentResponse(parentId);
+      } else {
+        await addPostResponse(postId);
+      }
+
+      connection.send(createCommentRequest);
     }
-
-    connection.send(createCommentRequest);
-  });
+  );
 };
 
 export const createCommentReport = async ({

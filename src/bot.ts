@@ -10,6 +10,7 @@ import { getInsecureWebsocketUrl, getSecureWebsocketUrl } from './helpers';
 import {
   createComment,
   createCommentReport,
+  createPostReport,
   getComments,
   getPosts,
   logIn,
@@ -30,19 +31,20 @@ type LemmyBotOptions = {
     botActions: BotActions;
     alreadyReplied: boolean;
     alreadyReported: boolean;
-  }) => void;
+  }) => Promise<void>;
   handlePost?: (options: {
     post: PostView;
     botActions: BotActions;
     alreadyReplied: boolean;
     alreadyReported: boolean;
-  }) => void;
+  }) => Promise<void>;
 };
 
 type BotActions = {
-  replyToComment: (comment: CommentView, content: string) => void;
-  reportComment: (comment: CommentView, reason: string) => void;
-  replyToPost: (post: PostView, content: string) => void;
+  replyToComment: (comment: CommentView, content: string) => Promise<void>;
+  reportComment: (comment: CommentView, reason: string) => Promise<void>;
+  replyToPost: (post: PostView, content: string) => Promise<void>;
+  reportPost: (post: PostView, reason: string) => Promise<void>;
 };
 
 const wsClient = new WebsocketClient();
@@ -56,13 +58,13 @@ export class LemmyBot {
   #restartTimeout: NodeJS.Timeout | undefined = undefined;
   #auth: string | undefined = undefined;
   #tryInsecureWs = false;
-  #botActions = {
-    replyToPost: (post: PostView, content: string) => {
+  #botActions: BotActions = {
+    replyToPost: async (post, content) => {
       if (this.#connection && this.#auth) {
         console.log(
           `Replying to post ID ${post.post.id} by ${post.creator.name}`
         );
-        createComment({
+        await createComment({
           connection: this.#connection,
           auth: this.#auth,
           content,
@@ -76,12 +78,31 @@ export class LemmyBot {
         );
       }
     },
-    replyToComment: (comment: CommentView, content: string) => {
+    reportPost: async (post, reason) => {
+      if (this.#connection && this.#auth) {
+        console.log(
+          `Reporting to post ID ${post.post.id} by ${post.creator.name} for ${reason}`
+        );
+        await createPostReport({
+          auth: this.#auth,
+          connection: this.#connection,
+          id: post.post.id,
+          reason,
+        });
+      } else {
+        console.log(
+          !this.#connection
+            ? 'Must be connected to report post'
+            : 'Must log in to report post'
+        );
+      }
+    },
+    replyToComment: async (comment: CommentView, content: string) => {
       if (this.#connection && this.#auth) {
         console.log(
           `Replying to comment ID ${comment.comment.id} by ${comment.creator.name}`
         );
-        createComment({
+        await createComment({
           connection: this.#connection,
           auth: this.#auth,
           content,
@@ -96,12 +117,12 @@ export class LemmyBot {
         );
       }
     },
-    reportComment: (comment: CommentView, reason: string) => {
+    reportComment: async (comment, reason) => {
       if (this.#connection && this.#auth) {
         console.log(
           `Reporting to comment ID ${comment.comment.id} by ${comment.creator.name} for ${reason}`
         );
-        createCommentReport({
+        await createCommentReport({
           auth: this.#auth,
           connection: this.#connection,
           id: comment.comment.id,
@@ -177,12 +198,13 @@ export class LemmyBot {
                 console.log('Logging in');
                 this.#auth = (response.data as LoginResponse).jwt;
                 break;
+
               case 'GetComments':
                 const { comments } = response.data as GetCommentsResponse;
                 for (const comment of comments) {
                   await useDatabaseFunctions(
                     async ({ repliedToComment, reportedComment }) => {
-                      handleComment!({
+                      await handleComment!({
                         comment,
                         botActions: this.#botActions,
                         alreadyReplied: await repliedToComment(
@@ -196,12 +218,13 @@ export class LemmyBot {
                   );
                 }
                 break;
+
               case 'GetPosts':
                 const { posts } = response.data as GetPostsResponse;
                 for (const post of posts) {
                   await useDatabaseFunctions(
                     async ({ repliedToPost, reportedPost }) => {
-                      handlePost!({
+                      await handlePost!({
                         post,
                         botActions: this.#botActions,
                         alreadyReplied: await repliedToPost(post.post.id),
@@ -210,6 +233,7 @@ export class LemmyBot {
                     }
                   );
                 }
+                break;
             }
           }
         }
