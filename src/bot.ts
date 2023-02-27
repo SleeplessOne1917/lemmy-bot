@@ -21,6 +21,7 @@ export class LemmyBot {
   #password: string;
   #connection: Connection | undefined = undefined;
   #forcingClosed = false;
+  #restartTimeout: NodeJS.Timeout | undefined = undefined;
 
   constructor({
     onConnectionFailed,
@@ -71,26 +72,30 @@ export class LemmyBot {
         }
       });
 
-      this.#login();
-
       const runBot = () => {
         if (connection.connected) {
           setTimeout(runBot, 1000 * secondsBetweenPolls);
         } else if (!this.#forcingClosed) {
-          setTimeout(() => {
+          this.#restartTimeout = setTimeout(() => {
             wsClient.connect(getWebsocketUrl(this.#instanceDomain));
           }, 1000 * 60 * minutesBeforeRetryConnection); // If bot can't connect, try again in the number of minutes provided
         } else {
           this.#forcingClosed = false;
+          if (this.#restartTimeout) {
+            clearTimeout(this.#restartTimeout);
+          }
         }
       };
 
+      this.#login();
       runBot();
     });
   }
 
   start() {
-    wsClient.connect(getWebsocketUrl(this.#instanceDomain));
+    if (!this.#connection) {
+      wsClient.connect(getWebsocketUrl(this.#instanceDomain));
+    }
   }
 
   stop() {
@@ -103,10 +108,10 @@ export class LemmyBot {
   #login() {
     if (this.#connection) {
       console.log('Logging in');
-      const logInRequest = new Login({
+      const logInRequest: Login = {
         username_or_email: this.#username,
         password: this.#password,
-      });
+      };
 
       this.#connection.send(logInRequest);
     }
