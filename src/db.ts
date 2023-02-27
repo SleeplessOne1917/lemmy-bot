@@ -23,7 +23,7 @@ const getReplied = (db: Database, id: number, table: string) => {
 
 const insertId = (db: Database, id: number, table: string) => {
   return new Promise<void>((resolve, reject) => {
-    db.run(`INSERT INTO ${table} VALUES (?);`, [id], (err) => {
+    db.run(`INSERT OR IGNORE INTO ${table} VALUES (?);`, [id], (err) => {
       if (err) {
         reject(err);
       } else {
