@@ -5,6 +5,7 @@ specifiers:
   '@types/websocket': ^1.0.5
   '@typescript-eslint/eslint-plugin': ^5.54.0
   '@typescript-eslint/parser': ^5.54.0
+  date-fns: ^2.29.3
   eslint: ^8.35.0
   eslint-config-prettier: ^8.6.0
   eslint-plugin-prettier: ^4.2.1
@@ -16,6 +17,7 @@ specifiers:
   websocket: ^1.0.34
 
 dependencies:
+  date-fns: 2.29.3
   lemmy-js-client: 0.17.2
   sqlite3: 5.1.4
   websocket: 1.0.34
@@ -554,6 +556,11 @@ packages:
     dependencies:
       es5-ext: 0.10.62
       type: 1.2.0
+    dev: false
+
+  /date-fns/2.29.3:
+    resolution: {integrity: sha512-dDCnyH2WnnKusqvZZ6+jA1O51Ibt8ZMRNkDZdyAyK4YfbDwa/cEmuztzG5pk6hqlp9aSBPYcjOlktquahGwGeA==}
+    engines: {node: '>=0.11'}
     dev: false
 
   /debug/2.6.9:

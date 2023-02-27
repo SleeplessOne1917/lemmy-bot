@@ -2,7 +2,7 @@ import { CommentSortType, SortType } from 'lemmy-js-client';
 import { LemmyWebsocket } from 'lemmy-js-client';
 import { connection as Connection } from 'websocket';
 import { useDatabaseFunctions } from './db';
-import { Vote } from './helpers';
+import { futureDaysToUnixTime, Vote } from './helpers';
 
 const lemmyWSClient = new LemmyWebsocket();
 
@@ -15,12 +15,12 @@ export const logIn = ({
   username: string;
   password: string;
 }) => {
-  const loginRequest = lemmyWSClient.login({
+  const request = lemmyWSClient.login({
     username_or_email: username,
     password
   });
 
-  connection.send(loginRequest);
+  connection.send(request);
 };
 
 export const enableBotAccount = ({
@@ -30,12 +30,12 @@ export const enableBotAccount = ({
   connection: Connection;
   auth: string;
 }) => {
-  const enableBotAccountRequest = lemmyWSClient.saveUserSettings({
+  const request = lemmyWSClient.saveUserSettings({
     auth,
     bot_account: true
   });
 
-  connection.send(enableBotAccountRequest);
+  connection.send(request);
 };
 
 export const voteDBPost = async ({
@@ -50,7 +50,7 @@ export const voteDBPost = async ({
   vote: Vote;
 }) => {
   await useDatabaseFunctions(async ({ setPostVote }) => {
-    const upvotePostRequest = lemmyWSClient.likePost({
+    const request = lemmyWSClient.likePost({
       auth,
       post_id: id,
       score: vote
@@ -58,7 +58,7 @@ export const voteDBPost = async ({
 
     setPostVote(id, vote);
 
-    connection.send(upvotePostRequest);
+    connection.send(request);
   });
 };
 
@@ -74,7 +74,7 @@ export const voteDBComment = async ({
   vote: Vote;
 }) => {
   await useDatabaseFunctions(async ({ setCommentVote }) => {
-    const upvoteCommentRequest = lemmyWSClient.likeComment({
+    const request = lemmyWSClient.likeComment({
       auth,
       comment_id: id,
       score: vote
@@ -82,17 +82,17 @@ export const voteDBComment = async ({
 
     setCommentVote(id, vote);
 
-    connection.send(upvoteCommentRequest);
+    connection.send(request);
   });
 };
 
 export const getPosts = (connection: Connection) => {
-  const getPostsRequest = lemmyWSClient.getPosts({
+  const request = lemmyWSClient.getPosts({
     sort: SortType.New,
     limit: 10
   });
 
-  connection.send(getPostsRequest);
+  connection.send(request);
 };
 
 export const createPostReport = async ({
@@ -107,7 +107,7 @@ export const createPostReport = async ({
   reason: string;
 }) => {
   await useDatabaseFunctions(async ({ addPostReport }) => {
-    const createPostReportRequest = lemmyWSClient.createPostReport({
+    const request = lemmyWSClient.createPostReport({
       auth,
       post_id: id,
       reason
@@ -115,17 +115,17 @@ export const createPostReport = async ({
 
     await addPostReport(id);
 
-    connection.send(createPostReportRequest);
+    connection.send(request);
   });
 };
 
 export const getComments = (connection: Connection) => {
-  const getCommentsRequest = lemmyWSClient.getComments({
+  const request = lemmyWSClient.getComments({
     sort: CommentSortType.New,
     limit: 10
   });
 
-  connection.send(getCommentsRequest);
+  connection.send(request);
 };
 
 export const createComment = async ({
@@ -143,7 +143,7 @@ export const createComment = async ({
 }) => {
   await useDatabaseFunctions(
     async ({ addCommentResponse, addPostResponse }) => {
-      const createCommentRequest = lemmyWSClient.createComment({
+      const request = lemmyWSClient.createComment({
         auth,
         content,
         post_id: postId,
@@ -156,7 +156,7 @@ export const createComment = async ({
         await addPostResponse(postId);
       }
 
-      connection.send(createCommentRequest);
+      connection.send(request);
     }
   );
 };
@@ -173,7 +173,7 @@ export const createCommentReport = async ({
   connection: Connection;
 }) => {
   await useDatabaseFunctions(async ({ addCommentReport }) => {
-    const createCommentReportRequest = lemmyWSClient.createCommentReport({
+    const request = lemmyWSClient.createCommentReport({
       auth,
       comment_id: id,
       reason
@@ -181,6 +181,36 @@ export const createCommentReport = async ({
 
     await addCommentReport(id);
 
-    connection.send(createCommentReportRequest);
+    connection.send(request);
   });
+};
+
+export const createBanFromCommunity = ({
+  communityId,
+  auth,
+  connection,
+  personId,
+  daysUntilExpires,
+  reason,
+  removeData
+}: {
+  connection: Connection;
+  auth: string;
+  communityId: number;
+  personId: number;
+  daysUntilExpires?: number;
+  reason?: string;
+  removeData?: boolean;
+}) => {
+  const request = lemmyWSClient.banFromCommunity({
+    auth,
+    ban: true,
+    community_id: communityId,
+    person_id: personId,
+    expires: futureDaysToUnixTime(daysUntilExpires),
+    reason,
+    remove_data: removeData
+  });
+
+  connection.send(request);
 };

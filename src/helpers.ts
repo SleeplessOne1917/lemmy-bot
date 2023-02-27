@@ -21,3 +21,10 @@ export const correctVote = (vote: number): Vote => {
 
   return vote;
 };
+
+export const futureDaysToUnixTime = (days?: number) =>
+  days
+    ? Math.trunc(
+        new Date(Date.now() + 1000 * 60 * 60 * 24 * days).getTime() / 1000
+      )
+    : undefined;

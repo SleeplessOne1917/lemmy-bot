@@ -13,6 +13,7 @@ import {
   Vote
 } from './helpers';
 import {
+  createBanFromCommunity,
   createComment,
   createCommentReport,
   createPostReport,
@@ -53,6 +54,13 @@ type BotActions = {
   reportPost: (post: PostView, reason: string) => Promise<void>;
   votePost: (post: PostView, vote: Vote) => Promise<void>;
   voteComment: (comment: CommentView, vote: Vote) => Promise<void>;
+  banFromCommunity: (options: {
+    communityId: number;
+    personId: number;
+    daysUntilExpires?: number;
+    reason?: string;
+    removeData?: boolean;
+  }) => void;
 };
 
 const wsClient = new WebsocketClient();
@@ -189,6 +197,24 @@ export class LemmyBot {
             : `Must log in to ${prefix.toLowerCase()}vote comment`
         );
       }
+    },
+    banFromCommunity: (options) => {
+      if (this.#connection && this.#auth) {
+        console.log(
+          `Banning user ID ${options.personId} from ${options.communityId}`
+        );
+        createBanFromCommunity({
+          ...options,
+          auth: this.#auth,
+          connection: this.#connection
+        });
+      } else {
+        console.log(
+          !this.#connection
+            ? 'Must be connected to post comment'
+            : 'Must log in to post comment'
+        );
+      }
     }
   };
 
@@ -288,6 +314,11 @@ export class LemmyBot {
                   });
                 }
                 break;
+              }
+              default: {
+                if (response.error) {
+                  console.log(`Got error: ${response.error}`);
+                }
               }
             }
           }
