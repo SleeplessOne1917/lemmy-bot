@@ -14,6 +14,7 @@ import {
 } from './helpers';
 import {
   createBanFromCommunity,
+  createBanFromSite,
   createComment,
   createCommentReport,
   createPostReport,
@@ -56,6 +57,12 @@ type BotActions = {
   voteComment: (comment: CommentView, vote: Vote) => Promise<void>;
   banFromCommunity: (options: {
     communityId: number;
+    personId: number;
+    daysUntilExpires?: number;
+    reason?: string;
+    removeData?: boolean;
+  }) => void;
+  banFromSite: (options: {
     personId: number;
     daysUntilExpires?: number;
     reason?: string;
@@ -211,8 +218,26 @@ export class LemmyBot {
       } else {
         console.log(
           !this.#connection
-            ? 'Must be connected to post comment'
-            : 'Must log in to post comment'
+            ? 'Must be connected to ban user'
+            : 'Must log in to ban user'
+        );
+      }
+    },
+    banFromSite: (options) => {
+      if (this.#connection && this.#auth) {
+        console.log(
+          `Banning user ID ${options.personId} from ${this.#instanceDomain}`
+        );
+        createBanFromSite({
+          ...options,
+          auth: this.#auth,
+          connection: this.#connection
+        });
+      } else {
+        console.log(
+          !this.#connection
+            ? 'Must be connected to ban user'
+            : 'Must log in to ban user'
         );
       }
     }

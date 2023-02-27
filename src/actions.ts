@@ -214,3 +214,30 @@ export const createBanFromCommunity = ({
 
   connection.send(request);
 };
+
+export const createBanFromSite = ({
+  auth,
+  connection,
+  personId,
+  daysUntilExpires,
+  reason,
+  removeData
+}: {
+  connection: Connection;
+  auth: string;
+  personId: number;
+  daysUntilExpires?: number;
+  reason?: string;
+  removeData?: boolean;
+}) => {
+  const request = lemmyWSClient.banPerson({
+    auth,
+    ban: true,
+    person_id: personId,
+    expires: futureDaysToUnixTime(daysUntilExpires),
+    reason,
+    remove_data: removeData
+  });
+
+  connection.send(request);
+};
