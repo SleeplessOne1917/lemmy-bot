@@ -227,12 +227,12 @@ export class LemmyBot {
             this.#login();
           } else {
             switch (response.op) {
-              case 'Login':
+              case 'Login': {
                 console.log('Logging in');
                 this.#auth = (response.data as LoginResponse).jwt;
                 break;
-
-              case 'GetComments':
+              }
+              case 'GetComments': {
                 const { comments } = response.data as GetCommentsResponse;
                 for (const comment of comments) {
                   await useDatabaseFunctions(
@@ -249,8 +249,8 @@ export class LemmyBot {
                   );
                 }
                 break;
-
-              case 'GetPosts':
+              }
+              case 'GetPosts': {
                 const { posts } = response.data as GetPostsResponse;
                 for (const post of posts) {
                   await useDatabaseFunctions(async ({ getPostStoredData }) => {
@@ -263,6 +263,7 @@ export class LemmyBot {
                   });
                 }
                 break;
+              }
             }
           }
         }
