@@ -21,10 +21,15 @@ type LemmyBotOptions = {
   minutesBeforeRetryConnection?: number;
   onComment?: (options: {
     comment: CommentView;
-    bot: LemmyBot;
+    botActions: BotActions;
     alreadyReplied: boolean;
     alreadyReported: boolean;
   }) => void;
+};
+
+type BotActions = {
+  replyToComment: (comment: CommentView, content: string) => void;
+  reportComment: (comment: CommentView, reason: string) => void;
 };
 
 const wsClient = new WebsocketClient();
@@ -38,6 +43,47 @@ export class LemmyBot {
   #restartTimeout: NodeJS.Timeout | undefined = undefined;
   #auth: string | undefined = undefined;
   #tryInsecureWs = false;
+  #botActions = {
+    replyToComment: (comment: CommentView, content: string) => {
+      if (this.#connection && this.#auth) {
+        console.log(
+          `Replying to comment ID ${comment.comment.id} by ${comment.creator.name}`
+        );
+        createComment({
+          connection: this.#connection,
+          auth: this.#auth,
+          content,
+          postId: comment.post.id,
+          parentId: comment.comment.id,
+        });
+      } else {
+        console.log(
+          !this.#connection
+            ? 'Must be connected to post comment'
+            : 'Must log in to post comment'
+        );
+      }
+    },
+    reportComment: (comment: CommentView, reason: string) => {
+      if (this.#connection && this.#auth) {
+        console.log(
+          `Reporting to comment ID ${comment.comment.id} by ${comment.creator.name} for ${reason}`
+        );
+        createCommentReport({
+          auth: this.#auth,
+          connection: this.#connection,
+          id: comment.comment.id,
+          reason,
+        });
+      } else {
+        console.log(
+          !this.#connection
+            ? 'Must be connected to report comment'
+            : 'Must log in to report comment'
+        );
+      }
+    },
+  };
 
   constructor({
     onConnectionFailed,
@@ -105,7 +151,7 @@ export class LemmyBot {
                     async ({ repliedToComment, reportedComment }) => {
                       onComment!({
                         comment,
-                        bot: this,
+                        botActions: this.#botActions,
                         alreadyReplied: await repliedToComment(
                           comment.comment.id
                         ),
@@ -163,47 +209,6 @@ export class LemmyBot {
   #login() {
     if (this.#connection) {
       logIn(this.#connection, this.#username, this.#password);
-    }
-  }
-
-  replyToComment(comment: CommentView, content: string) {
-    if (this.#connection && this.#auth) {
-      console.log(
-        `Replying to comment ID ${comment.comment.id} by ${comment.creator.name}`
-      );
-      createComment({
-        connection: this.#connection,
-        auth: this.#auth,
-        content,
-        postId: comment.post.id,
-        parentId: comment.comment.id,
-      });
-    } else {
-      console.log(
-        !this.#connection
-          ? 'Must be connected to post comment'
-          : 'Must log in to post comment'
-      );
-    }
-  }
-
-  reportComment(comment: CommentView, reason: string) {
-    if (this.#connection && this.#auth) {
-      console.log(
-        `Reporting to comment ID ${comment.comment.id} by ${comment.creator.name} for ${reason}`
-      );
-      createCommentReport({
-        auth: this.#auth,
-        connection: this.#connection,
-        id: comment.comment.id,
-        reason,
-      });
-    } else {
-      console.log(
-        !this.#connection
-          ? 'Must be connected to report comment'
-          : 'Must log in to report comment'
-      );
     }
   }
 }
