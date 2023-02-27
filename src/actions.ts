@@ -13,7 +13,7 @@ export const logIn = (
 ) => {
   const loginRequest = lemmyWSClient.login({
     username_or_email: username,
-    password,
+    password
   });
 
   connection.send(loginRequest);
@@ -23,7 +23,7 @@ export const voteDBPost = async ({
   connection,
   id,
   auth,
-  vote,
+  vote
 }: {
   connection: Connection;
   id: number;
@@ -34,7 +34,7 @@ export const voteDBPost = async ({
     const upvotePostRequest = lemmyWSClient.likePost({
       auth,
       post_id: id,
-      score: vote,
+      score: vote
     });
 
     setPostVote(id, vote);
@@ -43,10 +43,34 @@ export const voteDBPost = async ({
   });
 };
 
+export const voteDBComment = async ({
+  connection,
+  id,
+  auth,
+  vote
+}: {
+  connection: Connection;
+  id: number;
+  auth: string;
+  vote: Vote;
+}) => {
+  await useDatabaseFunctions(async ({ setCommentVote }) => {
+    const upvoteCommentRequest = lemmyWSClient.likeComment({
+      auth,
+      comment_id: id,
+      score: vote
+    });
+
+    setCommentVote(id, vote);
+
+    connection.send(upvoteCommentRequest);
+  });
+};
+
 export const getPosts = (connection: Connection) => {
   const getPostsRequest = lemmyWSClient.getPosts({
     sort: SortType.New,
-    limit: 10,
+    limit: 10
   });
 
   connection.send(getPostsRequest);
@@ -56,7 +80,7 @@ export const createPostReport = async ({
   connection,
   auth,
   id,
-  reason,
+  reason
 }: {
   connection: Connection;
   auth: string;
@@ -67,7 +91,7 @@ export const createPostReport = async ({
     const createPostReportRequest = lemmyWSClient.createPostReport({
       auth,
       post_id: id,
-      reason,
+      reason
     });
 
     await addPostReport(id);
@@ -79,7 +103,7 @@ export const createPostReport = async ({
 export const getComments = (connection: Connection) => {
   const getCommentsRequest = lemmyWSClient.getComments({
     sort: CommentSortType.New,
-    limit: 10,
+    limit: 10
   });
 
   connection.send(getCommentsRequest);
@@ -90,7 +114,7 @@ export const createComment = async ({
   auth,
   postId,
   parentId,
-  content,
+  content
 }: {
   connection: Connection;
   auth: string;
@@ -104,7 +128,7 @@ export const createComment = async ({
         auth,
         content,
         post_id: postId,
-        parent_id: parentId,
+        parent_id: parentId
       });
 
       if (parentId) {
@@ -122,7 +146,7 @@ export const createCommentReport = async ({
   auth,
   id,
   reason,
-  connection,
+  connection
 }: {
   auth: string;
   id: number;
@@ -133,7 +157,7 @@ export const createCommentReport = async ({
     const createCommentReportRequest = lemmyWSClient.createCommentReport({
       auth,
       comment_id: id,
-      reason,
+      reason
     });
 
     await addCommentReport(id);

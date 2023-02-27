@@ -7,5 +7,17 @@ export const getInsecureWebsocketUrl = (instanceDomain: string) =>
 export enum Vote {
   Upvote = 1,
   Downvote = -1,
-  Neutral = 0,
+  Neutral = 0
 }
+
+export const correctVote = (vote: number): Vote => {
+  if (vote < -1) {
+    vote = Vote.Downvote;
+  }
+
+  if (vote > 1) {
+    vote = Vote.Upvote;
+  }
+
+  return vote;
+};

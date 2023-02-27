@@ -4,12 +4,13 @@ import {
   CommentView,
   GetPostsResponse,
   LoginResponse,
-  PostView,
+  PostView
 } from 'lemmy-js-client';
 import {
+  correctVote,
   getInsecureWebsocketUrl,
   getSecureWebsocketUrl,
-  Vote,
+  Vote
 } from './helpers';
 import {
   createComment,
@@ -18,7 +19,8 @@ import {
   getComments,
   getPosts,
   logIn,
-  voteDBPost,
+  voteDBComment,
+  voteDBPost
 } from './actions';
 import { GetCommentsResponse } from 'lemmy-js-client';
 import { setupDB, StoredData, useDatabaseFunctions } from './db';
@@ -49,6 +51,7 @@ type BotActions = {
   replyToPost: (post: PostView, content: string) => Promise<void>;
   reportPost: (post: PostView, reason: string) => Promise<void>;
   votePost: (post: PostView, vote: Vote) => Promise<void>;
+  voteComment: (comment: CommentView, vote: Vote) => Promise<void>;
 };
 
 const wsClient = new WebsocketClient();
@@ -72,7 +75,7 @@ export class LemmyBot {
           connection: this.#connection,
           auth: this.#auth,
           content,
-          postId: post.post.id,
+          postId: post.post.id
         });
       } else {
         console.log(
@@ -91,7 +94,7 @@ export class LemmyBot {
           auth: this.#auth,
           connection: this.#connection,
           id: post.post.id,
-          reason,
+          reason
         });
       } else {
         console.log(
@@ -102,17 +105,11 @@ export class LemmyBot {
       }
     },
     votePost: async (post, vote) => {
-      if (vote < -1) {
-        vote = Vote.Downvote;
-      }
-
-      if (vote > 1) {
-        vote = Vote.Upvote;
-      }
+      vote = correctVote(vote);
+      const prefix =
+        vote === Vote.Upvote ? 'Up' : vote === Vote.Downvote ? 'Down' : 'Un';
 
       if (this.#connection && this.#auth) {
-        const prefix =
-          vote === Vote.Upvote ? 'Up' : vote === Vote.Downvote ? 'Down' : 'Un';
         console.log(
           `${prefix}voting post ID ${post.post.id} by ${post.creator.name}`
         );
@@ -120,13 +117,13 @@ export class LemmyBot {
           connection: this.#connection,
           auth: this.#auth,
           id: post.post.id,
-          vote,
+          vote
         });
       } else {
         console.log(
           !this.#connection
-            ? 'Must be connected to upvote post'
-            : 'Must log in to upvote post'
+            ? `Must be connected to ${prefix.toLowerCase()}vote post`
+            : `Must log in to ${prefix.toLowerCase()}vote post`
         );
       }
     },
@@ -140,7 +137,7 @@ export class LemmyBot {
           auth: this.#auth,
           content,
           postId: comment.post.id,
-          parentId: comment.comment.id,
+          parentId: comment.comment.id
         });
       } else {
         console.log(
@@ -159,7 +156,7 @@ export class LemmyBot {
           auth: this.#auth,
           connection: this.#connection,
           id: comment.comment.id,
-          reason,
+          reason
         });
       } else {
         console.log(
@@ -169,6 +166,29 @@ export class LemmyBot {
         );
       }
     },
+    voteComment: async (comment, vote) => {
+      vote = correctVote(vote);
+      const prefix =
+        vote === Vote.Upvote ? 'Up' : vote === Vote.Downvote ? 'Down' : 'Un';
+
+      if (this.#connection && this.#auth) {
+        console.log(
+          `${prefix}voting comment ID ${comment.comment.id} by ${comment.creator.name}`
+        );
+        voteDBComment({
+          connection: this.#connection,
+          auth: this.#auth,
+          id: comment.comment.id,
+          vote
+        });
+      } else {
+        console.log(
+          !this.#connection
+            ? `Must be connected to ${prefix.toLowerCase()}vote comment`
+            : `Must log in to ${prefix.toLowerCase()}vote comment`
+        );
+      }
+    }
   };
 
   constructor({
@@ -180,7 +200,7 @@ export class LemmyBot {
     minutesBeforeRetryConnection = 5,
     secondsBetweenPolls = 10,
     handleConnectionFailed,
-    handlePost,
+    handlePost
   }: LemmyBotOptions) {
     this.#instanceDomain = instanceDomain;
     this.#username = username;
@@ -243,7 +263,7 @@ export class LemmyBot {
                         botActions: this.#botActions,
                         storedData: await getCommentStoredData(
                           comment.comment.id
-                        ),
+                        )
                       });
                     }
                   );
@@ -258,7 +278,7 @@ export class LemmyBot {
                     await handlePost!({
                       post,
                       botActions: this.#botActions,
-                      storedData: await getPostStoredData(post.post.id),
+                      storedData: await getPostStoredData(post.post.id)
                     });
                   });
                 }

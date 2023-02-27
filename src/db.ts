@@ -37,7 +37,7 @@ const getRow = (db: Database, id: number, table: string) =>
               ({
                 alreadyReported: false,
                 alreadyResponded: false,
-                myVote: Vote.Neutral,
+                myVote: Vote.Neutral
               } as StoredData)
           );
         }
@@ -150,7 +150,7 @@ export const useDatabaseFunctions = async (
       getCommentStoredData,
       getPostStoredData,
       setPostVote,
-      setCommentVote,
+      setCommentVote
     });
   });
 };
