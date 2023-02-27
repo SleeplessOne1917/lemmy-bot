@@ -1,7 +1,10 @@
 import { connection as Connection, client as WebsocketClient } from 'websocket';
 
-import { Login } from 'lemmy-js-client';
-import { getWebsocketUrl } from './helpers';
+import { CommentView, LoginResponse } from 'lemmy-js-client';
+import { getInsecureWebsocketUrl, getSecureWebsocketUrl } from './helpers';
+import { createComment, getComments, logIn } from './actions';
+import { GetCommentsResponse } from 'lemmy-js-client';
+import { setupDB, useDatabaseFunctions } from './db';
 
 type LemmyBotOptions = {
   username: string;
@@ -11,6 +14,11 @@ type LemmyBotOptions = {
   onConnectionError?: (e: Error) => void;
   secondsBetweenPolls?: number;
   minutesBeforeRetryConnection?: number;
+  onComment?: (options: {
+    comment: CommentView;
+    bot: LemmyBot;
+    alreadyReplied: boolean;
+  }) => void;
 };
 
 const wsClient = new WebsocketClient();
@@ -22,6 +30,8 @@ export class LemmyBot {
   #connection: Connection | undefined = undefined;
   #forcingClosed = false;
   #restartTimeout: NodeJS.Timeout | undefined = undefined;
+  #auth: string | undefined = undefined;
+  #tryInsecureWs = false;
 
   constructor({
     onConnectionFailed,
@@ -31,20 +41,28 @@ export class LemmyBot {
     password,
     minutesBeforeRetryConnection = 5,
     secondsBetweenPolls = 10,
+    onComment,
   }: LemmyBotOptions) {
     this.#instanceDomain = instanceDomain;
     this.#username = username;
     this.#password = password;
 
     wsClient.on('connectFailed', (e) => {
-      console.log('Connection Failed!');
+      if (this.#tryInsecureWs) {
+        console.log('Connection Failed!');
 
-      if (onConnectionFailed) {
-        onConnectionFailed(e);
+        this.#tryInsecureWs = false;
+
+        if (onConnectionFailed) {
+          onConnectionFailed(e);
+        }
+      } else {
+        this.#tryInsecureWs = true;
+        wsClient.connect(getInsecureWebsocketUrl(this.#instanceDomain));
       }
     });
 
-    wsClient.on('connect', (connection) => {
+    wsClient.on('connect', async (connection) => {
       console.log('Connected to Lemmy Instance');
       this.#connection = connection;
 
@@ -68,16 +86,41 @@ export class LemmyBot {
           if (response.error && response.error === 'not_logged_in') {
             console.log('Not Logged in');
             this.#login();
+          } else {
+            switch (response.op) {
+              case 'Login':
+                console.log('Logging in');
+                this.#auth = (response.data as LoginResponse).jwt;
+                break;
+              case 'GetComments':
+                const { comments } = response.data as GetCommentsResponse;
+                for (const comment of comments) {
+                  useDatabaseFunctions(async ({ repliedToComment }) => {
+                    onComment!({
+                      comment,
+                      bot: this,
+                      alreadyReplied: await repliedToComment(
+                        comment.comment.id
+                      ),
+                    });
+                  });
+                }
+                break;
+            }
           }
         }
       });
 
       const runBot = () => {
         if (connection.connected) {
+          if (onComment) {
+            getComments(connection);
+          }
+
           setTimeout(runBot, 1000 * secondsBetweenPolls);
         } else if (!this.#forcingClosed) {
           this.#restartTimeout = setTimeout(() => {
-            wsClient.connect(getWebsocketUrl(this.#instanceDomain));
+            wsClient.connect(getSecureWebsocketUrl(this.#instanceDomain));
           }, 1000 * 60 * minutesBeforeRetryConnection); // If bot can't connect, try again in the number of minutes provided
         } else {
           this.#forcingClosed = false;
@@ -87,6 +130,7 @@ export class LemmyBot {
         }
       };
 
+      await setupDB();
       this.#login();
       runBot();
     });
@@ -94,7 +138,7 @@ export class LemmyBot {
 
   start() {
     if (!this.#connection) {
-      wsClient.connect(getWebsocketUrl(this.#instanceDomain));
+      wsClient.connect(getSecureWebsocketUrl(this.#instanceDomain));
     }
   }
 
@@ -107,13 +151,28 @@ export class LemmyBot {
 
   #login() {
     if (this.#connection) {
-      console.log('Logging in');
-      const logInRequest: Login = {
-        username_or_email: this.#username,
-        password: this.#password,
-      };
+      logIn(this.#connection, this.#username, this.#password);
+    }
+  }
 
-      this.#connection.send(logInRequest);
+  replyToComment(comment: CommentView, content: string) {
+    if (this.#connection && this.#auth) {
+      console.log(
+        `Replying to comment ID ${comment.comment.id} by ${comment.creator.name}`
+      );
+      createComment({
+        connection: this.#connection,
+        auth: this.#auth,
+        content,
+        postId: comment.post.id,
+        parentId: comment.comment.id,
+      });
+    } else {
+      console.log(
+        !this.#connection
+          ? 'Must be connected to post comment'
+          : 'Must log in to post comment'
+      );
     }
   }
 }
