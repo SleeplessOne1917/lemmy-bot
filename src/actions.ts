@@ -2,6 +2,7 @@ import { CommentSortType, SortType } from 'lemmy-js-client';
 import { LemmyWebsocket } from 'lemmy-js-client';
 import { connection as Connection } from 'websocket';
 import { useDatabaseFunctions } from './db';
+import { Vote } from './helpers';
 
 const lemmyWSClient = new LemmyWebsocket();
 
@@ -16,6 +17,30 @@ export const logIn = (
   });
 
   connection.send(loginRequest);
+};
+
+export const voteDBPost = async ({
+  connection,
+  id,
+  auth,
+  vote,
+}: {
+  connection: Connection;
+  id: number;
+  auth: string;
+  vote: Vote;
+}) => {
+  await useDatabaseFunctions(async ({ setPostVote }) => {
+    const upvotePostRequest = lemmyWSClient.likePost({
+      auth,
+      post_id: id,
+      score: vote,
+    });
+
+    setPostVote(id, vote);
+
+    connection.send(upvotePostRequest);
+  });
 };
 
 export const getPosts = (connection: Connection) => {

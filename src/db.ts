@@ -1,65 +1,118 @@
 import { verbose, Database } from 'sqlite3';
 import fs from 'fs';
+import { Vote } from './helpers';
 const sqlite = verbose();
 
+const commentsTable = 'comments';
+const postsTable = 'posts';
+
 type DatabaseFunctions = {
-  repliedToPost: (id: number) => Promise<boolean>;
-  repliedToComment: (id: number) => Promise<boolean>;
+  getPostStoredData: (id: number) => Promise<StoredData>;
+  getCommentStoredData: (id: number) => Promise<StoredData>;
   addPostResponse: (id: number) => Promise<void>;
   addCommentResponse: (id: number) => Promise<void>;
-  reportedPost: (id: number) => Promise<boolean>;
-  reportedComment: (id: number) => Promise<boolean>;
   addPostReport: (id: number) => Promise<void>;
   addCommentReport: (id: number) => Promise<void>;
+  setPostVote: (id: number, vote: Vote) => Promise<void>;
+  setCommentVote: (id: number, vote: Vote) => Promise<void>;
 };
 
-const getExists = (db: Database, id: number, table: string) => {
-  return new Promise<boolean>((resolve, reject) => {
-    db.get(`SELECT * FROM ${table} WHERE id = ?;`, [id], (err, row) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(!!row);
+export type StoredData = {
+  alreadyResponded: boolean;
+  alreadyReported: boolean;
+  myVote: Vote;
+};
+
+const getRow = (db: Database, id: number, table: string) =>
+  new Promise<StoredData>((resolve, reject) => {
+    db.get(
+      `SELECT responded AS alreadyResponded, reported AS alreadyReported, vote AS myVote FROM ${table} WHERE id=?;`,
+      id,
+      (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(
+            row ??
+              ({
+                alreadyReported: false,
+                alreadyResponded: false,
+                myVote: Vote.Neutral,
+              } as StoredData)
+          );
+        }
       }
-    });
+    );
   });
-};
 
-const insertId = (db: Database, id: number, table: string) => {
-  return new Promise<void>((resolve, reject) => {
-    db.run(`INSERT OR IGNORE INTO ${table} VALUES (?);`, [id], (err) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve();
+const upsertResponded = (db: Database, id: number, table: string) =>
+  new Promise<void>((resolve, reject) => {
+    db.run(
+      `INSERT INTO ${table} (id, responded, reported, vote) VALUES (?, TRUE, FALSE, 0) ON CONFLICT (id) DO UPDATE SET responded=TRUE;`,
+      id,
+      (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
       }
-    });
+    );
   });
-};
 
-const getRepliedToPost = async (db: Database, id: number) =>
-  await getExists(db, id, 'responded_posts');
+const upsertReported = (db: Database, id: number, table: string) =>
+  new Promise<void>((resolve, reject) => {
+    db.run(
+      `INSERT INTO ${table} (id, responded, reported, vote) VALUES (?, FALSE, TRUE, 0) ON CONFLICT (id) DO UPDATE SET reported=TRUE;`,
+      id,
+      (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      }
+    );
+  });
 
-const getRepliedToComment = async (db: Database, id: number) =>
-  await getExists(db, id, 'responded_comments');
+const upsertVote = (db: Database, id: number, table: string, vote: Vote) =>
+  new Promise<void>((resolve, reject) => {
+    db.run(
+      `INSERT INTO ${table} (id, responded, reported, vote) VALUES ($id, FALSE, FALSE, $vote) ON CONFLICT (id) DO UPDATE SET vote = $vote;`,
+      { $id: id, $vote: vote },
+      (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      }
+    );
+  });
 
-const insertRespondedPostId = async (db: Database, id: number) =>
-  await insertId(db, id, 'responded_posts');
+const getPostRow = async (db: Database, id: number) =>
+  await getRow(db, id, postsTable);
 
-const insertRespondedCommentId = async (db: Database, id: number) =>
-  await insertId(db, id, 'responded_comments');
+const getCommentRow = async (db: Database, id: number) =>
+  await getRow(db, id, commentsTable);
 
-const getReportedComment = async (db: Database, id: number) =>
-  await getExists(db, id, 'reported_comments');
+const upsertRespondedPostId = async (db: Database, id: number) =>
+  await upsertResponded(db, id, postsTable);
 
-const getReportedPost = async (db: Database, id: number) =>
-  await getExists(db, id, 'reported_posts');
+const upsertRespondedCommentId = async (db: Database, id: number) =>
+  await upsertResponded(db, id, commentsTable);
 
-const insertReportedCommentId = async (db: Database, id: number) =>
-  await insertId(db, id, 'reported_comments');
+const upsertReportedCommentId = async (db: Database, id: number) =>
+  await upsertReported(db, id, commentsTable);
 
-const insertReportedPostId = async (db: Database, id: number) =>
-  await insertId(db, id, 'reported_posts');
+const upsertReportedPostId = async (db: Database, id: number) =>
+  await upsertReported(db, id, postsTable);
+
+const upsertVotePost = async (db: Database, id: number, vote: Vote) =>
+  await upsertVote(db, id, postsTable, vote);
+
+const upsertVoteComment = async (db: Database, id: number, vote: Vote) =>
+  await upsertVote(db, id, commentsTable, vote);
 
 const useDatabase = async (doStuffWithDB: (db: Database) => Promise<void>) => {
   const db = new sqlite.Database('./db.sqlite3');
@@ -73,32 +126,41 @@ export const useDatabaseFunctions = async (
   doStuff: (funcs: DatabaseFunctions) => Promise<void>
 ) => {
   await useDatabase(async (db) => {
-    const repliedToPost = async (id: number) => await getRepliedToPost(db, id);
-    const repliedToComment = async (id: number) =>
-      await getRepliedToComment(db, id);
+    const getPostStoredData = async (id: number) => await getPostRow(db, id);
+    const getCommentStoredData = async (id: number) =>
+      await getCommentRow(db, id);
     const addPostResponse = async (id: number) =>
-      await insertRespondedPostId(db, id);
+      await upsertRespondedPostId(db, id);
     const addCommentResponse = async (id: number) =>
-      await insertRespondedCommentId(db, id);
-    const reportedPost = async (id: number) => await getReportedPost(db, id);
-    const reportedComment = async (id: number) =>
-      await getReportedComment(db, id);
+      await upsertRespondedCommentId(db, id);
     const addPostReport = async (id: number) =>
-      await insertReportedPostId(db, id);
+      await upsertReportedPostId(db, id);
     const addCommentReport = async (id: number) =>
-      await insertReportedCommentId(db, id);
+      await upsertReportedCommentId(db, id);
+    const setPostVote = async (id: number, vote: Vote) =>
+      await upsertVotePost(db, id, vote);
+    const setCommentVote = async (id: number, vote: Vote) =>
+      await upsertVoteComment(db, id, vote);
 
     await doStuff({
-      repliedToComment,
-      repliedToPost,
       addCommentResponse,
       addPostResponse,
-      reportedComment,
-      reportedPost,
       addCommentReport,
       addPostReport,
+      getCommentStoredData,
+      getPostStoredData,
+      setPostVote,
+      setCommentVote,
     });
   });
+};
+
+const createTable = (db: Database, table: string) => {
+  db.run(
+    `CREATE TABLE IF NOT EXISTS ${table} (id INTEGER PRIMARY KEY, responded INTEGER, reported INTEGER, vote INTEGER) WITHOUT ROWID;`
+  );
+
+  db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_${table}_id ON ${table} (id);`);
 };
 
 export const setupDB = async () => {
@@ -116,33 +178,8 @@ export const setupDB = async () => {
   await useDatabase(async (db) => {
     db.serialize(() => {
       console.log('Initializing DB');
-      db.run(
-        'CREATE TABLE IF NOT EXISTS responded_comments (id INTEGER PRIMARY KEY) WITHOUT ROWID;'
-      );
-      db.run(
-        'CREATE TABLE IF NOT EXISTS responded_posts (id INTEGER PRIMARY KEY) WITHOUT ROWID;'
-      );
-
-      db.run(
-        'CREATE UNIQUE INDEX IF NOT EXISTS idx_responded_comment_id ON responded_comments (id);'
-      );
-      db.run(
-        'CREATE UNIQUE INDEX IF NOT EXISTS idx_responded_post_id ON responded_posts (id);'
-      );
-
-      db.run(
-        'CREATE TABLE IF NOT EXISTS reported_comments (id INTEGER PRIMARY KEY) WITHOUT ROWID;'
-      );
-      db.run(
-        'CREATE TABLE IF NOT EXISTS reported_posts (id INTEGER PRIMARY KEY) WITHOUT ROWID;'
-      );
-
-      db.run(
-        'CREATE UNIQUE INDEX IF NOT EXISTS idx_reported_comment_id ON reported_comments (id);'
-      );
-      db.run(
-        'CREATE UNIQUE INDEX IF NOT EXISTS idx_reported_post_id ON reported_posts (id);'
-      );
+      createTable(db, postsTable);
+      createTable(db, commentsTable);
     });
   });
 };

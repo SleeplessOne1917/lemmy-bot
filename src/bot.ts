@@ -6,7 +6,11 @@ import {
   LoginResponse,
   PostView,
 } from 'lemmy-js-client';
-import { getInsecureWebsocketUrl, getSecureWebsocketUrl } from './helpers';
+import {
+  getInsecureWebsocketUrl,
+  getSecureWebsocketUrl,
+  Vote,
+} from './helpers';
 import {
   createComment,
   createCommentReport,
@@ -14,9 +18,10 @@ import {
   getComments,
   getPosts,
   logIn,
+  voteDBPost,
 } from './actions';
 import { GetCommentsResponse } from 'lemmy-js-client';
-import { setupDB, useDatabaseFunctions } from './db';
+import { setupDB, StoredData, useDatabaseFunctions } from './db';
 
 type LemmyBotOptions = {
   username: string;
@@ -29,14 +34,12 @@ type LemmyBotOptions = {
   handleComment?: (options: {
     comment: CommentView;
     botActions: BotActions;
-    alreadyReplied: boolean;
-    alreadyReported: boolean;
+    storedData: StoredData;
   }) => Promise<void>;
   handlePost?: (options: {
     post: PostView;
     botActions: BotActions;
-    alreadyReplied: boolean;
-    alreadyReported: boolean;
+    storedData: StoredData;
   }) => Promise<void>;
 };
 
@@ -45,6 +48,7 @@ type BotActions = {
   reportComment: (comment: CommentView, reason: string) => Promise<void>;
   replyToPost: (post: PostView, content: string) => Promise<void>;
   reportPost: (post: PostView, reason: string) => Promise<void>;
+  votePost: (post: PostView, vote: Vote) => Promise<void>;
 };
 
 const wsClient = new WebsocketClient();
@@ -94,6 +98,35 @@ export class LemmyBot {
           !this.#connection
             ? 'Must be connected to report post'
             : 'Must log in to report post'
+        );
+      }
+    },
+    votePost: async (post, vote) => {
+      if (vote < -1) {
+        vote = Vote.Downvote;
+      }
+
+      if (vote > 1) {
+        vote = Vote.Upvote;
+      }
+
+      if (this.#connection && this.#auth) {
+        const prefix =
+          vote === Vote.Upvote ? 'Up' : vote === Vote.Downvote ? 'Down' : 'Un';
+        console.log(
+          `${prefix}voting post ID ${post.post.id} by ${post.creator.name}`
+        );
+        voteDBPost({
+          connection: this.#connection,
+          auth: this.#auth,
+          id: post.post.id,
+          vote,
+        });
+      } else {
+        console.log(
+          !this.#connection
+            ? 'Must be connected to upvote post'
+            : 'Must log in to upvote post'
         );
       }
     },
@@ -203,14 +236,12 @@ export class LemmyBot {
                 const { comments } = response.data as GetCommentsResponse;
                 for (const comment of comments) {
                   await useDatabaseFunctions(
-                    async ({ repliedToComment, reportedComment }) => {
+                    async ({ getCommentStoredData }) => {
+                      comment.my_vote = comment.my_vote ?? Vote.Neutral;
                       await handleComment!({
                         comment,
                         botActions: this.#botActions,
-                        alreadyReplied: await repliedToComment(
-                          comment.comment.id
-                        ),
-                        alreadyReported: await reportedComment(
+                        storedData: await getCommentStoredData(
                           comment.comment.id
                         ),
                       });
@@ -222,16 +253,14 @@ export class LemmyBot {
               case 'GetPosts':
                 const { posts } = response.data as GetPostsResponse;
                 for (const post of posts) {
-                  await useDatabaseFunctions(
-                    async ({ repliedToPost, reportedPost }) => {
-                      await handlePost!({
-                        post,
-                        botActions: this.#botActions,
-                        alreadyReplied: await repliedToPost(post.post.id),
-                        alreadyReported: await reportedPost(post.post.id),
-                      });
-                    }
-                  );
+                  await useDatabaseFunctions(async ({ getPostStoredData }) => {
+                    post.my_vote = post.my_vote ?? Vote.Neutral;
+                    await handlePost!({
+                      post,
+                      botActions: this.#botActions,
+                      storedData: await getPostStoredData(post.post.id),
+                    });
+                  });
                 }
                 break;
             }
