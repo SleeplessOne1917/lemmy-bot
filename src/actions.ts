@@ -6,17 +6,36 @@ import { Vote } from './helpers';
 
 const lemmyWSClient = new LemmyWebsocket();
 
-export const logIn = (
-  connection: Connection,
-  username: string,
-  password: string
-) => {
+export const logIn = ({
+  connection,
+  username,
+  password
+}: {
+  connection: Connection;
+  username: string;
+  password: string;
+}) => {
   const loginRequest = lemmyWSClient.login({
     username_or_email: username,
     password
   });
 
   connection.send(loginRequest);
+};
+
+export const enableBotAccount = ({
+  connection,
+  auth
+}: {
+  connection: Connection;
+  auth: string;
+}) => {
+  const enableBotAccountRequest = lemmyWSClient.saveUserSettings({
+    auth,
+    bot_account: true
+  });
+
+  connection.send(enableBotAccountRequest);
 };
 
 export const voteDBPost = async ({

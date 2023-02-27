@@ -16,6 +16,7 @@ import {
   createComment,
   createCommentReport,
   createPostReport,
+  enableBotAccount,
   getComments,
   getPosts,
   logIn,
@@ -250,6 +251,10 @@ export class LemmyBot {
               case 'Login': {
                 console.log('Logging in');
                 this.#auth = (response.data as LoginResponse).jwt;
+                if (this.#auth) {
+                  console.log('Marking account as bot account');
+                  enableBotAccount({ connection, auth: this.#auth });
+                }
                 break;
               }
               case 'GetComments': {
@@ -333,7 +338,11 @@ export class LemmyBot {
 
   #login() {
     if (this.#connection) {
-      logIn(this.#connection, this.#username, this.#password);
+      logIn({
+        connection: this.#connection,
+        username: this.#username,
+        password: this.#password
+      });
     }
   }
 }
