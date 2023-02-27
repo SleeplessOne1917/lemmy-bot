@@ -1,11 +1,17 @@
 import { connection as Connection, client as WebsocketClient } from 'websocket';
 
-import { CommentView, LoginResponse } from 'lemmy-js-client';
+import {
+  CommentView,
+  GetPostsResponse,
+  LoginResponse,
+  PostView,
+} from 'lemmy-js-client';
 import { getInsecureWebsocketUrl, getSecureWebsocketUrl } from './helpers';
 import {
   createComment,
   createCommentReport,
   getComments,
+  getPosts,
   logIn,
 } from './actions';
 import { GetCommentsResponse } from 'lemmy-js-client';
@@ -15,12 +21,18 @@ type LemmyBotOptions = {
   username: string;
   password: string;
   instanceDomain: string;
-  onConnectionFailed?: (e: Error) => void;
-  onConnectionError?: (e: Error) => void;
+  handleConnectionFailed?: (e: Error) => void;
+  handleConnectionError?: (e: Error) => void;
   secondsBetweenPolls?: number;
   minutesBeforeRetryConnection?: number;
-  onComment?: (options: {
+  handleComment?: (options: {
     comment: CommentView;
+    botActions: BotActions;
+    alreadyReplied: boolean;
+    alreadyReported: boolean;
+  }) => void;
+  handlePost?: (options: {
+    post: PostView;
     botActions: BotActions;
     alreadyReplied: boolean;
     alreadyReported: boolean;
@@ -30,6 +42,7 @@ type LemmyBotOptions = {
 type BotActions = {
   replyToComment: (comment: CommentView, content: string) => void;
   reportComment: (comment: CommentView, reason: string) => void;
+  replyToPost: (post: PostView, content: string) => void;
 };
 
 const wsClient = new WebsocketClient();
@@ -44,6 +57,25 @@ export class LemmyBot {
   #auth: string | undefined = undefined;
   #tryInsecureWs = false;
   #botActions = {
+    replyToPost: (post: PostView, content: string) => {
+      if (this.#connection && this.#auth) {
+        console.log(
+          `Replying to post ID ${post.post.id} by ${post.creator.name}`
+        );
+        createComment({
+          connection: this.#connection,
+          auth: this.#auth,
+          content,
+          postId: post.post.id,
+        });
+      } else {
+        console.log(
+          !this.#connection
+            ? 'Must be connected to post comment'
+            : 'Must log in to post comment'
+        );
+      }
+    },
     replyToComment: (comment: CommentView, content: string) => {
       if (this.#connection && this.#auth) {
         console.log(
@@ -86,14 +118,15 @@ export class LemmyBot {
   };
 
   constructor({
-    onConnectionFailed,
-    onConnectionError,
+    handleComment,
+    handleConnectionError,
     instanceDomain,
     username,
     password,
     minutesBeforeRetryConnection = 5,
     secondsBetweenPolls = 10,
-    onComment,
+    handleConnectionFailed,
+    handlePost,
   }: LemmyBotOptions) {
     this.#instanceDomain = instanceDomain;
     this.#username = username;
@@ -105,8 +138,8 @@ export class LemmyBot {
 
         this.#tryInsecureWs = false;
 
-        if (onConnectionFailed) {
-          onConnectionFailed(e);
+        if (handleConnectionFailed) {
+          handleConnectionFailed(e);
         }
       } else {
         this.#tryInsecureWs = true;
@@ -122,8 +155,8 @@ export class LemmyBot {
         console.log('Connection error');
         console.log(`Error was: ${error.message}`);
 
-        if (onConnectionError) {
-          onConnectionError(error);
+        if (handleConnectionError) {
+          handleConnectionError(error);
         }
       });
 
@@ -147,9 +180,9 @@ export class LemmyBot {
               case 'GetComments':
                 const { comments } = response.data as GetCommentsResponse;
                 for (const comment of comments) {
-                  useDatabaseFunctions(
+                  await useDatabaseFunctions(
                     async ({ repliedToComment, reportedComment }) => {
-                      onComment!({
+                      handleComment!({
                         comment,
                         botActions: this.#botActions,
                         alreadyReplied: await repliedToComment(
@@ -163,6 +196,20 @@ export class LemmyBot {
                   );
                 }
                 break;
+              case 'GetPosts':
+                const { posts } = response.data as GetPostsResponse;
+                for (const post of posts) {
+                  await useDatabaseFunctions(
+                    async ({ repliedToPost, reportedPost }) => {
+                      handlePost!({
+                        post,
+                        botActions: this.#botActions,
+                        alreadyReplied: await repliedToPost(post.post.id),
+                        alreadyReported: await reportedPost(post.post.id),
+                      });
+                    }
+                  );
+                }
             }
           }
         }
@@ -170,8 +217,12 @@ export class LemmyBot {
 
       const runBot = () => {
         if (connection.connected) {
-          if (onComment) {
+          if (handleComment) {
             getComments(connection);
+          }
+
+          if (handlePost) {
+            getPosts(connection);
           }
 
           setTimeout(runBot, 1000 * secondsBetweenPolls);

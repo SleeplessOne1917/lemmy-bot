@@ -1,4 +1,4 @@
-import { CommentSortType } from 'lemmy-js-client';
+import { CommentSortType, SortType } from 'lemmy-js-client';
 import { LemmyWebsocket } from 'lemmy-js-client';
 import { connection as Connection } from 'websocket';
 import { useDatabaseFunctions } from './db';
@@ -16,6 +16,15 @@ export const logIn = (
   });
 
   connection.send(loginRequest);
+};
+
+export const getPosts = (connection: Connection) => {
+  const getPostsRequest = lemmyWSClient.getPosts({
+    sort: SortType.New,
+    limit: 10,
+  });
+
+  connection.send(getPostsRequest);
 };
 
 export const getComments = (connection: Connection) => {
