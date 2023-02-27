@@ -2,7 +2,12 @@ import { connection as Connection, client as WebsocketClient } from 'websocket';
 
 import { CommentView, LoginResponse } from 'lemmy-js-client';
 import { getInsecureWebsocketUrl, getSecureWebsocketUrl } from './helpers';
-import { createComment, getComments, logIn } from './actions';
+import {
+  createComment,
+  createCommentReport,
+  getComments,
+  logIn,
+} from './actions';
 import { GetCommentsResponse } from 'lemmy-js-client';
 import { setupDB, useDatabaseFunctions } from './db';
 
@@ -18,6 +23,7 @@ type LemmyBotOptions = {
     comment: CommentView;
     bot: LemmyBot;
     alreadyReplied: boolean;
+    alreadyReported: boolean;
   }) => void;
 };
 
@@ -95,15 +101,20 @@ export class LemmyBot {
               case 'GetComments':
                 const { comments } = response.data as GetCommentsResponse;
                 for (const comment of comments) {
-                  useDatabaseFunctions(async ({ repliedToComment }) => {
-                    onComment!({
-                      comment,
-                      bot: this,
-                      alreadyReplied: await repliedToComment(
-                        comment.comment.id
-                      ),
-                    });
-                  });
+                  useDatabaseFunctions(
+                    async ({ repliedToComment, reportedComment }) => {
+                      onComment!({
+                        comment,
+                        bot: this,
+                        alreadyReplied: await repliedToComment(
+                          comment.comment.id
+                        ),
+                        alreadyReported: await reportedComment(
+                          comment.comment.id
+                        ),
+                      });
+                    }
+                  );
                 }
                 break;
             }
@@ -172,6 +183,26 @@ export class LemmyBot {
         !this.#connection
           ? 'Must be connected to post comment'
           : 'Must log in to post comment'
+      );
+    }
+  }
+
+  reportComment(comment: CommentView, reason: string) {
+    if (this.#connection && this.#auth) {
+      console.log(
+        `Reporting to comment ID ${comment.comment.id} by ${comment.creator.name} for ${reason}`
+      );
+      createCommentReport({
+        auth: this.#auth,
+        connection: this.#connection,
+        id: comment.comment.id,
+        reason,
+      });
+    } else {
+      console.log(
+        !this.#connection
+          ? 'Must be connected to report comment'
+          : 'Must log in to report comment'
       );
     }
   }

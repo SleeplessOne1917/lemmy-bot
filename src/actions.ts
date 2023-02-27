@@ -40,7 +40,7 @@ export const createComment = ({
   parentId?: number;
   content: string;
 }) => {
-  useDatabaseFunctions(async ({ addComment, addPost }) => {
+  useDatabaseFunctions(async ({ addCommentResponse, addPostResponse }) => {
     const createCommentRequest = lemmyWSClient.createComment({
       auth,
       content,
@@ -49,11 +49,35 @@ export const createComment = ({
     });
 
     if (parentId) {
-      await addComment(parentId);
+      await addCommentResponse(parentId);
     } else {
-      await addPost(postId);
+      await addPostResponse(postId);
     }
 
     connection.send(createCommentRequest);
+  });
+};
+
+export const createCommentReport = async ({
+  auth,
+  id,
+  reason,
+  connection,
+}: {
+  auth: string;
+  id: number;
+  reason: string;
+  connection: Connection;
+}) => {
+  await useDatabaseFunctions(async ({ addCommentReport }) => {
+    const createCommentReportRequest = lemmyWSClient.createCommentReport({
+      auth,
+      comment_id: id,
+      reason,
+    });
+
+    await addCommentReport(id);
+
+    connection.send(createCommentReportRequest);
   });
 };
