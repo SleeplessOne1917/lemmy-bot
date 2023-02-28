@@ -6,12 +6,14 @@ import {
   LoginResponse,
   PostView,
   PrivateMessagesResponse,
-  PrivateMessageView
+  PrivateMessageView,
+  GetCommentsResponse
 } from 'lemmy-js-client';
 import {
   correctVote,
   getInsecureWebsocketUrl,
   getSecureWebsocketUrl,
+  shouldProcess,
   Vote
 } from './helpers';
 import {
@@ -31,10 +33,21 @@ import {
   voteDBComment,
   voteDBPost
 } from './actions';
-import { GetCommentsResponse } from 'lemmy-js-client';
-import { setupDB, StoredData, useDatabaseFunctions } from './db';
+import { setupDB, useDatabaseFunctions } from './db';
 
 const DEFAULT_POLLING_SECONDS = 10;
+
+type Handler<T> = (
+  options: {
+    botActions: BotActions;
+  } & T
+) => void;
+
+type HandlerOptions<T> = {
+  handle: Handler<T>;
+  secondsBetweenPolls?: number;
+  minutesUntilReprocess?: number;
+};
 
 type LemmyBotOptions = {
   username: string;
@@ -43,38 +56,20 @@ type LemmyBotOptions = {
   handleConnectionFailed?: (e: Error) => void;
   handleConnectionError?: (e: Error) => void;
   minutesBeforeRetryConnection?: number;
-  commentInfo?: {
-    handleComment: (options: {
-      comment: CommentView;
-      botActions: BotActions;
-      storedData: StoredData;
-    }) => Promise<void>;
-    secondsBetweenPolls?: number;
-  };
-  postInfo?: {
-    handlePost: (options: {
-      post: PostView;
-      botActions: BotActions;
-      storedData: StoredData;
-    }) => Promise<void>;
-    secondsBetweenPolls?: number;
-  };
-  privateMessageInfo?: {
-    handlePrivateMessage: (options: {
-      message: PrivateMessageView;
-      botActions: BotActions;
-    }) => void;
-    secondsBetweenPolls?: number;
+  handlerOptions?: {
+    comment?: HandlerOptions<{ comment: CommentView }>;
+    post?: HandlerOptions<{ post: PostView }>;
+    privateMessage?: HandlerOptions<{ message: PrivateMessageView }>;
   };
 };
 
 type BotActions = {
-  replyToComment: (comment: CommentView, content: string) => Promise<void>;
-  reportComment: (comment: CommentView, reason: string) => Promise<void>;
-  replyToPost: (post: PostView, content: string) => Promise<void>;
-  reportPost: (post: PostView, reason: string) => Promise<void>;
-  votePost: (post: PostView, vote: Vote) => Promise<void>;
-  voteComment: (comment: CommentView, vote: Vote) => Promise<void>;
+  replyToComment: (comment: CommentView, content: string) => void;
+  reportComment: (comment: CommentView, reason: string) => void;
+  replyToPost: (post: PostView, content: string) => void;
+  reportPost: (post: PostView, reason: string) => void;
+  votePost: (post: PostView, vote: Vote) => void;
+  voteComment: (comment: CommentView, vote: Vote) => void;
   banFromCommunity: (options: {
     communityId: number;
     personId: number;
@@ -104,12 +99,12 @@ export class LemmyBot {
   #auth: string | undefined = undefined;
   #tryInsecureWs = false;
   #botActions: BotActions = {
-    replyToPost: async (post, content) => {
+    replyToPost: (post, content) => {
       if (this.#connection && this.#auth) {
         console.log(
           `Replying to post ID ${post.post.id} by ${post.creator.name}`
         );
-        await createComment({
+        createComment({
           connection: this.#connection,
           auth: this.#auth,
           content,
@@ -123,12 +118,12 @@ export class LemmyBot {
         );
       }
     },
-    reportPost: async (post, reason) => {
+    reportPost: (post, reason) => {
       if (this.#connection && this.#auth) {
         console.log(
           `Reporting to post ID ${post.post.id} by ${post.creator.name} for ${reason}`
         );
-        await createPostReport({
+        createPostReport({
           auth: this.#auth,
           connection: this.#connection,
           id: post.post.id,
@@ -142,7 +137,7 @@ export class LemmyBot {
         );
       }
     },
-    votePost: async (post, vote) => {
+    votePost: (post, vote) => {
       vote = correctVote(vote);
       const prefix =
         vote === Vote.Upvote ? 'Up' : vote === Vote.Downvote ? 'Down' : 'Un';
@@ -165,12 +160,12 @@ export class LemmyBot {
         );
       }
     },
-    replyToComment: async (comment: CommentView, content: string) => {
+    replyToComment: (comment: CommentView, content: string) => {
       if (this.#connection && this.#auth) {
         console.log(
           `Replying to comment ID ${comment.comment.id} by ${comment.creator.name}`
         );
-        await createComment({
+        createComment({
           connection: this.#connection,
           auth: this.#auth,
           content,
@@ -185,12 +180,12 @@ export class LemmyBot {
         );
       }
     },
-    reportComment: async (comment, reason) => {
+    reportComment: (comment, reason) => {
       if (this.#connection && this.#auth) {
         console.log(
           `Reporting to comment ID ${comment.comment.id} by ${comment.creator.name} for ${reason}`
         );
-        await createCommentReport({
+        createCommentReport({
           auth: this.#auth,
           connection: this.#connection,
           id: comment.comment.id,
@@ -204,7 +199,7 @@ export class LemmyBot {
         );
       }
     },
-    voteComment: async (comment, vote) => {
+    voteComment: (comment, vote) => {
       vote = correctVote(vote);
       const prefix =
         vote === Vote.Upvote ? 'Up' : vote === Vote.Downvote ? 'Down' : 'Un';
@@ -298,19 +293,23 @@ export class LemmyBot {
   };
 
   constructor({
-    commentInfo,
     handleConnectionError,
     instanceDomain,
     username,
     password,
     minutesBeforeRetryConnection = 5,
     handleConnectionFailed,
-    postInfo,
-    privateMessageInfo
+    handlerOptions
   }: LemmyBotOptions) {
     this.#instanceDomain = instanceDomain;
     this.#username = username;
     this.#password = password;
+
+    const {
+      comment: commentOptions,
+      post: postOptions,
+      privateMessage: privateMessageOptions
+    } = handlerOptions ?? {};
 
     client.on('connectFailed', (e) => {
       if (this.#tryInsecureWs) {
@@ -366,15 +365,23 @@ export class LemmyBot {
                 const { comments } = response.data as GetCommentsResponse;
                 for (const comment of comments) {
                   await useDatabaseFunctions(
-                    async ({ getCommentStoredData }) => {
-                      comment.my_vote = comment.my_vote ?? Vote.Neutral;
-                      await commentInfo!.handleComment({
-                        comment,
-                        botActions: this.#botActions,
-                        storedData: await getCommentStoredData(
-                          comment.comment.id
-                        )
-                      });
+                    async ({ getCommentStorageInfo, upsertComment }) => {
+                      const storageInfo = await getCommentStorageInfo(
+                        comment.comment.id
+                      );
+
+                      if (shouldProcess(storageInfo)) {
+                        comment.my_vote = comment.my_vote ?? Vote.Neutral;
+                        await commentOptions!.handle({
+                          comment,
+                          botActions: this.#botActions
+                        });
+
+                        upsertComment(
+                          comment.comment.id,
+                          commentOptions?.minutesUntilReprocess
+                        );
+                      }
                     }
                   );
                 }
@@ -383,14 +390,26 @@ export class LemmyBot {
               case 'GetPosts': {
                 const { posts } = response.data as GetPostsResponse;
                 for (const post of posts) {
-                  await useDatabaseFunctions(async ({ getPostStoredData }) => {
-                    post.my_vote = post.my_vote ?? Vote.Neutral;
-                    await postInfo!.handlePost({
-                      post,
-                      botActions: this.#botActions,
-                      storedData: await getPostStoredData(post.post.id)
-                    });
-                  });
+                  await useDatabaseFunctions(
+                    async ({ getPostStorageInfo, upsertPost }) => {
+                      post.my_vote = post.my_vote ?? Vote.Neutral;
+                      const storageInfo = await getPostStorageInfo(
+                        post.post.id
+                      );
+
+                      if (shouldProcess(storageInfo)) {
+                        await postOptions!.handle({
+                          post,
+                          botActions: this.#botActions
+                        });
+
+                        upsertPost(
+                          post.post.id,
+                          postOptions?.minutesUntilReprocess
+                        );
+                      }
+                    }
+                  );
                 }
                 break;
               }
@@ -398,10 +417,24 @@ export class LemmyBot {
                 const { private_messages } =
                   response.data as PrivateMessagesResponse;
                 for (const message of private_messages) {
-                  privateMessageInfo!.handlePrivateMessage!({
-                    botActions: this.#botActions,
-                    message
-                  });
+                  await useDatabaseFunctions(
+                    async ({ getMessageStorageInfo, upsertMessage }) => {
+                      const storageInfo = await getMessageStorageInfo(
+                        message.private_message.id
+                      );
+                      if (shouldProcess(storageInfo)) {
+                        await privateMessageOptions!.handle!({
+                          botActions: this.#botActions,
+                          message
+                        });
+
+                        upsertMessage(
+                          message.private_message.id,
+                          privateMessageOptions?.minutesUntilReprocess
+                        );
+                      }
+                    }
+                  );
 
                   if (this.#connection && this.#auth) {
                     markPrivateMessageAsRead({
@@ -457,25 +490,25 @@ export class LemmyBot {
         await setupDB();
         this.#login();
 
-        if (postInfo) {
+        if (postOptions) {
           runChecker(
             getPosts,
-            postInfo.secondsBetweenPolls ?? DEFAULT_POLLING_SECONDS
+            postOptions.secondsBetweenPolls ?? DEFAULT_POLLING_SECONDS
           );
         }
 
-        if (commentInfo) {
+        if (commentOptions) {
           runChecker(
             getComments,
-            commentInfo.secondsBetweenPolls ?? DEFAULT_POLLING_SECONDS
+            commentOptions.secondsBetweenPolls ?? DEFAULT_POLLING_SECONDS
           );
         }
 
-        if (privateMessageInfo) {
+        if (privateMessageOptions) {
           runChecker(
             (conn) =>
               getPrivateMessages({ connection: conn, auth: this.#auth ?? '' }),
-            privateMessageInfo.secondsBetweenPolls ?? DEFAULT_POLLING_SECONDS
+            privateMessageOptions.secondsBetweenPolls ?? DEFAULT_POLLING_SECONDS
           );
         }
       };

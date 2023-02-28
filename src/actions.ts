@@ -1,7 +1,6 @@
 import { CommentSortType, SortType } from 'lemmy-js-client';
 import { LemmyWebsocket } from 'lemmy-js-client';
 import { connection as Connection } from 'websocket';
-import { useDatabaseFunctions } from './db';
 import { futureDaysToUnixTime, Vote } from './helpers';
 
 const client = new LemmyWebsocket();
@@ -38,7 +37,7 @@ export const enableBotAccount = ({
   connection.send(request);
 };
 
-export const voteDBPost = async ({
+export const voteDBPost = ({
   connection,
   id,
   auth,
@@ -49,20 +48,16 @@ export const voteDBPost = async ({
   auth: string;
   vote: Vote;
 }) => {
-  await useDatabaseFunctions(async ({ setPostVote }) => {
-    const request = client.likePost({
-      auth,
-      post_id: id,
-      score: vote
-    });
-
-    setPostVote(id, vote);
-
-    connection.send(request);
+  const request = client.likePost({
+    auth,
+    post_id: id,
+    score: vote
   });
+
+  connection.send(request);
 };
 
-export const voteDBComment = async ({
+export const voteDBComment = ({
   connection,
   id,
   auth,
@@ -73,17 +68,13 @@ export const voteDBComment = async ({
   auth: string;
   vote: Vote;
 }) => {
-  await useDatabaseFunctions(async ({ setCommentVote }) => {
-    const request = client.likeComment({
-      auth,
-      comment_id: id,
-      score: vote
-    });
-
-    setCommentVote(id, vote);
-
-    connection.send(request);
+  const request = client.likeComment({
+    auth,
+    comment_id: id,
+    score: vote
   });
+
+  connection.send(request);
 };
 
 export const getPosts = (connection: Connection) => {
@@ -95,7 +86,7 @@ export const getPosts = (connection: Connection) => {
   connection.send(request);
 };
 
-export const createPostReport = async ({
+export const createPostReport = ({
   connection,
   auth,
   id,
@@ -106,17 +97,13 @@ export const createPostReport = async ({
   id: number;
   reason: string;
 }) => {
-  await useDatabaseFunctions(async ({ addPostReport }) => {
-    const request = client.createPostReport({
-      auth,
-      post_id: id,
-      reason
-    });
-
-    await addPostReport(id);
-
-    connection.send(request);
+  const request = client.createPostReport({
+    auth,
+    post_id: id,
+    reason
   });
+
+  connection.send(request);
 };
 
 export const getComments = (connection: Connection) => {
@@ -128,7 +115,7 @@ export const getComments = (connection: Connection) => {
   connection.send(request);
 };
 
-export const createComment = async ({
+export const createComment = ({
   connection,
   auth,
   postId,
@@ -141,27 +128,17 @@ export const createComment = async ({
   parentId?: number;
   content: string;
 }) => {
-  await useDatabaseFunctions(
-    async ({ addCommentResponse, addPostResponse }) => {
-      const request = client.createComment({
-        auth,
-        content,
-        post_id: postId,
-        parent_id: parentId
-      });
+  const request = client.createComment({
+    auth,
+    content,
+    post_id: postId,
+    parent_id: parentId
+  });
 
-      if (parentId) {
-        await addCommentResponse(parentId);
-      } else {
-        await addPostResponse(postId);
-      }
-
-      connection.send(request);
-    }
-  );
+  connection.send(request);
 };
 
-export const createCommentReport = async ({
+export const createCommentReport = ({
   auth,
   id,
   reason,
@@ -172,17 +149,13 @@ export const createCommentReport = async ({
   reason: string;
   connection: Connection;
 }) => {
-  await useDatabaseFunctions(async ({ addCommentReport }) => {
-    const request = client.createCommentReport({
-      auth,
-      comment_id: id,
-      reason
-    });
-
-    await addCommentReport(id);
-
-    connection.send(request);
+  const request = client.createCommentReport({
+    auth,
+    comment_id: id,
+    reason
   });
+
+  connection.send(request);
 };
 
 export const createBanFromCommunity = ({
