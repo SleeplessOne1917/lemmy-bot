@@ -241,3 +241,37 @@ export const createBanFromSite = ({
 
   connection.send(request);
 };
+
+export const getPrivateMessages = ({
+  auth,
+  connection
+}: {
+  connection: Connection;
+  auth: string;
+}) => {
+  const request = lemmyWSClient.getPrivateMessages({
+    auth,
+    limit: 50,
+    unread_only: true
+  });
+
+  connection.send(request);
+};
+
+export const markPrivateMessageAsRead = ({
+  auth,
+  connection,
+  id
+}: {
+  connection: Connection;
+  auth: string;
+  id: number;
+}) => {
+  const request = lemmyWSClient.markPrivateMessageAsRead({
+    auth,
+    private_message_id: id,
+    read: true
+  });
+
+  connection.send(request);
+};

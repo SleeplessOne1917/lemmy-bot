@@ -4,7 +4,9 @@ import {
   CommentView,
   GetPostsResponse,
   LoginResponse,
-  PostView
+  PostView,
+  PrivateMessagesResponse,
+  PrivateMessageView
 } from 'lemmy-js-client';
 import {
   correctVote,
@@ -21,7 +23,9 @@ import {
   enableBotAccount,
   getComments,
   getPosts,
+  getPrivateMessages,
   logIn,
+  markPrivateMessageAsRead,
   voteDBComment,
   voteDBPost
 } from './actions';
@@ -46,6 +50,10 @@ type LemmyBotOptions = {
     botActions: BotActions;
     storedData: StoredData;
   }) => Promise<void>;
+  handlePrivateMessage?: (options: {
+    message: PrivateMessageView;
+    botActions: BotActions;
+  }) => void;
 };
 
 type BotActions = {
@@ -252,7 +260,8 @@ export class LemmyBot {
     minutesBeforeRetryConnection = 5,
     secondsBetweenPolls = 10,
     handleConnectionFailed,
-    handlePost
+    handlePost,
+    handlePrivateMessage
   }: LemmyBotOptions) {
     this.#instanceDomain = instanceDomain;
     this.#username = username;
@@ -340,6 +349,29 @@ export class LemmyBot {
                 }
                 break;
               }
+              case 'GetPrivateMessages': {
+                const { private_messages } =
+                  response.data as PrivateMessagesResponse;
+                for (const message of private_messages) {
+                  handlePrivateMessage!({
+                    botActions: this.#botActions,
+                    message
+                  });
+
+                  if (this.#connection && this.#auth) {
+                    markPrivateMessageAsRead({
+                      auth: this.#auth,
+                      connection: this.#connection,
+                      id: message.private_message.id
+                    });
+
+                    console.log(
+                      `Marked private message ID ${message.private_message.id} from ${message.creator.id} as read`
+                    );
+                  }
+                }
+                break;
+              }
               default: {
                 if (response.error) {
                   console.log(`Got error: ${response.error}`);
@@ -351,13 +383,20 @@ export class LemmyBot {
       });
 
       const runBot = () => {
-        if (connection.connected) {
+        if (this.#connection?.connected) {
           if (handleComment) {
-            getComments(connection);
+            getComments(this.#connection);
           }
 
           if (handlePost) {
-            getPosts(connection);
+            getPosts(this.#connection);
+          }
+
+          if (handlePrivateMessage && this.#auth) {
+            getPrivateMessages({
+              auth: this.#auth,
+              connection: this.#connection
+            });
           }
 
           setTimeout(runBot, 1000 * secondsBetweenPolls);
