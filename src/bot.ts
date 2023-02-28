@@ -34,28 +34,38 @@ import {
 import { GetCommentsResponse } from 'lemmy-js-client';
 import { setupDB, StoredData, useDatabaseFunctions } from './db';
 
+const DEFAULT_POLLING_SECONDS = 10;
+
 type LemmyBotOptions = {
   username: string;
   password: string;
   instanceDomain: string;
   handleConnectionFailed?: (e: Error) => void;
   handleConnectionError?: (e: Error) => void;
-  secondsBetweenPolls?: number;
   minutesBeforeRetryConnection?: number;
-  handleComment?: (options: {
-    comment: CommentView;
-    botActions: BotActions;
-    storedData: StoredData;
-  }) => Promise<void>;
-  handlePost?: (options: {
-    post: PostView;
-    botActions: BotActions;
-    storedData: StoredData;
-  }) => Promise<void>;
-  handlePrivateMessage?: (options: {
-    message: PrivateMessageView;
-    botActions: BotActions;
-  }) => void;
+  commentInfo?: {
+    handleComment: (options: {
+      comment: CommentView;
+      botActions: BotActions;
+      storedData: StoredData;
+    }) => Promise<void>;
+    secondsBetweenPolls?: number;
+  };
+  postInfo?: {
+    handlePost: (options: {
+      post: PostView;
+      botActions: BotActions;
+      storedData: StoredData;
+    }) => Promise<void>;
+    secondsBetweenPolls?: number;
+  };
+  privateMessageInfo?: {
+    handlePrivateMessage: (options: {
+      message: PrivateMessageView;
+      botActions: BotActions;
+    }) => void;
+    secondsBetweenPolls?: number;
+  };
 };
 
 type BotActions = {
@@ -90,7 +100,7 @@ export class LemmyBot {
   #password: string;
   #connection: Connection | undefined = undefined;
   #forcingClosed = false;
-  #restartTimeout: NodeJS.Timeout | undefined = undefined;
+  #timeouts: NodeJS.Timeout[] = [];
   #auth: string | undefined = undefined;
   #tryInsecureWs = false;
   #botActions: BotActions = {
@@ -288,16 +298,15 @@ export class LemmyBot {
   };
 
   constructor({
-    handleComment,
+    commentInfo,
     handleConnectionError,
     instanceDomain,
     username,
     password,
     minutesBeforeRetryConnection = 5,
-    secondsBetweenPolls = 10,
     handleConnectionFailed,
-    handlePost,
-    handlePrivateMessage
+    postInfo,
+    privateMessageInfo
   }: LemmyBotOptions) {
     this.#instanceDomain = instanceDomain;
     this.#username = username;
@@ -359,7 +368,7 @@ export class LemmyBot {
                   await useDatabaseFunctions(
                     async ({ getCommentStoredData }) => {
                       comment.my_vote = comment.my_vote ?? Vote.Neutral;
-                      await handleComment!({
+                      await commentInfo!.handleComment({
                         comment,
                         botActions: this.#botActions,
                         storedData: await getCommentStoredData(
@@ -376,7 +385,7 @@ export class LemmyBot {
                 for (const post of posts) {
                   await useDatabaseFunctions(async ({ getPostStoredData }) => {
                     post.my_vote = post.my_vote ?? Vote.Neutral;
-                    await handlePost!({
+                    await postInfo!.handlePost({
                       post,
                       botActions: this.#botActions,
                       storedData: await getPostStoredData(post.post.id)
@@ -389,7 +398,7 @@ export class LemmyBot {
                 const { private_messages } =
                   response.data as PrivateMessagesResponse;
                 for (const message of private_messages) {
-                  handlePrivateMessage!({
+                  privateMessageInfo!.handlePrivateMessage!({
                     botActions: this.#botActions,
                     message
                   });
@@ -418,39 +427,60 @@ export class LemmyBot {
         }
       });
 
-      const runBot = () => {
+      const runChecker = (
+        checker: (conn: Connection) => void,
+        secondsBetweenPolls: number
+      ) => {
         if (this.#connection?.connected) {
-          if (handleComment) {
-            getComments(this.#connection);
-          }
-
-          if (handlePost) {
-            getPosts(this.#connection);
-          }
-
-          if (handlePrivateMessage && this.#auth) {
-            getPrivateMessages({
-              auth: this.#auth,
-              connection: this.#connection
-            });
-          }
-
-          setTimeout(runBot, 1000 * secondsBetweenPolls);
+          checker(this.#connection);
+          this.#timeouts.push(
+            setTimeout(() => {
+              runChecker(checker, secondsBetweenPolls);
+            }, 1000 * secondsBetweenPolls)
+          );
         } else if (!this.#forcingClosed) {
-          this.#restartTimeout = setTimeout(() => {
-            client.connect(getSecureWebsocketUrl(this.#instanceDomain));
-          }, 1000 * 60 * minutesBeforeRetryConnection); // If bot can't connect, try again in the number of minutes provided
+          this.#timeouts.push(
+            setTimeout(() => {
+              client.connect(getSecureWebsocketUrl(this.#instanceDomain));
+            }, 1000 * 60 * minutesBeforeRetryConnection)
+          ); // If bot can't connect, try again in the number of minutes provided
         } else {
           this.#forcingClosed = false;
-          if (this.#restartTimeout) {
-            clearTimeout(this.#restartTimeout);
+
+          while (this.#timeouts.length > 0) {
+            clearTimeout(this.#timeouts.pop());
           }
         }
       };
 
-      await setupDB();
-      this.#login();
-      runBot();
+      const runBot = async () => {
+        await setupDB();
+        this.#login();
+
+        if (postInfo) {
+          runChecker(
+            getPosts,
+            postInfo.secondsBetweenPolls ?? DEFAULT_POLLING_SECONDS
+          );
+        }
+
+        if (commentInfo) {
+          runChecker(
+            getComments,
+            commentInfo.secondsBetweenPolls ?? DEFAULT_POLLING_SECONDS
+          );
+        }
+
+        if (privateMessageInfo) {
+          runChecker(
+            (conn) =>
+              getPrivateMessages({ connection: conn, auth: this.#auth ?? '' }),
+            privateMessageInfo.secondsBetweenPolls ?? DEFAULT_POLLING_SECONDS
+          );
+        }
+      };
+
+      await runBot();
     });
   }
 

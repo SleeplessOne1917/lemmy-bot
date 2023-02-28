@@ -4,7 +4,7 @@ import { connection as Connection } from 'websocket';
 import { useDatabaseFunctions } from './db';
 import { futureDaysToUnixTime, Vote } from './helpers';
 
-const lemmyWSClient = new LemmyWebsocket();
+const client = new LemmyWebsocket();
 
 export const logIn = ({
   connection,
@@ -15,7 +15,7 @@ export const logIn = ({
   username: string;
   password: string;
 }) => {
-  const request = lemmyWSClient.login({
+  const request = client.login({
     username_or_email: username,
     password
   });
@@ -30,7 +30,7 @@ export const enableBotAccount = ({
   connection: Connection;
   auth: string;
 }) => {
-  const request = lemmyWSClient.saveUserSettings({
+  const request = client.saveUserSettings({
     auth,
     bot_account: true
   });
@@ -50,7 +50,7 @@ export const voteDBPost = async ({
   vote: Vote;
 }) => {
   await useDatabaseFunctions(async ({ setPostVote }) => {
-    const request = lemmyWSClient.likePost({
+    const request = client.likePost({
       auth,
       post_id: id,
       score: vote
@@ -74,7 +74,7 @@ export const voteDBComment = async ({
   vote: Vote;
 }) => {
   await useDatabaseFunctions(async ({ setCommentVote }) => {
-    const request = lemmyWSClient.likeComment({
+    const request = client.likeComment({
       auth,
       comment_id: id,
       score: vote
@@ -87,7 +87,7 @@ export const voteDBComment = async ({
 };
 
 export const getPosts = (connection: Connection) => {
-  const request = lemmyWSClient.getPosts({
+  const request = client.getPosts({
     sort: SortType.New,
     limit: 10
   });
@@ -107,7 +107,7 @@ export const createPostReport = async ({
   reason: string;
 }) => {
   await useDatabaseFunctions(async ({ addPostReport }) => {
-    const request = lemmyWSClient.createPostReport({
+    const request = client.createPostReport({
       auth,
       post_id: id,
       reason
@@ -120,7 +120,7 @@ export const createPostReport = async ({
 };
 
 export const getComments = (connection: Connection) => {
-  const request = lemmyWSClient.getComments({
+  const request = client.getComments({
     sort: CommentSortType.New,
     limit: 10
   });
@@ -143,7 +143,7 @@ export const createComment = async ({
 }) => {
   await useDatabaseFunctions(
     async ({ addCommentResponse, addPostResponse }) => {
-      const request = lemmyWSClient.createComment({
+      const request = client.createComment({
         auth,
         content,
         post_id: postId,
@@ -173,7 +173,7 @@ export const createCommentReport = async ({
   connection: Connection;
 }) => {
   await useDatabaseFunctions(async ({ addCommentReport }) => {
-    const request = lemmyWSClient.createCommentReport({
+    const request = client.createCommentReport({
       auth,
       comment_id: id,
       reason
@@ -202,7 +202,7 @@ export const createBanFromCommunity = ({
   reason?: string;
   removeData?: boolean;
 }) => {
-  const request = lemmyWSClient.banFromCommunity({
+  const request = client.banFromCommunity({
     auth,
     ban: true,
     community_id: communityId,
@@ -230,7 +230,7 @@ export const createBanFromSite = ({
   reason?: string;
   removeData?: boolean;
 }) => {
-  const request = lemmyWSClient.banPerson({
+  const request = client.banPerson({
     auth,
     ban: true,
     person_id: personId,
@@ -249,7 +249,7 @@ export const getPrivateMessages = ({
   connection: Connection;
   auth: string;
 }) => {
-  const request = lemmyWSClient.getPrivateMessages({
+  const request = client.getPrivateMessages({
     auth,
     limit: 50,
     unread_only: true
@@ -267,7 +267,7 @@ export const markPrivateMessageAsRead = ({
   auth: string;
   id: number;
 }) => {
-  const request = lemmyWSClient.markPrivateMessageAsRead({
+  const request = client.markPrivateMessageAsRead({
     auth,
     private_message_id: id,
     read: true
@@ -287,7 +287,7 @@ export const createPrivateMessage = ({
   recipientId: number;
   content: string;
 }) => {
-  const request = lemmyWSClient.createPrivateMessage({
+  const request = client.createPrivateMessage({
     auth,
     content,
     recipient_id: recipientId
@@ -307,7 +307,7 @@ export const createPrivateMessageReport = ({
   auth: string;
   reason: string;
 }) => {
-  const request = lemmyWSClient.createPrivateMessageReport({
+  const request = client.createPrivateMessageReport({
     auth,
     private_message_id: id,
     reason
