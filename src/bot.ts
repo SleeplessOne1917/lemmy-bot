@@ -20,6 +20,7 @@ import {
   createComment,
   createCommentReport,
   createPostReport,
+  createPrivateMessage,
   enableBotAccount,
   getComments,
   getPosts,
@@ -76,6 +77,7 @@ type BotActions = {
     reason?: string;
     removeData?: boolean;
   }) => void;
+  sendPrivateMessage: (recipientId: number, content: string) => void;
 };
 
 const wsClient = new WebsocketClient();
@@ -246,6 +248,22 @@ export class LemmyBot {
           !this.#connection
             ? 'Must be connected to ban user'
             : 'Must log in to ban user'
+        );
+      }
+    },
+    sendPrivateMessage: (recipientId, content) => {
+      if (this.#connection && this.#auth) {
+        createPrivateMessage({
+          auth: this.#auth,
+          connection: this.#connection,
+          content,
+          recipientId
+        });
+      } else {
+        console.log(
+          !this.#connection
+            ? 'Must be connected to send message'
+            : 'Must log in to send message'
         );
       }
     }

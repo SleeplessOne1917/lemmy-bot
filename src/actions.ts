@@ -275,3 +275,23 @@ export const markPrivateMessageAsRead = ({
 
   connection.send(request);
 };
+
+export const createPrivateMessage = ({
+  connection,
+  auth,
+  recipientId,
+  content
+}: {
+  connection: Connection;
+  auth: string;
+  recipientId: number;
+  content: string;
+}) => {
+  const request = lemmyWSClient.createPrivateMessage({
+    auth,
+    content,
+    recipient_id: recipientId
+  });
+
+  connection.send(request);
+};
