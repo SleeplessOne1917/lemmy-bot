@@ -21,6 +21,7 @@ import {
   createCommentReport,
   createPostReport,
   createPrivateMessage,
+  createPrivateMessageReport,
   enableBotAccount,
   getComments,
   getPosts,
@@ -78,9 +79,10 @@ type BotActions = {
     removeData?: boolean;
   }) => void;
   sendPrivateMessage: (recipientId: number, content: string) => void;
+  reportPrivateMessage: (messageId: number, reason: string) => void;
 };
 
-const wsClient = new WebsocketClient();
+const client = new WebsocketClient();
 
 export class LemmyBot {
   #instanceDomain: string;
@@ -266,6 +268,22 @@ export class LemmyBot {
             : 'Must log in to send message'
         );
       }
+    },
+    reportPrivateMessage: (messageId, reason) => {
+      if (this.#connection && this.#auth) {
+        createPrivateMessageReport({
+          auth: this.#auth,
+          connection: this.#connection,
+          id: messageId,
+          reason
+        });
+      } else {
+        console.log(
+          !this.#connection
+            ? 'Must be connected to report message'
+            : 'Must log in to report message'
+        );
+      }
     }
   };
 
@@ -285,7 +303,7 @@ export class LemmyBot {
     this.#username = username;
     this.#password = password;
 
-    wsClient.on('connectFailed', (e) => {
+    client.on('connectFailed', (e) => {
       if (this.#tryInsecureWs) {
         console.log('Connection Failed!');
 
@@ -296,11 +314,11 @@ export class LemmyBot {
         }
       } else {
         this.#tryInsecureWs = true;
-        wsClient.connect(getInsecureWebsocketUrl(this.#instanceDomain));
+        client.connect(getInsecureWebsocketUrl(this.#instanceDomain));
       }
     });
 
-    wsClient.on('connect', async (connection) => {
+    client.on('connect', async (connection) => {
       console.log('Connected to Lemmy Instance');
       this.#connection = connection;
 
@@ -420,7 +438,7 @@ export class LemmyBot {
           setTimeout(runBot, 1000 * secondsBetweenPolls);
         } else if (!this.#forcingClosed) {
           this.#restartTimeout = setTimeout(() => {
-            wsClient.connect(getSecureWebsocketUrl(this.#instanceDomain));
+            client.connect(getSecureWebsocketUrl(this.#instanceDomain));
           }, 1000 * 60 * minutesBeforeRetryConnection); // If bot can't connect, try again in the number of minutes provided
         } else {
           this.#forcingClosed = false;
@@ -438,7 +456,7 @@ export class LemmyBot {
 
   start() {
     if (!this.#connection) {
-      wsClient.connect(getSecureWebsocketUrl(this.#instanceDomain));
+      client.connect(getSecureWebsocketUrl(this.#instanceDomain));
     }
   }
 

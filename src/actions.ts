@@ -295,3 +295,23 @@ export const createPrivateMessage = ({
 
   connection.send(request);
 };
+
+export const createPrivateMessageReport = ({
+  id,
+  connection,
+  auth,
+  reason
+}: {
+  id: number;
+  connection: Connection;
+  auth: string;
+  reason: string;
+}) => {
+  const request = lemmyWSClient.createPrivateMessageReport({
+    auth,
+    private_message_id: id,
+    reason
+  });
+
+  connection.send(request);
+};
