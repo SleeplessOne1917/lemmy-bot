@@ -77,10 +77,11 @@ export const voteDBComment = ({
   connection.send(request);
 };
 
-export const getPosts = (connection: Connection) => {
+export const getPosts = (connection: Connection, auth: string) => {
   const request = client.getPosts({
     sort: SortType.New,
-    limit: 10
+    limit: 10,
+    auth
   });
 
   connection.send(request);
@@ -106,10 +107,11 @@ export const createPostReport = ({
   connection.send(request);
 };
 
-export const getComments = (connection: Connection) => {
+export const getComments = (connection: Connection, auth: string) => {
   const request = client.getComments({
     sort: CommentSortType.New,
-    limit: 10
+    limit: 10,
+    auth
   });
 
   connection.send(request);
@@ -215,13 +217,7 @@ export const createBanFromSite = ({
   connection.send(request);
 };
 
-export const getPrivateMessages = ({
-  auth,
-  connection
-}: {
-  connection: Connection;
-  auth: string;
-}) => {
+export const getPrivateMessages = (connection: Connection, auth: string) => {
   const request = client.getPrivateMessages({
     auth,
     limit: 50,
@@ -284,6 +280,42 @@ export const createPrivateMessageReport = ({
     auth,
     private_message_id: id,
     reason
+  });
+
+  connection.send(request);
+};
+
+export const getRegistrationApplications = (
+  connection: Connection,
+  auth: string
+) => {
+  const request = client.listRegistrationApplications({
+    unread_only: true,
+    limit: 10,
+    auth
+  });
+
+  connection.send(request);
+};
+
+export const createApplicationApproval = ({
+  connection,
+  auth,
+  id,
+  approve,
+  denyReason
+}: {
+  connection: Connection;
+  auth: string;
+  id: number;
+  approve: boolean;
+  denyReason?: string;
+}) => {
+  const request = client.approveRegistrationApplication({
+    approve,
+    auth,
+    id,
+    deny_reason: denyReason
   });
 
   connection.send(request);

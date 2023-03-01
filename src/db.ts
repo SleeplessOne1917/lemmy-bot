@@ -5,14 +5,23 @@ const sqlite = verbose();
 const commentsTable = 'comments';
 const postsTable = 'posts';
 const messagesTable = 'messages';
+const registrationsTable = 'registrations';
+
+type StorageInfoGetter = (id: number) => Promise<StorageInfo>;
+type RowUpserter = (
+  id: number,
+  minutesUntilReprocess?: number
+) => Promise<void>;
 
 type DatabaseFunctions = {
-  getPostStorageInfo: (id: number) => Promise<StorageInfo>;
-  getCommentStorageInfo: (id: number) => Promise<StorageInfo>;
-  getMessageStorageInfo: (id: number) => Promise<StorageInfo>;
-  upsertPost: (id: number, minutesUntilReprocess?: number) => Promise<void>;
-  upsertComment: (id: number, minutesUntilReprocess?: number) => Promise<void>;
-  upsertMessage: (id: number, minutesUntilReprocess?: number) => Promise<void>;
+  getPostStorageInfo: StorageInfoGetter;
+  getCommentStorageInfo: StorageInfoGetter;
+  getMessageStorageInfo: StorageInfoGetter;
+  getRegistrationStorageInfo: StorageInfoGetter;
+  upsertPost: RowUpserter;
+  upsertComment: RowUpserter;
+  upsertMessage: RowUpserter;
+  upsertRegistration: RowUpserter;
 };
 
 export type StorageInfo = {
@@ -73,6 +82,9 @@ const getCommentRow = async (db: Database, id: number) =>
 const getMessageRow = async (db: Database, id: number) =>
   await getRow(db, id, messagesTable);
 
+const getRegistrationRow = async (db: Database, id: number) =>
+  await getRow(db, id, registrationsTable);
+
 const upsertPostRow = async (
   db: Database,
   id: number,
@@ -91,6 +103,12 @@ const upsertMessageRow = async (
   minutesUntilReprocess?: number
 ) => await upsert(db, id, messagesTable, minutesUntilReprocess);
 
+const upsertRegistrationRow = async (
+  db: Database,
+  id: number,
+  minutesUntilReprocess?: number
+) => await upsert(db, id, registrationsTable, minutesUntilReprocess);
+
 const useDatabase = async (doStuffWithDB: (db: Database) => Promise<void>) => {
   const db = new sqlite.Database('./db.sqlite3');
 
@@ -108,6 +126,8 @@ export const useDatabaseFunctions = async (
       await getCommentRow(db, id);
     const getMessageStorageInfo = async (id: number) =>
       await getMessageRow(db, id);
+    const getRegistrationStorageInfo = async (id: number) =>
+      await getRegistrationRow(db, id);
 
     const upsertPost = async (id: number, minutesUntilReprocess?: number) =>
       await upsertPostRow(db, id, minutesUntilReprocess);
@@ -115,13 +135,20 @@ export const useDatabaseFunctions = async (
       await upsertCommentRow(db, id, minutesUntilReprocess);
     const upsertMessage = async (id: number, minutesUntilReprocess?: number) =>
       await upsertMessageRow(db, id, minutesUntilReprocess);
+    const upsertRegistration = async (
+      id: number,
+      minutesUntilReprocess?: number
+    ) => await upsertRegistrationRow(db, id, minutesUntilReprocess);
+
     await doStuff({
       getCommentStorageInfo,
       getMessageStorageInfo,
       getPostStorageInfo,
       upsertComment,
       upsertMessage,
-      upsertPost
+      upsertPost,
+      getRegistrationStorageInfo,
+      upsertRegistration
     });
   });
 };
@@ -152,6 +179,7 @@ export const setupDB = async () => {
       createTable(db, postsTable);
       createTable(db, commentsTable);
       createTable(db, messagesTable);
+      createTable(db, registrationsTable);
     });
   });
 };

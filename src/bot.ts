@@ -7,7 +7,9 @@ import {
   PostView,
   PrivateMessagesResponse,
   PrivateMessageView,
-  GetCommentsResponse
+  GetCommentsResponse,
+  RegistrationApplicationView,
+  ListRegistrationApplicationsResponse
 } from 'lemmy-js-client';
 import {
   correctVote,
@@ -17,6 +19,7 @@ import {
   Vote
 } from './helpers';
 import {
+  createApplicationApproval,
   createBanFromCommunity,
   createBanFromSite,
   createComment,
@@ -28,6 +31,7 @@ import {
   getComments,
   getPosts,
   getPrivateMessages,
+  getRegistrationApplications,
   logIn,
   markPrivateMessageAsRead,
   voteDBComment,
@@ -62,6 +66,9 @@ type LemmyBotOptions = {
     comment?: HandlerOptions<{ comment: CommentView }>;
     post?: HandlerOptions<{ post: PostView }>;
     privateMessage?: HandlerOptions<{ message: PrivateMessageView }>;
+    registrationApplication?: HandlerOptions<{
+      application: RegistrationApplicationView;
+    }>;
   };
 };
 
@@ -87,6 +94,11 @@ type BotActions = {
   }) => void;
   sendPrivateMessage: (recipientId: number, content: string) => void;
   reportPrivateMessage: (messageId: number, reason: string) => void;
+  approveRegistrationApplication: (applicationId: number) => void;
+  rejectRegistrationApplication: (
+    applicationId: number,
+    denyReason?: string
+  ) => void;
 };
 
 const client = new WebsocketClient();
@@ -291,6 +303,41 @@ export class LemmyBot {
             : 'Must log in to report message'
         );
       }
+    },
+    approveRegistrationApplication: (applicationId) => {
+      if (this.#connection && this.#auth) {
+        console.log(`Approving application ID ${applicationId}`);
+        createApplicationApproval({
+          auth: this.#auth,
+          connection: this.#connection,
+          approve: true,
+          id: applicationId
+        });
+      } else {
+        console.log(
+          !this.#connection
+            ? 'Must be connected to approve application'
+            : 'Must log in to approve application'
+        );
+      }
+    },
+    rejectRegistrationApplication: (applicationId, denyReason) => {
+      if (this.#connection && this.#auth) {
+        console.log(`Rejecting application ID ${applicationId}`);
+        createApplicationApproval({
+          auth: this.#auth,
+          connection: this.#connection,
+          approve: false,
+          id: applicationId,
+          denyReason
+        });
+      } else {
+        console.log(
+          !this.#connection
+            ? 'Must be connected to reject application'
+            : 'Must log in to reject application'
+        );
+      }
     }
   };
 
@@ -310,7 +357,8 @@ export class LemmyBot {
     const {
       comment: commentOptions,
       post: postOptions,
-      privateMessage: privateMessageOptions
+      privateMessage: privateMessageOptions,
+      registrationApplication: registrationAppicationOptions
     } = handlerOptions ?? {};
 
     client.on('connectFailed', (e) => {
@@ -464,6 +512,41 @@ export class LemmyBot {
                 }
                 break;
               }
+              case 'ListRegistrationApplications': {
+                const { registration_applications } =
+                  response.data as ListRegistrationApplicationsResponse;
+                for (const application of registration_applications) {
+                  await useDatabaseFunctions(
+                    async ({
+                      getRegistrationStorageInfo,
+                      upsertRegistration
+                    }) => {
+                      const storageInfo = await getRegistrationStorageInfo(
+                        application.registration_application.id
+                      );
+                      if (shouldProcess(storageInfo)) {
+                        const { get, preventReprocess, reprocess } =
+                          getReprocessFunctions(
+                            registrationAppicationOptions?.minutesUntilReprocess
+                          );
+
+                        registrationAppicationOptions!.handle!({
+                          botActions: this.#botActions,
+                          application,
+                          preventReprocess,
+                          reprocess
+                        });
+
+                        upsertRegistration(
+                          application.registration_application.id,
+                          get()
+                        );
+                      }
+                    }
+                  );
+                }
+                break;
+              }
               default: {
                 if (response.error) {
                   console.log(`Got error: ${response.error}`);
@@ -475,15 +558,23 @@ export class LemmyBot {
       });
 
       const runChecker = (
-        checker: (conn: Connection) => void,
+        checker: (conn: Connection, auth: string) => void,
         secondsBetweenPolls: number
       ) => {
-        if (this.#connection?.connected) {
-          checker(this.#connection);
+        if (this.#connection?.connected && this.#auth) {
+          checker(this.#connection, this.#auth);
           this.#timeouts.push(
             setTimeout(() => {
               runChecker(checker, secondsBetweenPolls);
             }, 1000 * secondsBetweenPolls)
+          );
+        } else if (this.#connection?.connected) {
+          this.#login();
+
+          this.#timeouts.push(
+            setTimeout(() => {
+              runChecker(checker, secondsBetweenPolls);
+            }, 1000 * 5)
           );
         } else if (!this.#forcingClosed) {
           this.#timeouts.push(
@@ -520,9 +611,16 @@ export class LemmyBot {
 
         if (privateMessageOptions) {
           runChecker(
-            (conn) =>
-              getPrivateMessages({ connection: conn, auth: this.#auth ?? '' }),
+            getPrivateMessages,
             privateMessageOptions.secondsBetweenPolls ?? DEFAULT_POLLING_SECONDS
+          );
+        }
+
+        if (registrationAppicationOptions) {
+          runChecker(
+            getRegistrationApplications,
+            registrationAppicationOptions.secondsBetweenPolls ??
+              DEFAULT_POLLING_SECONDS
           );
         }
       };
