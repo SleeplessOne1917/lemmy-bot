@@ -361,3 +361,61 @@ export const createRemoveComment = ({
 
   connection.send(request);
 };
+
+export const getMentions = (connection: Connection, auth: string) => {
+  const request = client.getPersonMentions({
+    auth,
+    limit: 50,
+    unread_only: true,
+    sort: CommentSortType.New
+  });
+
+  connection.send(request);
+};
+
+export const markMentionAsRead = ({
+  connection,
+  auth,
+  id
+}: {
+  connection: Connection;
+  auth: string;
+  id: number;
+}) => {
+  const request = client.markPersonMentionAsRead({
+    auth,
+    person_mention_id: id,
+    read: true
+  });
+
+  connection.send(request);
+};
+
+export const getReplies = (connection: Connection, auth: string) => {
+  const request = client.getReplies({
+    auth,
+    limit: 50,
+    sort: CommentSortType.New,
+    unread_only: true
+  });
+
+  connection.send(request);
+};
+
+export const markReplyAsRead = ({
+  auth,
+  connection,
+  id
+}: {
+  connection: Connection;
+  auth: string;
+  id: number;
+}) => {
+  const request = client.markCommentReplyAsRead({
+    auth,
+    comment_reply_id: id,
+    read: true
+  });
+
+  connection.send(request);
+};
