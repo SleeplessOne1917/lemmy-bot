@@ -40,6 +40,8 @@ const DEFAULT_POLLING_SECONDS = 10;
 type Handler<T> = (
   options: {
     botActions: BotActions;
+    preventReprocess: () => void;
+    reprocess: (minutes: number) => void;
   } & T
 ) => void;
 
@@ -371,16 +373,20 @@ export class LemmyBot {
                       );
 
                       if (shouldProcess(storageInfo)) {
+                        const { get, preventReprocess, reprocess } =
+                          getReprocessFunctions(
+                            commentOptions?.minutesUntilReprocess
+                          );
+
                         comment.my_vote = comment.my_vote ?? Vote.Neutral;
-                        await commentOptions!.handle({
+                        commentOptions!.handle({
                           comment,
-                          botActions: this.#botActions
+                          botActions: this.#botActions,
+                          reprocess,
+                          preventReprocess
                         });
 
-                        upsertComment(
-                          comment.comment.id,
-                          commentOptions?.minutesUntilReprocess
-                        );
+                        upsertComment(comment.comment.id, get());
                       }
                     }
                   );
@@ -398,15 +404,19 @@ export class LemmyBot {
                       );
 
                       if (shouldProcess(storageInfo)) {
-                        await postOptions!.handle({
+                        const { get, preventReprocess, reprocess } =
+                          getReprocessFunctions(
+                            postOptions?.minutesUntilReprocess
+                          );
+
+                        postOptions!.handle({
                           post,
-                          botActions: this.#botActions
+                          botActions: this.#botActions,
+                          preventReprocess,
+                          reprocess
                         });
 
-                        upsertPost(
-                          post.post.id,
-                          postOptions?.minutesUntilReprocess
-                        );
+                        upsertPost(post.post.id, get());
                       }
                     }
                   );
@@ -423,15 +433,19 @@ export class LemmyBot {
                         message.private_message.id
                       );
                       if (shouldProcess(storageInfo)) {
-                        await privateMessageOptions!.handle!({
+                        const { get, preventReprocess, reprocess } =
+                          getReprocessFunctions(
+                            privateMessageOptions?.minutesUntilReprocess
+                          );
+
+                        privateMessageOptions!.handle!({
                           botActions: this.#botActions,
-                          message
+                          message,
+                          preventReprocess,
+                          reprocess
                         });
 
-                        upsertMessage(
-                          message.private_message.id,
-                          privateMessageOptions?.minutesUntilReprocess
-                        );
+                        upsertMessage(message.private_message.id, get());
                       }
                     }
                   );
@@ -540,3 +554,33 @@ export class LemmyBot {
     }
   }
 }
+
+class ReprocessHandler {
+  #minutesUntilReprocess?: number;
+
+  constructor(minutesUntilReprocess?: number) {
+    this.#minutesUntilReprocess = minutesUntilReprocess;
+  }
+
+  reprocess(minutes: number) {
+    this.#minutesUntilReprocess = minutes;
+  }
+
+  preventReprocess() {
+    this.#minutesUntilReprocess = undefined;
+  }
+
+  get() {
+    return this.#minutesUntilReprocess;
+  }
+}
+
+const getReprocessFunctions = (minutes?: number) => {
+  const reprocessHandler = new ReprocessHandler(minutes);
+
+  return {
+    reprocess: (minutes: number) => reprocessHandler.reprocess(minutes),
+    preventReprocess: () => reprocessHandler.preventReprocess(),
+    get: () => reprocessHandler.get()
+  };
+};
