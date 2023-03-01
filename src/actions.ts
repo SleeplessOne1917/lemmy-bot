@@ -320,3 +320,44 @@ export const createApplicationApproval = ({
 
   connection.send(request);
 };
+
+export const createRemovePost = ({
+  auth,
+  connection,
+  id,
+  reason,
+  removed
+}: {
+  connection: Connection;
+  auth: string;
+  id: number;
+  reason?: string;
+  removed: boolean;
+}) => {
+  const request = client.removePost({ auth, post_id: id, reason, removed });
+
+  connection.send(request);
+};
+
+export const createRemoveComment = ({
+  connection,
+  auth,
+  id,
+  removed,
+  reason
+}: {
+  connection: Connection;
+  auth: string;
+  id: number;
+  reason?: string;
+  removed: boolean;
+}) => {
+  const request = client.removeComment({
+    auth,
+    comment_id: id,
+    removed,
+    reason
+  });
+
+  connection.send(request);
+};

@@ -27,6 +27,8 @@ import {
   createPostReport,
   createPrivateMessage,
   createPrivateMessageReport,
+  createRemoveComment,
+  createRemovePost,
   enableBotAccount,
   getComments,
   getPosts,
@@ -99,6 +101,8 @@ type BotActions = {
     applicationId: number,
     denyReason?: string
   ) => void;
+  removePost: (postId: number, reason?: string) => void;
+  removeComment: (commentId: number, reason?: string) => void;
 };
 
 const client = new WebsocketClient();
@@ -336,6 +340,42 @@ export class LemmyBot {
           !this.#connection
             ? 'Must be connected to reject application'
             : 'Must log in to reject application'
+        );
+      }
+    },
+    removePost: (postId, reason) => {
+      if (this.#connection && this.#auth) {
+        console.log(`Removing post ID ${postId}`);
+        createRemovePost({
+          auth: this.#auth,
+          connection: this.#connection,
+          id: postId,
+          removed: true,
+          reason
+        });
+      } else {
+        console.log(
+          !this.#connection
+            ? 'Must be connected to remove post'
+            : 'Must log in to remove post'
+        );
+      }
+    },
+    removeComment: (commentId, reason) => {
+      if (this.#connection && this.#auth) {
+        console.log(`Removing comment ID ${commentId}`);
+        createRemoveComment({
+          auth: this.#auth,
+          connection: this.#connection,
+          id: commentId,
+          removed: true,
+          reason
+        });
+      } else {
+        console.log(
+          !this.#connection
+            ? 'Must be connected to remove comment'
+            : 'Must log in to remove comment'
         );
       }
     }
