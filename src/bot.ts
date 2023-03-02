@@ -541,10 +541,10 @@ export class LemmyBot {
               }
               case 'GetComments': {
                 const { comments } = response.data as GetCommentsResponse;
-                for (const comment of comments) {
-                  await useDatabaseFunctions(
-                    'comments',
-                    async ({ get, upsert }) => {
+                await useDatabaseFunctions(
+                  'comments',
+                  async ({ get, upsert }) => {
+                    for (const comment of comments) {
                       await this.#handleEntry({
                         getStorageInfo: get,
                         upsert,
@@ -553,35 +553,32 @@ export class LemmyBot {
                         id: comment.comment.id
                       });
                     }
-                  );
-                }
+                  }
+                );
                 break;
               }
               case 'GetPosts': {
                 const { posts } = response.data as GetPostsResponse;
-                for (const post of posts) {
-                  await useDatabaseFunctions(
-                    'posts',
-                    async ({ get, upsert }) => {
-                      await this.#handleEntry({
-                        getStorageInfo: get,
-                        upsert,
-                        entry: { post },
-                        id: post.post.id,
-                        options: postOptions!
-                      });
-                    }
-                  );
-                }
+                await useDatabaseFunctions('posts', async ({ get, upsert }) => {
+                  for (const post of posts) {
+                    await this.#handleEntry({
+                      getStorageInfo: get,
+                      upsert,
+                      entry: { post },
+                      id: post.post.id,
+                      options: postOptions!
+                    });
+                  }
+                });
                 break;
               }
               case 'GetPrivateMessages': {
                 const { private_messages } =
                   response.data as PrivateMessagesResponse;
-                for (const message of private_messages) {
-                  await useDatabaseFunctions(
-                    'messages',
-                    async ({ get, upsert }) => {
+                await useDatabaseFunctions(
+                  'messages',
+                  async ({ get, upsert }) => {
+                    for (const message of private_messages) {
                       await this.#handleEntry({
                         getStorageInfo: get,
                         options: privateMessageOptions!,
@@ -589,30 +586,30 @@ export class LemmyBot {
                         id: message.private_message.id,
                         upsert
                       });
+
+                      if (this.#connection && this.#auth) {
+                        markPrivateMessageAsRead({
+                          auth: this.#auth,
+                          connection: this.#connection,
+                          id: message.private_message.id
+                        });
+
+                        console.log(
+                          `Marked private message ID ${message.private_message.id} from ${message.creator.id} as read`
+                        );
+                      }
                     }
-                  );
-
-                  if (this.#connection && this.#auth) {
-                    markPrivateMessageAsRead({
-                      auth: this.#auth,
-                      connection: this.#connection,
-                      id: message.private_message.id
-                    });
-
-                    console.log(
-                      `Marked private message ID ${message.private_message.id} from ${message.creator.id} as read`
-                    );
                   }
-                }
+                );
                 break;
               }
               case 'ListRegistrationApplications': {
                 const { registration_applications } =
                   response.data as ListRegistrationApplicationsResponse;
-                for (const application of registration_applications) {
-                  await useDatabaseFunctions(
-                    'registrations',
-                    async ({ get, upsert }) => {
+                await useDatabaseFunctions(
+                  'registrations',
+                  async ({ get, upsert }) => {
+                    for (const application of registration_applications) {
                       await this.#handleEntry({
                         getStorageInfo: get,
                         upsert,
@@ -621,16 +618,16 @@ export class LemmyBot {
                         options: registrationAppicationOptions!
                       });
                     }
-                  );
-                }
+                  }
+                );
                 break;
               }
               case 'GetPersonMentions': {
                 const { mentions } = response.data as GetPersonMentionsResponse;
-                for (const mention of mentions) {
-                  await useDatabaseFunctions(
-                    'mentions',
-                    async ({ get, upsert }) => {
+                await useDatabaseFunctions(
+                  'mentions',
+                  async ({ get, upsert }) => {
+                    for (const mention of mentions) {
                       await this.#handleEntry({
                         entry: { mention },
                         options: mentionOptions!,
@@ -638,24 +635,25 @@ export class LemmyBot {
                         id: mention.person_mention.id,
                         upsert
                       });
+
+                      if (this.#connection && this.#auth) {
+                        markMentionAsRead({
+                          connection: this.#connection,
+                          auth: this.#auth,
+                          id: mention.person_mention.id
+                        });
+                      }
                     }
-                  );
-                  if (this.#connection && this.#auth) {
-                    markMentionAsRead({
-                      connection: this.#connection,
-                      auth: this.#auth,
-                      id: mention.person_mention.id
-                    });
                   }
-                }
+                );
                 break;
               }
               case 'GetReplies': {
                 const { replies } = response.data as GetRepliesResponse;
-                for (const reply of replies) {
-                  await useDatabaseFunctions(
-                    'replies',
-                    async ({ get, upsert }) => {
+                await useDatabaseFunctions(
+                  'replies',
+                  async ({ get, upsert }) => {
+                    for (const reply of replies) {
                       await this.#handleEntry({
                         entry: { reply },
                         options: replyOptions!,
@@ -663,17 +661,17 @@ export class LemmyBot {
                         id: reply.comment_reply.id,
                         upsert
                       });
-                    }
-                  );
 
-                  if (this.#connection && this.#auth) {
-                    markReplyAsRead({
-                      connection: this.#connection,
-                      auth: this.#auth,
-                      id: reply.comment_reply.id
-                    });
+                      if (this.#connection && this.#auth) {
+                        markReplyAsRead({
+                          connection: this.#connection,
+                          auth: this.#auth,
+                          id: reply.comment_reply.id
+                        });
+                      }
+                    }
                   }
-                }
+                );
                 break;
               }
               case 'ListCommentReports': {
