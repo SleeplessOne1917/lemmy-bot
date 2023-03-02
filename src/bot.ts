@@ -39,6 +39,9 @@ import {
   createPrivateMessageReport,
   createRemoveComment,
   createRemovePost,
+  createResolveCommentReport,
+  createResolvePostReport,
+  createResolvePrivateMessageReport,
   enableBotAccount,
   getCommentReports,
   getComments,
@@ -130,6 +133,9 @@ type BotActions = {
   ) => void;
   removePost: (postId: number, reason?: string) => void;
   removeComment: (commentId: number, reason?: string) => void;
+  resolvePostReport: (postReportId: number) => void;
+  resolveCommentReport: (commentReportId: number) => void;
+  resolvePrivateMessageReport: (privateMessageReportId: number) => void;
 };
 
 const client = new WebsocketClient();
@@ -403,6 +409,56 @@ export class LemmyBot {
           !this.#connection
             ? 'Must be connected to remove comment'
             : 'Must log in to remove comment'
+        );
+      }
+    },
+    resolvePostReport: (postReportId) => {
+      if (this.#connection && this.#auth) {
+        console.log(`Resolving post report ID ${postReportId}`);
+        createResolvePostReport({
+          auth: this.#auth,
+          connection: this.#connection,
+          id: postReportId
+        });
+      } else {
+        console.log(
+          !this.#connection
+            ? 'Must be connected to resolve post report'
+            : 'Must log in to resolve post report'
+        );
+      }
+    },
+    resolveCommentReport: (commentReportId) => {
+      if (this.#connection && this.#auth) {
+        console.log(`Resolving comment report ID ${commentReportId}`);
+        createResolveCommentReport({
+          auth: this.#auth,
+          connection: this.#connection,
+          id: commentReportId
+        });
+      } else {
+        console.log(
+          !this.#connection
+            ? 'Must be connected to resolve comment report'
+            : 'Must log in to resolve comment report'
+        );
+      }
+    },
+    resolvePrivateMessageReport: (privateMessageReportId) => {
+      if (this.#connection && this.#auth) {
+        console.log(
+          `Resolving private message report ID ${privateMessageReportId}`
+        );
+        createResolvePrivateMessageReport({
+          auth: this.#auth,
+          connection: this.#connection,
+          id: privateMessageReportId
+        });
+      } else {
+        console.log(
+          !this.#connection
+            ? 'Must be connected to resolve comment report'
+            : 'Must log in to resolve comment report'
         );
       }
     }

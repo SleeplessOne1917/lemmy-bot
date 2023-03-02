@@ -452,3 +452,57 @@ export const getPrivateMessageReports = (
 
   connection.send(request);
 };
+
+export const createResolvePostReport = ({
+  connection,
+  auth,
+  id
+}: {
+  connection: Connection;
+  auth: string;
+  id: number;
+}) => {
+  const request = client.resolvePostReport({
+    resolved: true,
+    auth,
+    report_id: id
+  });
+
+  connection.send(request);
+};
+
+export const createResolveCommentReport = ({
+  connection,
+  auth,
+  id
+}: {
+  connection: Connection;
+  auth: string;
+  id: number;
+}) => {
+  const request = client.resolveCommentReport({
+    auth,
+    report_id: id,
+    resolved: true
+  });
+
+  connection.send(request);
+};
+
+export const createResolvePrivateMessageReport = ({
+  connection,
+  auth,
+  id
+}: {
+  connection: Connection;
+  auth: string;
+  id: number;
+}) => {
+  const request = client.resolvePrivateMessageReport({
+    auth,
+    report_id: id,
+    resolved: true
+  });
+
+  connection.send(request);
+};
