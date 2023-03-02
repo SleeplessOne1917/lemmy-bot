@@ -419,3 +419,36 @@ export const markReplyAsRead = ({
 
   connection.send(request);
 };
+
+export const getPostReports = (connection: Connection, auth: string) => {
+  const request = client.listPostReports({
+    unresolved_only: true,
+    auth,
+    limit: 50
+  });
+
+  connection.send(request);
+};
+
+export const getCommentReports = (connection: Connection, auth: string) => {
+  const request = client.listCommentReports({
+    unresolved_only: true,
+    auth,
+    limit: 50
+  });
+
+  connection.send(request);
+};
+
+export const getPrivateMessageReports = (
+  connection: Connection,
+  auth: string
+) => {
+  const request = client.listPrivateMessageReports({
+    auth,
+    limit: 50,
+    unresolved_only: true
+  });
+
+  connection.send(request);
+};

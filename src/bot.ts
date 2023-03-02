@@ -13,7 +13,13 @@ import {
   PersonMentionView,
   GetPersonMentionsResponse,
   CommentReplyView,
-  GetRepliesResponse
+  GetRepliesResponse,
+  CommentReportView,
+  ListCommentReportsResponse,
+  PostReportView,
+  ListPostReportsResponse,
+  PrivateMessageReportView,
+  ListPrivateMessageReportsResponse
 } from 'lemmy-js-client';
 import {
   correctVote,
@@ -34,9 +40,12 @@ import {
   createRemoveComment,
   createRemovePost,
   enableBotAccount,
+  getCommentReports,
   getComments,
   getMentions,
+  getPostReports,
   getPosts,
+  getPrivateMessageReports,
   getPrivateMessages,
   getRegistrationApplications,
   getReplies,
@@ -86,6 +95,9 @@ type LemmyBotOptions = {
     }>;
     mention?: HandlerOptions<{ mention: PersonMentionView }>;
     reply?: HandlerOptions<{ reply: CommentReplyView }>;
+    commentReport?: HandlerOptions<{ report: CommentReportView }>;
+    postReport?: HandlerOptions<{ report: PostReportView }>;
+    privateMessageReport?: HandlerOptions<{ report: PrivateMessageReportView }>;
   };
 };
 
@@ -415,7 +427,10 @@ export class LemmyBot {
       privateMessage: privateMessageOptions,
       registrationApplication: registrationAppicationOptions,
       mention: mentionOptions,
-      reply: replyOptions
+      reply: replyOptions,
+      commentReport: commentReportOptions,
+      postReport: postReportOptions,
+      privateMessageReport: privateMessageReportOptions
     } = handlerOptions ?? {};
 
     client.on('connectFailed', (e) => {
@@ -472,10 +487,11 @@ export class LemmyBot {
                 const { comments } = response.data as GetCommentsResponse;
                 for (const comment of comments) {
                   await useDatabaseFunctions(
-                    async ({ getCommentStorageInfo, upsertComment }) => {
+                    'comments',
+                    async ({ get, upsert }) => {
                       await this.#handleEntry({
-                        getStorageInfo: getCommentStorageInfo,
-                        upsert: upsertComment,
+                        getStorageInfo: get,
+                        upsert,
                         options: commentOptions!,
                         entry: { comment },
                         id: comment.comment.id
@@ -489,10 +505,11 @@ export class LemmyBot {
                 const { posts } = response.data as GetPostsResponse;
                 for (const post of posts) {
                   await useDatabaseFunctions(
-                    async ({ getPostStorageInfo, upsertPost }) => {
+                    'posts',
+                    async ({ get, upsert }) => {
                       await this.#handleEntry({
-                        getStorageInfo: getPostStorageInfo,
-                        upsert: upsertPost,
+                        getStorageInfo: get,
+                        upsert,
                         entry: { post },
                         id: post.post.id,
                         options: postOptions!
@@ -507,13 +524,14 @@ export class LemmyBot {
                   response.data as PrivateMessagesResponse;
                 for (const message of private_messages) {
                   await useDatabaseFunctions(
-                    async ({ getMessageStorageInfo, upsertMessage }) => {
+                    'messages',
+                    async ({ get, upsert }) => {
                       await this.#handleEntry({
-                        getStorageInfo: getMessageStorageInfo,
+                        getStorageInfo: get,
                         options: privateMessageOptions!,
                         entry: { message },
                         id: message.private_message.id,
-                        upsert: upsertMessage
+                        upsert
                       });
                     }
                   );
@@ -537,13 +555,11 @@ export class LemmyBot {
                   response.data as ListRegistrationApplicationsResponse;
                 for (const application of registration_applications) {
                   await useDatabaseFunctions(
-                    async ({
-                      getRegistrationStorageInfo,
-                      upsertRegistration
-                    }) => {
+                    'registrations',
+                    async ({ get, upsert }) => {
                       await this.#handleEntry({
-                        getStorageInfo: getRegistrationStorageInfo,
-                        upsert: upsertRegistration,
+                        getStorageInfo: get,
+                        upsert,
                         entry: { application },
                         id: application.registration_application.id,
                         options: registrationAppicationOptions!
@@ -557,13 +573,14 @@ export class LemmyBot {
                 const { mentions } = response.data as GetPersonMentionsResponse;
                 for (const mention of mentions) {
                   await useDatabaseFunctions(
-                    async ({ getMentionStorageInfo, upsertMention }) => {
+                    'mentions',
+                    async ({ get, upsert }) => {
                       await this.#handleEntry({
                         entry: { mention },
                         options: mentionOptions!,
-                        getStorageInfo: getMentionStorageInfo,
+                        getStorageInfo: get,
                         id: mention.person_mention.id,
-                        upsert: upsertMention
+                        upsert
                       });
                     }
                   );
@@ -581,13 +598,14 @@ export class LemmyBot {
                 const { replies } = response.data as GetRepliesResponse;
                 for (const reply of replies) {
                   await useDatabaseFunctions(
-                    async ({ getReplyStorageInfo, upsertReply }) => {
+                    'replies',
+                    async ({ get, upsert }) => {
                       await this.#handleEntry({
                         entry: { reply },
                         options: replyOptions!,
-                        getStorageInfo: getReplyStorageInfo,
+                        getStorageInfo: get,
                         id: reply.comment_reply.id,
-                        upsert: upsertReply
+                        upsert
                       });
                     }
                   );
@@ -600,6 +618,63 @@ export class LemmyBot {
                     });
                   }
                 }
+                break;
+              }
+              case 'ListCommentReports': {
+                const { comment_reports } =
+                  response.data as ListCommentReportsResponse;
+                await useDatabaseFunctions(
+                  'commentReports',
+                  async ({ get, upsert }) => {
+                    for (const report of comment_reports) {
+                      await this.#handleEntry({
+                        entry: { report },
+                        options: commentReportOptions!,
+                        getStorageInfo: get,
+                        id: report.comment_report.id,
+                        upsert
+                      });
+                    }
+                  }
+                );
+                break;
+              }
+              case 'ListPostReports': {
+                const { post_reports } =
+                  response.data as ListPostReportsResponse;
+                await useDatabaseFunctions(
+                  'postReports',
+                  async ({ get, upsert }) => {
+                    for (const report of post_reports) {
+                      await this.#handleEntry({
+                        entry: { report },
+                        options: postReportOptions!,
+                        getStorageInfo: get,
+                        id: report.post_report.id,
+                        upsert
+                      });
+                    }
+                  }
+                );
+                break;
+              }
+              case 'ListPrivateMessageReports': {
+                const { private_message_reports } =
+                  response.data as ListPrivateMessageReportsResponse;
+                await useDatabaseFunctions(
+                  'messageReports',
+                  async ({ get, upsert }) => {
+                    for (const report of private_message_reports) {
+                      await this.#handleEntry({
+                        entry: { report },
+                        options: privateMessageReportOptions!,
+                        getStorageInfo: get,
+                        id: report.private_message_report.id,
+                        upsert
+                      });
+                    }
+                  }
+                );
                 break;
               }
               default: {
@@ -679,6 +754,24 @@ export class LemmyBot {
 
         if (replyOptions) {
           runChecker(getReplies, replyOptions.secondsBetweenPolls);
+        }
+
+        if (commentReportOptions) {
+          runChecker(
+            getCommentReports,
+            commentReportOptions.secondsBetweenPolls
+          );
+        }
+
+        if (postReportOptions) {
+          runChecker(getPostReports, postReportOptions.secondsBetweenPolls);
+        }
+
+        if (privateMessageReportOptions) {
+          runChecker(
+            getPrivateMessageReports,
+            privateMessageReportOptions.secondsBetweenPolls
+          );
         }
       };
 

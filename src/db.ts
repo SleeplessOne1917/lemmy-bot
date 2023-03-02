@@ -2,12 +2,20 @@ import { verbose, Database } from 'sqlite3';
 import fs from 'fs';
 const sqlite = verbose();
 
-const commentsTable = 'comments';
-const postsTable = 'posts';
-const messagesTable = 'messages';
-const registrationsTable = 'registrations';
-const mentionsTable = 'mentions';
-const repliesTable = 'replies';
+const tableTypes = [
+  'comments',
+  'posts',
+  'messages',
+  'registrations',
+  'mentions',
+  'replies',
+  'comments',
+  'commentReports',
+  'postReports',
+  'messageReports'
+] as const;
+
+type TableType = (typeof tableTypes)[number];
 
 export type StorageInfoGetter = (id: number) => Promise<StorageInfo>;
 export type RowUpserter = (
@@ -16,18 +24,8 @@ export type RowUpserter = (
 ) => Promise<void>;
 
 type DatabaseFunctions = {
-  getPostStorageInfo: StorageInfoGetter;
-  getCommentStorageInfo: StorageInfoGetter;
-  getMessageStorageInfo: StorageInfoGetter;
-  getRegistrationStorageInfo: StorageInfoGetter;
-  getMentionStorageInfo: StorageInfoGetter;
-  getReplyStorageInfo: StorageInfoGetter;
-  upsertPost: RowUpserter;
-  upsertComment: RowUpserter;
-  upsertMessage: RowUpserter;
-  upsertRegistration: RowUpserter;
-  upsertMention: RowUpserter;
-  upsertReply: RowUpserter;
+  get: StorageInfoGetter;
+  upsert: RowUpserter;
 };
 
 export type StorageInfo = {
@@ -79,59 +77,19 @@ const upsert = (
     );
   });
 
-const getPostRow = async (db: Database, id: number) =>
-  await getRow(db, id, postsTable);
-
-const getCommentRow = async (db: Database, id: number) =>
-  await getRow(db, id, commentsTable);
-
-const getMessageRow = async (db: Database, id: number) =>
-  await getRow(db, id, messagesTable);
-
-const getRegistrationRow = async (db: Database, id: number) =>
-  await getRow(db, id, registrationsTable);
-
-const getMentionRow = async (db: Database, id: number) =>
-  await getRow(db, id, mentionsTable);
-
-const getReplyRow = async (db: Database, id: number) =>
-  await getRow(db, id, repliesTable);
-
-const upsertPostRow = async (
-  db: Database,
-  id: number,
-  minutesUntilReprocess?: number
-) => await upsert(db, id, postsTable, minutesUntilReprocess);
-
-const upsertCommentRow = async (
-  db: Database,
-  id: number,
-  minutesUntilReprocess?: number
-) => await upsert(db, id, commentsTable, minutesUntilReprocess);
-
-const upsertMessageRow = async (
-  db: Database,
-  id: number,
-  minutesUntilReprocess?: number
-) => await upsert(db, id, messagesTable, minutesUntilReprocess);
-
-const upsertRegistrationRow = async (
-  db: Database,
-  id: number,
-  minutesUntilReprocess?: number
-) => await upsert(db, id, registrationsTable, minutesUntilReprocess);
-
-const upsertMentionRow = async (
-  db: Database,
-  id: number,
-  minutesUntilReprocess?: number
-) => await upsert(db, id, mentionsTable, minutesUntilReprocess);
-
-const upsertReplyRow = async (
-  db: Database,
-  id: number,
-  minutesUntilReprocess?: number
-) => await upsert(db, id, repliesTable, minutesUntilReprocess);
+const tableFuncMap = new Map(
+  tableTypes.map((tt) => [
+    tt,
+    {
+      get: async (db: Database, id: number) => await getRow(db, id, tt),
+      upsert: async (
+        db: Database,
+        id: number,
+        minutesUntilReprocess?: number
+      ) => await upsert(db, id, tt, minutesUntilReprocess)
+    }
+  ])
+);
 
 const useDatabase = async (doStuffWithDB: (db: Database) => Promise<void>) => {
   const db = new sqlite.Database('./db.sqlite3');
@@ -142,48 +100,16 @@ const useDatabase = async (doStuffWithDB: (db: Database) => Promise<void>) => {
 };
 
 export const useDatabaseFunctions = async (
+  table: TableType,
   doStuff: (funcs: DatabaseFunctions) => Promise<void>
 ) => {
   await useDatabase(async (db) => {
-    const getPostStorageInfo = async (id: number) => await getPostRow(db, id);
-    const getCommentStorageInfo = async (id: number) =>
-      await getCommentRow(db, id);
-    const getMessageStorageInfo = async (id: number) =>
-      await getMessageRow(db, id);
-    const getRegistrationStorageInfo = async (id: number) =>
-      await getRegistrationRow(db, id);
-    const getMentionStorageInfo = async (id: number) =>
-      await getMentionRow(db, id);
-    const getReplyStorageInfo = async (id: number) => await getReplyRow(db, id);
-
-    const upsertPost = async (id: number, minutesUntilReprocess?: number) =>
-      await upsertPostRow(db, id, minutesUntilReprocess);
-    const upsertComment = async (id: number, minutesUntilReprocess?: number) =>
-      await upsertCommentRow(db, id, minutesUntilReprocess);
-    const upsertMessage = async (id: number, minutesUntilReprocess?: number) =>
-      await upsertMessageRow(db, id, minutesUntilReprocess);
-    const upsertRegistration = async (
-      id: number,
-      minutesUntilReprocess?: number
-    ) => await upsertRegistrationRow(db, id, minutesUntilReprocess);
-    const upsertMention = async (id: number, minutesUntilReprocess?: number) =>
-      await upsertMentionRow(db, id, minutesUntilReprocess);
-    const upsertReply = async (id: number, minutesUntilReprocess?: number) =>
-      await upsertReplyRow(db, id, minutesUntilReprocess);
+    const { get, upsert } = tableFuncMap.get(table)!;
 
     await doStuff({
-      getCommentStorageInfo,
-      getMessageStorageInfo,
-      getPostStorageInfo,
-      upsertComment,
-      upsertMessage,
-      upsertPost,
-      getRegistrationStorageInfo,
-      upsertRegistration,
-      getMentionStorageInfo,
-      upsertMention,
-      getReplyStorageInfo,
-      upsertReply
+      get: (id: number) => get(db, id),
+      upsert: (id: number, minutesUntilReprocess?: number) =>
+        upsert(db, id, minutesUntilReprocess)
     });
   });
 };
@@ -211,12 +137,9 @@ export const setupDB = async () => {
   await useDatabase(async (db) => {
     db.serialize(() => {
       console.log('Initializing DB');
-      createTable(db, postsTable);
-      createTable(db, commentsTable);
-      createTable(db, messagesTable);
-      createTable(db, registrationsTable);
-      createTable(db, mentionsTable);
-      createTable(db, repliesTable);
+      for (const table of tableTypes) {
+        createTable(db, table);
+      }
     });
   });
 };
