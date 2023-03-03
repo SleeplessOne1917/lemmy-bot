@@ -579,3 +579,6 @@ export const getRemovedComments = (connection: Connection, auth: string) =>
 
 export const getRemovedCommunities = (connection: Connection, auth: string) =>
   getModlogItems(connection, auth, ModlogActionType.ModRemoveCommunity);
+
+export const getBansFromCommunities = (connection: Connection, auth: string) =>
+  getModlogItems(connection, auth, ModlogActionType.ModBanFromCommunity);

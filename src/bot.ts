@@ -43,6 +43,7 @@ import {
   createResolvePostReport,
   createResolvePrivateMessageReport,
   enableBotAccount,
+  getBansFromCommunities,
   getCommentReports,
   getComments,
   getFeaturedPosts,
@@ -511,7 +512,8 @@ export class LemmyBot {
       modLockPost: modLockPostOptions,
       modFeaturePost: modFeaturePostOptions,
       modRemoveComment: modRemoveCommentOptions,
-      modRemoveCommunity: modRemoveCommunityOptions
+      modRemoveCommunity: modRemoveCommunityOptions,
+      modBanFromCommunity: modBanFromCommunityOptions
     } = parseHandlers(handlers);
 
     client.on('connectFailed', (e) => {
@@ -762,7 +764,8 @@ export class LemmyBot {
                   locked_posts,
                   featured_posts,
                   removed_comments,
-                  removed_communities
+                  removed_communities,
+                  banned_from_community
                 } = response.data as GetModlogResponse;
 
                 if (modRemovePostOptions && removed_posts.length > 0) {
@@ -846,6 +849,26 @@ export class LemmyBot {
                           options: modRemoveCommunityOptions!,
                           getStorageInfo: get,
                           id: removedCommunity.mod_remove_community.id,
+                          upsert
+                        });
+                      }
+                    }
+                  );
+                }
+
+                if (
+                  modBanFromCommunityOptions &&
+                  banned_from_community.length > 0
+                ) {
+                  await useDatabaseFunctions(
+                    'communityBans',
+                    async ({ get, upsert }) => {
+                      for (const ban of banned_from_community) {
+                        await this.#handleEntry({
+                          entry: { ban },
+                          options: modBanFromCommunityOptions!,
+                          getStorageInfo: get,
+                          id: ban.mod_ban_from_community.id,
                           upsert
                         });
                       }
@@ -980,6 +1003,13 @@ export class LemmyBot {
           runChecker(
             getRemovedCommunities,
             modRemoveCommunityOptions.secondsBetweenPolls
+          );
+        }
+
+        if (modBanFromCommunityOptions) {
+          runChecker(
+            getBansFromCommunities,
+            modBanFromCommunityOptions.secondsBetweenPolls
           );
         }
       };
