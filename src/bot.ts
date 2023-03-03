@@ -1,10 +1,8 @@
 import { connection as Connection, client as WebsocketClient } from 'websocket';
 
 import {
-  CommentView,
   GetPostsResponse,
   LoginResponse,
-  PostView,
   PrivateMessagesResponse,
   GetCommentsResponse,
   ListRegistrationApplicationsResponse,
@@ -89,12 +87,16 @@ type LemmyBotOptions = {
 };
 
 export type BotActions = {
-  replyToComment: (comment: CommentView, content: string) => void;
-  reportComment: (comment: CommentView, reason: string) => void;
-  replyToPost: (post: PostView, content: string) => void;
-  reportPost: (post: PostView, reason: string) => void;
-  votePost: (post: PostView, vote: Vote) => void;
-  voteComment: (comment: CommentView, vote: Vote) => void;
+  replyToComment: (options: {
+    commentId: number;
+    postId: number;
+    content: string;
+  }) => void;
+  reportComment: (commentId: number, reason: string) => void;
+  replyToPost: (postId: number, content: string) => void;
+  reportPost: (postId: number, reason: string) => void;
+  votePost: (postId: number, vote: Vote) => void;
+  voteComment: (commentId: number, vote: Vote) => void;
   banFromCommunity: (options: {
     communityId: number;
     personId: number;
@@ -140,16 +142,14 @@ export class LemmyBot {
   #auth: string | undefined = undefined;
   #triedInsecureWs = false;
   #botActions: BotActions = {
-    replyToPost: (post, content) => {
+    replyToPost: (postId, content) => {
       if (this.#connection && this.#auth) {
-        console.log(
-          `Replying to post ID ${post.post.id} by ${post.creator.name}`
-        );
+        console.log(`Replying to post ID ${postId}`);
         createComment({
           connection: this.#connection,
           auth: this.#auth,
           content,
-          postId: post.post.id
+          postId: postId
         });
       } else {
         console.log(
@@ -159,15 +159,13 @@ export class LemmyBot {
         );
       }
     },
-    reportPost: (post, reason) => {
+    reportPost: (postId, reason) => {
       if (this.#connection && this.#auth) {
-        console.log(
-          `Reporting to post ID ${post.post.id} by ${post.creator.name} for ${reason}`
-        );
+        console.log(`Reporting to post ID ${postId} for ${reason}`);
         createPostReport({
           auth: this.#auth,
           connection: this.#connection,
-          id: post.post.id,
+          id: postId,
           reason
         });
       } else {
@@ -178,19 +176,17 @@ export class LemmyBot {
         );
       }
     },
-    votePost: (post, vote) => {
+    votePost: (postId, vote) => {
       vote = correctVote(vote);
       const prefix =
         vote === Vote.Upvote ? 'Up' : vote === Vote.Downvote ? 'Down' : 'Un';
 
       if (this.#connection && this.#auth) {
-        console.log(
-          `${prefix}voting post ID ${post.post.id} by ${post.creator.name}`
-        );
+        console.log(`${prefix}voting post ID ${postId}`);
         voteDBPost({
           connection: this.#connection,
           auth: this.#auth,
-          id: post.post.id,
+          id: postId,
           vote
         });
       } else {
@@ -201,17 +197,15 @@ export class LemmyBot {
         );
       }
     },
-    replyToComment: (comment: CommentView, content: string) => {
+    replyToComment: ({ commentId, content, postId }) => {
       if (this.#connection && this.#auth) {
-        console.log(
-          `Replying to comment ID ${comment.comment.id} by ${comment.creator.name}`
-        );
+        console.log(`Replying to comment ID ${commentId}`);
         createComment({
           connection: this.#connection,
           auth: this.#auth,
           content,
-          postId: comment.post.id,
-          parentId: comment.comment.id
+          postId: postId,
+          parentId: commentId
         });
       } else {
         console.log(
@@ -221,15 +215,13 @@ export class LemmyBot {
         );
       }
     },
-    reportComment: (comment, reason) => {
+    reportComment: (commentId, reason) => {
       if (this.#connection && this.#auth) {
-        console.log(
-          `Reporting to comment ID ${comment.comment.id} by ${comment.creator.name} for ${reason}`
-        );
+        console.log(`Reporting to comment ID ${commentId} for ${reason}`);
         createCommentReport({
           auth: this.#auth,
           connection: this.#connection,
-          id: comment.comment.id,
+          id: commentId,
           reason
         });
       } else {
@@ -240,19 +232,17 @@ export class LemmyBot {
         );
       }
     },
-    voteComment: (comment, vote) => {
+    voteComment: (commentId, vote) => {
       vote = correctVote(vote);
       const prefix =
         vote === Vote.Upvote ? 'Up' : vote === Vote.Downvote ? 'Down' : 'Un';
 
       if (this.#connection && this.#auth) {
-        console.log(
-          `${prefix}voting comment ID ${comment.comment.id} by ${comment.creator.name}`
-        );
+        console.log(`${prefix}voting comment ID ${commentId}`);
         voteDBComment({
           connection: this.#connection,
           auth: this.#auth,
-          id: comment.comment.id,
+          id: commentId,
           vote
         });
       } else {
