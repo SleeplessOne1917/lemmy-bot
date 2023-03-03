@@ -6,29 +6,23 @@ import {
   LoginResponse,
   PostView,
   PrivateMessagesResponse,
-  PrivateMessageView,
   GetCommentsResponse,
-  RegistrationApplicationView,
   ListRegistrationApplicationsResponse,
-  PersonMentionView,
   GetPersonMentionsResponse,
-  CommentReplyView,
   GetRepliesResponse,
-  CommentReportView,
   ListCommentReportsResponse,
-  PostReportView,
   ListPostReportsResponse,
-  PrivateMessageReportView,
   ListPrivateMessageReportsResponse,
   PostFeatureType,
-  ModRemovePostView,
-  GetModlogResponse,
-  ModLockPostView
+  GetModlogResponse
 } from 'lemmy-js-client';
 import {
   correctVote,
   getInsecureWebsocketUrl,
   getSecureWebsocketUrl,
+  HandlerOptions,
+  Handlers,
+  parseHandlers,
   shouldProcess,
   Vote
 } from './helpers';
@@ -76,20 +70,6 @@ import {
 
 const DEFAULT_POLLING_SECONDS = 10;
 
-type Handler<T> = (
-  options: {
-    botActions: BotActions;
-    preventReprocess: () => void;
-    reprocess: (minutes: number) => void;
-  } & T
-) => void;
-
-type HandlerOptions<T> = {
-  handle: Handler<T>;
-  secondsBetweenPolls?: number;
-  minutesUntilReprocess?: number;
-};
-
 type LemmyBotOptions = {
   username: string;
   password: string;
@@ -97,24 +77,10 @@ type LemmyBotOptions = {
   handleConnectionFailed?: (e: Error) => void;
   handleConnectionError?: (e: Error) => void;
   minutesBeforeRetryConnection?: number;
-  handlerOptions?: {
-    comment?: HandlerOptions<{ comment: CommentView }>;
-    post?: HandlerOptions<{ post: PostView }>;
-    privateMessage?: HandlerOptions<{ message: PrivateMessageView }>;
-    registrationApplication?: HandlerOptions<{
-      application: RegistrationApplicationView;
-    }>;
-    mention?: HandlerOptions<{ mention: PersonMentionView }>;
-    reply?: HandlerOptions<{ reply: CommentReplyView }>;
-    commentReport?: HandlerOptions<{ report: CommentReportView }>;
-    postReport?: HandlerOptions<{ report: PostReportView }>;
-    privateMessageReport?: HandlerOptions<{ report: PrivateMessageReportView }>;
-    modRemovePost?: HandlerOptions<{ removedPost: ModRemovePostView }>;
-    modLockPost?: HandlerOptions<{ lockedPost: ModLockPostView }>;
-  };
+  handlers?: Handlers;
 };
 
-type BotActions = {
+export type BotActions = {
   replyToComment: (comment: CommentView, content: string) => void;
   reportComment: (comment: CommentView, reason: string) => void;
   replyToPost: (post: PostView, content: string) => void;
@@ -522,7 +488,7 @@ export class LemmyBot {
     password,
     minutesBeforeRetryConnection = 5,
     handleConnectionFailed,
-    handlerOptions
+    handlers
   }: LemmyBotOptions) {
     this.#instanceDomain = instanceDomain;
     this.#username = username;
@@ -540,7 +506,7 @@ export class LemmyBot {
       privateMessageReport: privateMessageReportOptions,
       modRemovePost: modRemovePostOptions,
       modLockPost: modLockPostOptions
-    } = handlerOptions ?? {};
+    } = parseHandlers(handlers);
 
     client.on('connectFailed', (e) => {
       if (this.#tryInsecureWs) {
