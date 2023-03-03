@@ -14,7 +14,8 @@ import {
   ModRemoveCommentView,
   ModRemoveCommunityView,
   ModBanFromCommunityView,
-  ModAddCommunityView
+  ModAddCommunityView,
+  ModTransferCommunityView
 } from 'lemmy-js-client';
 import { BotActions } from './bot';
 import { StorageInfo } from './db';
@@ -86,9 +87,12 @@ type InternalHandlers = {
   modRemoveCommunity?: HandlerOptions<{
     removedCommunity: ModRemoveCommunityView;
   }>;
-  modBanFromCommunity: HandlerOptions<{ ban: ModBanFromCommunityView }>;
-  modAddModToCommunity: HandlerOptions<{
-    addedModToCommunity: ModAddCommunityView;
+  modBanFromCommunity?: HandlerOptions<{ ban: ModBanFromCommunityView }>;
+  modAddModToCommunity?: HandlerOptions<{
+    modAddedToCommunity: ModAddCommunityView;
+  }>;
+  modTransferCommunity?: HandlerOptions<{
+    modTransferredToCommunity: ModTransferCommunityView;
   }>;
 };
 

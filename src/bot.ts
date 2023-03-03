@@ -50,6 +50,7 @@ import {
   getLockedPosts,
   getMentions,
   getModsAddedToCommunities,
+  getModsTransferringCommunities,
   getPostReports,
   getPosts,
   getPrivateMessageReports,
@@ -515,7 +516,8 @@ export class LemmyBot {
       modRemoveComment: modRemoveCommentOptions,
       modRemoveCommunity: modRemoveCommunityOptions,
       modBanFromCommunity: modBanFromCommunityOptions,
-      modAddModToCommunity: modAddModToCommunityOptions
+      modAddModToCommunity: modAddModToCommunityOptions,
+      modTransferCommunity: modTransferCommunityOptions
     } = parseHandlers(handlers);
 
     client.on('connectFailed', (e) => {
@@ -768,7 +770,8 @@ export class LemmyBot {
                   removed_comments,
                   removed_communities,
                   banned_from_community,
-                  added_to_community
+                  added_to_community,
+                  transferred_to_community
                 } = response.data as GetModlogResponse;
 
                 if (modRemovePostOptions && removed_posts.length > 0) {
@@ -886,12 +889,33 @@ export class LemmyBot {
                   await useDatabaseFunctions(
                     'modsAddedToCommunities',
                     async ({ get, upsert }) => {
-                      for (const addedModToCommunity of added_to_community) {
+                      for (const modAddedToCommunity of added_to_community) {
                         await this.#handleEntry({
-                          entry: { addedModToCommunity },
+                          entry: { modAddedToCommunity },
                           options: modAddModToCommunityOptions!,
                           getStorageInfo: get,
-                          id: addedModToCommunity.mod_add_community.id,
+                          id: modAddedToCommunity.mod_add_community.id,
+                          upsert
+                        });
+                      }
+                    }
+                  );
+                }
+
+                if (
+                  modTransferCommunityOptions &&
+                  transferred_to_community.length > 0
+                ) {
+                  await useDatabaseFunctions(
+                    'modsTransferredToCommunities',
+                    async ({ get, upsert }) => {
+                      for (const modTransferredToCommunity of transferred_to_community) {
+                        await this.#handleEntry({
+                          entry: { modTransferredToCommunity },
+                          options: modTransferCommunityOptions!,
+                          getStorageInfo: get,
+                          id: modTransferredToCommunity.mod_transfer_community
+                            .id,
                           upsert
                         });
                       }
@@ -1040,6 +1064,13 @@ export class LemmyBot {
           runChecker(
             getModsAddedToCommunities,
             modAddModToCommunityOptions.secondsBetweenPolls
+          );
+        }
+
+        if (modTransferCommunityOptions) {
+          runChecker(
+            getModsTransferringCommunities,
+            modTransferCommunityOptions.secondsBetweenPolls
           );
         }
       };

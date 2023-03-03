@@ -587,3 +587,8 @@ export const getModsAddedToCommunities = (
   connection: Connection,
   auth: string
 ) => getModlogItems(connection, auth, ModlogActionType.ModAddCommunity);
+
+export const getModsTransferringCommunities = (
+  connection: Connection,
+  auth: string
+) => getModlogItems(connection, auth, ModlogActionType.ModTransferCommunity);
