@@ -571,3 +571,13 @@ export const getLockedPosts = (connection: Connection, auth: string) => {
 
   connection.send(request);
 };
+
+export const getFeaturedPosts = (connection: Connection, auth: string) => {
+  const request = client.getModlog({
+    type_: ModlogActionType.ModFeaturePost,
+    limit: 50,
+    auth
+  });
+
+  connection.send(request);
+};

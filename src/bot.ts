@@ -45,6 +45,7 @@ import {
   enableBotAccount,
   getCommentReports,
   getComments,
+  getFeaturedPosts,
   getLockedPosts,
   getMentions,
   getPostReports,
@@ -505,7 +506,8 @@ export class LemmyBot {
       postReport: postReportOptions,
       privateMessageReport: privateMessageReportOptions,
       modRemovePost: modRemovePostOptions,
-      modLockPost: modLockPostOptions
+      modLockPost: modLockPostOptions,
+      modFeaturePost: modFeaturePostOptions
     } = parseHandlers(handlers);
 
     client.on('connectFailed', (e) => {
@@ -751,9 +753,10 @@ export class LemmyBot {
                 break;
               }
               case 'GetModlog': {
-                if (modRemovePostOptions) {
-                  const { removed_posts } = response.data as GetModlogResponse;
+                const { removed_posts, locked_posts, featured_posts } =
+                  response.data as GetModlogResponse;
 
+                if (modRemovePostOptions && removed_posts.length > 0) {
                   await useDatabaseFunctions(
                     'removedPosts',
                     async ({ get, upsert }) => {
@@ -770,9 +773,7 @@ export class LemmyBot {
                   );
                 }
 
-                if (modLockPostOptions) {
-                  const { locked_posts } = response.data as GetModlogResponse;
-
+                if (modLockPostOptions && locked_posts.length > 0) {
                   await useDatabaseFunctions(
                     'lockedPosts',
                     async ({ get, upsert }) => {
@@ -782,6 +783,23 @@ export class LemmyBot {
                           options: modLockPostOptions!,
                           getStorageInfo: get,
                           id: lockedPost.mod_lock_post.id,
+                          upsert
+                        });
+                      }
+                    }
+                  );
+                }
+
+                if (modFeaturePostOptions && featured_posts.length > 0) {
+                  await useDatabaseFunctions(
+                    'featuredPosts',
+                    async ({ get, upsert }) => {
+                      for (const featuredPost of featured_posts) {
+                        await this.#handleEntry({
+                          entry: { featuredPost },
+                          options: modFeaturePostOptions!,
+                          getStorageInfo: get,
+                          id: featuredPost.mod_feature_post.id,
                           upsert
                         });
                       }
@@ -893,6 +911,13 @@ export class LemmyBot {
 
         if (modLockPostOptions) {
           runChecker(getLockedPosts, modLockPostOptions.secondsBetweenPolls);
+        }
+
+        if (modFeaturePostOptions) {
+          runChecker(
+            getFeaturedPosts,
+            modFeaturePostOptions.secondsBetweenPolls
+          );
         }
       };
 

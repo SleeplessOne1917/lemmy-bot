@@ -9,7 +9,8 @@ import {
   PostReportView,
   PrivateMessageReportView,
   ModRemovePostView,
-  ModLockPostView
+  ModLockPostView,
+  ModFeaturePostView
 } from 'lemmy-js-client';
 import { BotActions } from './bot';
 import { StorageInfo } from './db';
@@ -76,6 +77,7 @@ type InternalHandlers = {
   privateMessageReport?: HandlerOptions<{ report: PrivateMessageReportView }>;
   modRemovePost?: HandlerOptions<{ removedPost: ModRemovePostView }>;
   modLockPost?: HandlerOptions<{ lockedPost: ModLockPostView }>;
+  modFeaturePost?: HandlerOptions<{ featuredPost: ModFeaturePostView }>;
 };
 
 export type Handlers = {
