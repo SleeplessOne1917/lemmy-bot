@@ -21,7 +21,8 @@ const tableTypes = [
   'communityBans',
   'modsAddedToCommunities',
   'modsTransferredToCommunities',
-  'adminsAdded'
+  'adminsAdded',
+  'siteBans'
 ] as const;
 
 type TableType = (typeof tableTypes)[number];

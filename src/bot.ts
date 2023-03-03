@@ -45,6 +45,7 @@ import {
   enableBotAccount,
   getAddedAdmins,
   getBansFromCommunities,
+  getBansFromSite,
   getCommentReports,
   getComments,
   getFeaturedPosts,
@@ -519,7 +520,8 @@ export class LemmyBot {
       modBanFromCommunity: modBanFromCommunityOptions,
       modAddModToCommunity: modAddModToCommunityOptions,
       modTransferCommunity: modTransferCommunityOptions,
-      modAddAdmin: modAddAdminOptions
+      modAddAdmin: modAddAdminOptions,
+      modBanFromSite: modBanFromSiteOptions
     } = parseHandlers(handlers);
 
     client.on('connectFailed', (e) => {
@@ -774,7 +776,8 @@ export class LemmyBot {
                   banned_from_community,
                   added_to_community,
                   transferred_to_community,
-                  added
+                  added,
+                  banned
                 } = response.data as GetModlogResponse;
 
                 if (modRemovePostOptions && removed_posts.length > 0) {
@@ -919,6 +922,23 @@ export class LemmyBot {
                           getStorageInfo: get,
                           id: modTransferredToCommunity.mod_transfer_community
                             .id,
+                          upsert
+                        });
+                      }
+                    }
+                  );
+                }
+
+                if (modBanFromSiteOptions && banned.length > 0) {
+                  await useDatabaseFunctions(
+                    'siteBans',
+                    async ({ get, upsert }) => {
+                      for (const ban of banned) {
+                        await this.#handleEntry({
+                          entry: { ban },
+                          options: modBanFromSiteOptions!,
+                          getStorageInfo: get,
+                          id: ban.mod_ban.id,
                           upsert
                         });
                       }
@@ -1096,6 +1116,13 @@ export class LemmyBot {
 
         if (modAddAdminOptions) {
           runChecker(getAddedAdmins, modAddAdminOptions.secondsBetweenPolls);
+        }
+
+        if (modBanFromSiteOptions) {
+          runChecker(
+            getBansFromSite,
+            modBanFromSiteOptions.secondsBetweenPolls
+          );
         }
       };
 
