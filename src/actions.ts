@@ -1,4 +1,10 @@
-import { CommentSortType, PostFeatureType, SortType } from 'lemmy-js-client';
+import {
+  CommentSortType,
+  GetModlogResponse,
+  ModlogActionType,
+  PostFeatureType,
+  SortType
+} from 'lemmy-js-client';
 import { LemmyWebsocket } from 'lemmy-js-client';
 import { connection as Connection } from 'websocket';
 import { futureDaysToUnixTime, Vote } from './helpers';
@@ -542,6 +548,16 @@ export const createLockPost = ({
   id: number;
 }) => {
   const request = client.lockPost({ auth, locked, post_id: id });
+
+  connection.send(request);
+};
+
+export const getRemovedPosts = (connection: Connection, auth: string) => {
+  const request = client.getModlog({
+    type_: ModlogActionType.ModRemovePost,
+    limit: 50,
+    auth
+  });
 
   connection.send(request);
 };

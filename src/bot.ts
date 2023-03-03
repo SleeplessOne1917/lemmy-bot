@@ -20,7 +20,9 @@ import {
   ListPostReportsResponse,
   PrivateMessageReportView,
   ListPrivateMessageReportsResponse,
-  PostFeatureType
+  PostFeatureType,
+  ModRemovePostView,
+  GetModlogResponse
 } from 'lemmy-js-client';
 import {
   correctVote,
@@ -54,6 +56,7 @@ import {
   getPrivateMessageReports,
   getPrivateMessages,
   getRegistrationApplications,
+  getRemovedPosts,
   getReplies,
   logIn,
   markMentionAsRead,
@@ -104,6 +107,7 @@ type LemmyBotOptions = {
     commentReport?: HandlerOptions<{ report: CommentReportView }>;
     postReport?: HandlerOptions<{ report: PostReportView }>;
     privateMessageReport?: HandlerOptions<{ report: PrivateMessageReportView }>;
+    modRemovePost?: HandlerOptions<{ removedPost: ModRemovePostView }>;
   };
 };
 
@@ -530,7 +534,8 @@ export class LemmyBot {
       reply: replyOptions,
       commentReport: commentReportOptions,
       postReport: postReportOptions,
-      privateMessageReport: privateMessageReportOptions
+      privateMessageReport: privateMessageReportOptions,
+      modRemovePost: modRemovePostOptions
     } = handlerOptions ?? {};
 
     client.on('connectFailed', (e) => {
@@ -775,6 +780,24 @@ export class LemmyBot {
                 );
                 break;
               }
+              case 'GetModlog': {
+                const { removed_posts } = response.data as GetModlogResponse;
+                await useDatabaseFunctions(
+                  'removedPosts',
+                  async ({ get, upsert }) => {
+                    for (const removedPost of removed_posts) {
+                      await this.#handleEntry({
+                        entry: { removedPost },
+                        options: modRemovePostOptions!,
+                        getStorageInfo: get,
+                        id: removedPost.mod_remove_post.id,
+                        upsert
+                      });
+                    }
+                  }
+                );
+                break;
+              }
               default: {
                 console.log(response.op);
                 if (response.error) {
@@ -870,6 +893,10 @@ export class LemmyBot {
             getPrivateMessageReports,
             privateMessageReportOptions.secondsBetweenPolls
           );
+        }
+
+        if (modRemovePostOptions) {
+          runChecker(getRemovedPosts, modRemovePostOptions.secondsBetweenPolls);
         }
       };
 
