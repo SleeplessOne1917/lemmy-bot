@@ -871,25 +871,21 @@ export class LemmyBot {
       ) => {
         if (this.#connection?.connected && this.#auth) {
           checker(this.#connection, this.#auth);
-          this.#timeouts.push(
-            setTimeout(() => {
-              runChecker(checker, secondsBetweenPolls);
-            }, 1000 * secondsBetweenPolls)
-          );
+          const timeout = setTimeout(() => {
+            runChecker(checker, secondsBetweenPolls);
+            this.#timeouts = this.#timeouts.filter((t) => t !== timeout);
+          }, 1000 * secondsBetweenPolls);
+
+          this.#timeouts.push(timeout);
         } else if (this.#connection?.connected) {
           this.#login();
-
-          this.#timeouts.push(
-            setTimeout(() => {
-              runChecker(checker, secondsBetweenPolls);
-            }, 1000 * 5)
-          );
         } else if (!this.#forcingClosed) {
-          this.#timeouts.push(
-            setTimeout(() => {
-              client.connect(getSecureWebsocketUrl(this.#instanceDomain));
-            }, 1000 * 60 * minutesBeforeRetryConnection)
-          ); // If bot can't connect, try again in the number of minutes provided
+          const timeout = setTimeout(() => {
+            client.connect(getSecureWebsocketUrl(this.#instanceDomain));
+            this.#timeouts = this.#timeouts.filter((t) => t !== timeout);
+          }, 1000 * 60 * minutesBeforeRetryConnection);
+          this.#timeouts.push(timeout);
+          // If bot can't connect, try again in the number of minutes provided
         } else {
           this.#forcingClosed = false;
 
