@@ -53,6 +53,7 @@ import {
   getPrivateMessageReports,
   getPrivateMessages,
   getRegistrationApplications,
+  getRemovedComments,
   getRemovedPosts,
   getReplies,
   logIn,
@@ -507,7 +508,8 @@ export class LemmyBot {
       privateMessageReport: privateMessageReportOptions,
       modRemovePost: modRemovePostOptions,
       modLockPost: modLockPostOptions,
-      modFeaturePost: modFeaturePostOptions
+      modFeaturePost: modFeaturePostOptions,
+      modRemoveComment: modRemoveCommentOptions
     } = parseHandlers(handlers);
 
     client.on('connectFailed', (e) => {
@@ -753,8 +755,12 @@ export class LemmyBot {
                 break;
               }
               case 'GetModlog': {
-                const { removed_posts, locked_posts, featured_posts } =
-                  response.data as GetModlogResponse;
+                const {
+                  removed_posts,
+                  locked_posts,
+                  featured_posts,
+                  removed_comments
+                } = response.data as GetModlogResponse;
 
                 if (modRemovePostOptions && removed_posts.length > 0) {
                   await useDatabaseFunctions(
@@ -800,6 +806,23 @@ export class LemmyBot {
                           options: modFeaturePostOptions!,
                           getStorageInfo: get,
                           id: featuredPost.mod_feature_post.id,
+                          upsert
+                        });
+                      }
+                    }
+                  );
+                }
+
+                if (modRemoveCommentOptions && removed_comments.length > 0) {
+                  await useDatabaseFunctions(
+                    'removedComments',
+                    async ({ get, upsert }) => {
+                      for (const removedComment of removed_comments) {
+                        await this.#handleEntry({
+                          entry: { removedComment },
+                          options: modRemoveCommentOptions!,
+                          getStorageInfo: get,
+                          id: removedComment.mod_remove_comment.id,
                           upsert
                         });
                       }
@@ -917,6 +940,13 @@ export class LemmyBot {
           runChecker(
             getFeaturedPosts,
             modFeaturePostOptions.secondsBetweenPolls
+          );
+        }
+
+        if (modRemoveCommentOptions) {
+          runChecker(
+            getRemovedComments,
+            modRemoveCommentOptions.secondsBetweenPolls
           );
         }
       };

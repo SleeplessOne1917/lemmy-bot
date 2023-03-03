@@ -15,7 +15,8 @@ const tableTypes = [
   'messageReports',
   'removedPosts',
   'lockedPosts',
-  'featuredPosts'
+  'featuredPosts',
+  'removedComments'
 ] as const;
 
 type TableType = (typeof tableTypes)[number];
@@ -66,9 +67,10 @@ const upsert = (
       `INSERT INTO ${table} (id, reprocessTime) VALUES ($id, $reprocessTime) ON CONFLICT (id) DO UPDATE SET reprocessTime=$reprocessTime;`,
       {
         $id: id,
-        $reprocessTime: minutesUntilReprocess
-          ? Date.now() + 1000 * 60 * minutesUntilReprocess
-          : null
+        $reprocessTime:
+          minutesUntilReprocess && minutesUntilReprocess > 0
+            ? Date.now() + 1000 * 60 * minutesUntilReprocess
+            : null
       },
       (err) => {
         if (err) {

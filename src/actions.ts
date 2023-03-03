@@ -1,6 +1,5 @@
 import {
   CommentSortType,
-  GetModlogResponse,
   ModlogActionType,
   PostFeatureType,
   SortType
@@ -552,9 +551,13 @@ export const createLockPost = ({
   connection.send(request);
 };
 
-export const getRemovedPosts = (connection: Connection, auth: string) => {
+const getModlogItems = (
+  connection: Connection,
+  auth: string,
+  type: ModlogActionType
+) => {
   const request = client.getModlog({
-    type_: ModlogActionType.ModRemovePost,
+    type_: type,
     limit: 50,
     auth
   });
@@ -562,22 +565,14 @@ export const getRemovedPosts = (connection: Connection, auth: string) => {
   connection.send(request);
 };
 
-export const getLockedPosts = (connection: Connection, auth: string) => {
-  const request = client.getModlog({
-    type_: ModlogActionType.ModLockPost,
-    limit: 50,
-    auth
-  });
+export const getRemovedPosts = (connection: Connection, auth: string) =>
+  getModlogItems(connection, auth, ModlogActionType.ModRemovePost);
 
-  connection.send(request);
-};
+export const getLockedPosts = (connection: Connection, auth: string) =>
+  getModlogItems(connection, auth, ModlogActionType.ModLockPost);
 
-export const getFeaturedPosts = (connection: Connection, auth: string) => {
-  const request = client.getModlog({
-    type_: ModlogActionType.ModFeaturePost,
-    limit: 50,
-    auth
-  });
+export const getFeaturedPosts = (connection: Connection, auth: string) =>
+  getModlogItems(connection, auth, ModlogActionType.ModFeaturePost);
 
-  connection.send(request);
-};
+export const getRemovedComments = (connection: Connection, auth: string) =>
+  getModlogItems(connection, auth, ModlogActionType.ModRemoveComment);
