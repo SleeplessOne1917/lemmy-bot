@@ -43,6 +43,7 @@ import {
   createResolvePostReport,
   createResolvePrivateMessageReport,
   enableBotAccount,
+  getAddedAdmins,
   getBansFromCommunities,
   getCommentReports,
   getComments,
@@ -517,7 +518,8 @@ export class LemmyBot {
       modRemoveCommunity: modRemoveCommunityOptions,
       modBanFromCommunity: modBanFromCommunityOptions,
       modAddModToCommunity: modAddModToCommunityOptions,
-      modTransferCommunity: modTransferCommunityOptions
+      modTransferCommunity: modTransferCommunityOptions,
+      modAddAdmin: modAddAdminOptions
     } = parseHandlers(handlers);
 
     client.on('connectFailed', (e) => {
@@ -771,7 +773,8 @@ export class LemmyBot {
                   removed_communities,
                   banned_from_community,
                   added_to_community,
-                  transferred_to_community
+                  transferred_to_community,
+                  added
                 } = response.data as GetModlogResponse;
 
                 if (modRemovePostOptions && removed_posts.length > 0) {
@@ -916,6 +919,23 @@ export class LemmyBot {
                           getStorageInfo: get,
                           id: modTransferredToCommunity.mod_transfer_community
                             .id,
+                          upsert
+                        });
+                      }
+                    }
+                  );
+                }
+
+                if (modAddAdminOptions && added.length > 0) {
+                  await useDatabaseFunctions(
+                    'adminsAdded',
+                    async ({ get, upsert }) => {
+                      for (const addedAdmin of added) {
+                        await this.#handleEntry({
+                          entry: { addedAdmin },
+                          options: modAddAdminOptions!,
+                          getStorageInfo: get,
+                          id: addedAdmin.mod_add.id,
                           upsert
                         });
                       }
@@ -1072,6 +1092,10 @@ export class LemmyBot {
             getModsTransferringCommunities,
             modTransferCommunityOptions.secondsBetweenPolls
           );
+        }
+
+        if (modAddAdminOptions) {
+          runChecker(getAddedAdmins, modAddAdminOptions.secondsBetweenPolls);
         }
       };
 
