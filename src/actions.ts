@@ -576,3 +576,6 @@ export const getFeaturedPosts = (connection: Connection, auth: string) =>
 
 export const getRemovedComments = (connection: Connection, auth: string) =>
   getModlogItems(connection, auth, ModlogActionType.ModRemoveComment);
+
+export const getRemovedCommunities = (connection: Connection, auth: string) =>
+  getModlogItems(connection, auth, ModlogActionType.ModRemoveCommunity);

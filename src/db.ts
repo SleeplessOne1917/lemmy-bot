@@ -16,7 +16,8 @@ const tableTypes = [
   'removedPosts',
   'lockedPosts',
   'featuredPosts',
-  'removedComments'
+  'removedComments',
+  'removedCommunities'
 ] as const;
 
 type TableType = (typeof tableTypes)[number];

@@ -54,6 +54,7 @@ import {
   getPrivateMessages,
   getRegistrationApplications,
   getRemovedComments,
+  getRemovedCommunities,
   getRemovedPosts,
   getReplies,
   logIn,
@@ -132,7 +133,7 @@ export class LemmyBot {
   #forcingClosed = false;
   #timeouts: NodeJS.Timeout[] = [];
   #auth: string | undefined = undefined;
-  #tryInsecureWs = false;
+  #triedInsecureWs = false;
   #botActions: BotActions = {
     replyToPost: (post, content) => {
       if (this.#connection && this.#auth) {
@@ -509,20 +510,21 @@ export class LemmyBot {
       modRemovePost: modRemovePostOptions,
       modLockPost: modLockPostOptions,
       modFeaturePost: modFeaturePostOptions,
-      modRemoveComment: modRemoveCommentOptions
+      modRemoveComment: modRemoveCommentOptions,
+      modRemoveCommunity: modRemoveCommunityOptions
     } = parseHandlers(handlers);
 
     client.on('connectFailed', (e) => {
-      if (this.#tryInsecureWs) {
+      if (this.#triedInsecureWs) {
         console.log('Connection Failed!');
 
-        this.#tryInsecureWs = false;
+        this.#triedInsecureWs = false;
 
         if (handleConnectionFailed) {
           handleConnectionFailed(e);
         }
       } else {
-        this.#tryInsecureWs = true;
+        this.#triedInsecureWs = true;
         client.connect(getInsecureWebsocketUrl(this.#instanceDomain));
       }
     });
@@ -759,7 +761,8 @@ export class LemmyBot {
                   removed_posts,
                   locked_posts,
                   featured_posts,
-                  removed_comments
+                  removed_comments,
+                  removed_communities
                 } = response.data as GetModlogResponse;
 
                 if (modRemovePostOptions && removed_posts.length > 0) {
@@ -823,6 +826,26 @@ export class LemmyBot {
                           options: modRemoveCommentOptions!,
                           getStorageInfo: get,
                           id: removedComment.mod_remove_comment.id,
+                          upsert
+                        });
+                      }
+                    }
+                  );
+                }
+
+                if (
+                  modRemoveCommunityOptions &&
+                  removed_communities.length > 0
+                ) {
+                  await useDatabaseFunctions(
+                    'removedCommunities',
+                    async ({ get, upsert }) => {
+                      for (const removedCommunity of removed_communities) {
+                        await this.#handleEntry({
+                          entry: { removedCommunity },
+                          options: modRemoveCommunityOptions!,
+                          getStorageInfo: get,
+                          id: removedCommunity.mod_remove_community.id,
                           upsert
                         });
                       }
@@ -947,6 +970,13 @@ export class LemmyBot {
           runChecker(
             getRemovedComments,
             modRemoveCommentOptions.secondsBetweenPolls
+          );
+        }
+
+        if (modRemoveCommunityOptions) {
+          runChecker(
+            getRemovedCommunities,
+            modRemoveCommunityOptions.secondsBetweenPolls
           );
         }
       };
