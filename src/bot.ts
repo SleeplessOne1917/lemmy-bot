@@ -15,6 +15,7 @@ import {
   GetModlogResponse
 } from 'lemmy-js-client';
 import {
+  BotConnectionOptions,
   correctVote,
   getInsecureWebsocketUrl,
   getSecureWebsocketUrl,
@@ -74,15 +75,15 @@ import {
   useDatabaseFunctions
 } from './db';
 
-const DEFAULT_POLLING_SECONDS = 10;
+const DEFAULT_SECONDS_BETWEEN_POLLS = 10;
+const DEFAULT_MINUTES_BEFORE_RETRY_CONNECTION = 5;
+const DEFAULT_MINUTES_UNTIL_REPROCESS: number | undefined = undefined;
 
 type LemmyBotOptions = {
   username: string;
   password: string;
   instanceDomain: string;
-  handleConnectionFailed?: (e: Error) => void;
-  handleConnectionError?: (e: Error) => void;
-  minutesBeforeRetryConnection?: number;
+  connection?: BotConnectionOptions;
   handlers?: Handlers;
 };
 
@@ -141,6 +142,7 @@ export class LemmyBot {
   #timeouts: NodeJS.Timeout[] = [];
   #auth: string | undefined = undefined;
   #triedInsecureWs = false;
+  #defaultMinutesUntilReprocess: number | undefined;
   #botActions: BotActions = {
     replyToPost: (postId, content) => {
       if (this.#connection && this.#auth) {
@@ -480,17 +482,28 @@ export class LemmyBot {
   };
 
   constructor({
-    handleConnectionError,
     instanceDomain,
     username,
     password,
-    minutesBeforeRetryConnection = 5,
-    handleConnectionFailed,
-    handlers
+    handlers,
+    connection: {
+      handleConnectionError,
+      handleConnectionFailed,
+      minutesBeforeRetryConnection = DEFAULT_MINUTES_BEFORE_RETRY_CONNECTION,
+      minutesUntilReprocess:
+        defaultMinutesUntilReprocess = DEFAULT_MINUTES_UNTIL_REPROCESS,
+      secondsBetweenPolls:
+        defaultSecondsBetweenPolls = DEFAULT_SECONDS_BETWEEN_POLLS
+    } = {
+      secondsBetweenPolls: DEFAULT_SECONDS_BETWEEN_POLLS,
+      minutesBeforeRetryConnection: DEFAULT_MINUTES_BEFORE_RETRY_CONNECTION,
+      minutesUntilReprocess: DEFAULT_MINUTES_UNTIL_REPROCESS
+    }
   }: LemmyBotOptions) {
     this.#instanceDomain = instanceDomain;
     this.#username = username;
     this.#password = password;
+    this.#defaultMinutesUntilReprocess = defaultMinutesUntilReprocess;
 
     const {
       comment: commentOptions,
@@ -967,7 +980,7 @@ export class LemmyBot {
 
       const runChecker = (
         checker: (conn: Connection, auth: string) => void,
-        secondsBetweenPolls: number = DEFAULT_POLLING_SECONDS
+        secondsBetweenPolls: number = defaultSecondsBetweenPolls
       ) => {
         if (this.#connection?.connected && this.#auth) {
           checker(this.#connection, this.#auth);
@@ -1159,7 +1172,7 @@ export class LemmyBot {
     const storageInfo = await getStorageInfo(id);
     if (shouldProcess(storageInfo)) {
       const { get, preventReprocess, reprocess } = getReprocessFunctions(
-        options?.minutesUntilReprocess
+        options?.minutesUntilReprocess ?? this.#defaultMinutesUntilReprocess
       );
 
       options!.handle!({

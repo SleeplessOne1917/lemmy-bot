@@ -118,3 +118,11 @@ export const parseHandlers = (handlers?: Handlers) =>
         {} as InternalHandlers
       )
     : ({} as InternalHandlers);
+
+export type BotConnectionOptions = {
+  handleConnectionFailed?: (e: Error) => void;
+  handleConnectionError?: (e: Error) => void;
+  minutesBeforeRetryConnection?: number;
+  secondsBetweenPolls?: number;
+  minutesUntilReprocess?: number;
+};
