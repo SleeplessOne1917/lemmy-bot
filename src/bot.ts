@@ -19,7 +19,8 @@ import {
   PostReportView,
   ListPostReportsResponse,
   PrivateMessageReportView,
-  ListPrivateMessageReportsResponse
+  ListPrivateMessageReportsResponse,
+  PostFeatureType
 } from 'lemmy-js-client';
 import {
   correctVote,
@@ -34,6 +35,8 @@ import {
   createBanFromSite,
   createComment,
   createCommentReport,
+  createFeaturePost,
+  createLockPost,
   createPostReport,
   createPrivateMessage,
   createPrivateMessageReport,
@@ -136,6 +139,12 @@ type BotActions = {
   resolvePostReport: (postReportId: number) => void;
   resolveCommentReport: (commentReportId: number) => void;
   resolvePrivateMessageReport: (privateMessageReportId: number) => void;
+  featurePost: (options: {
+    postId: number;
+    featureType: PostFeatureType;
+    featured: boolean;
+  }) => void;
+  lockPost: (postId: number, locked: boolean) => void;
 };
 
 const client = new WebsocketClient();
@@ -459,6 +468,41 @@ export class LemmyBot {
           !this.#connection
             ? 'Must be connected to resolve comment report'
             : 'Must log in to resolve comment report'
+        );
+      }
+    },
+    featurePost: ({ featureType, featured, postId }) => {
+      if (this.#connection && this.#auth) {
+        console.log(`${featured ? 'F' : 'Unf'}eaturing report ID ${postId}`);
+        createFeaturePost({
+          auth: this.#auth,
+          connection: this.#connection,
+          id: postId,
+          featured,
+          featureType
+        });
+      } else {
+        console.log(
+          !this.#connection
+            ? 'Must be connected to feature post'
+            : 'Must log in to feature post'
+        );
+      }
+    },
+    lockPost: (postId, locked) => {
+      if (this.#connection && this.#auth) {
+        console.log(`${locked ? 'L' : 'Unl'}ocking report ID ${postId}`);
+        createLockPost({
+          auth: this.#auth,
+          connection: this.#connection,
+          id: postId,
+          locked
+        });
+      } else {
+        console.log(
+          !this.#connection
+            ? 'Must be connected to lock post'
+            : 'Must log in to lock post'
         );
       }
     }

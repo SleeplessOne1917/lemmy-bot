@@ -1,4 +1,4 @@
-import { CommentSortType, SortType } from 'lemmy-js-client';
+import { CommentSortType, PostFeatureType, SortType } from 'lemmy-js-client';
 import { LemmyWebsocket } from 'lemmy-js-client';
 import { connection as Connection } from 'websocket';
 import { futureDaysToUnixTime, Vote } from './helpers';
@@ -503,6 +503,45 @@ export const createResolvePrivateMessageReport = ({
     report_id: id,
     resolved: true
   });
+
+  connection.send(request);
+};
+
+export const createFeaturePost = ({
+  auth,
+  connection,
+  featured,
+  featureType,
+  id
+}: {
+  connection: Connection;
+  auth: string;
+  featureType: PostFeatureType;
+  featured: boolean;
+  id: number;
+}) => {
+  const request = client.featurePost({
+    auth,
+    feature_type: featureType,
+    featured,
+    post_id: id
+  });
+
+  connection.send(request);
+};
+
+export const createLockPost = ({
+  auth,
+  connection,
+  id,
+  locked
+}: {
+  connection: Connection;
+  auth: string;
+  locked: boolean;
+  id: number;
+}) => {
+  const request = client.lockPost({ auth, locked, post_id: id });
 
   connection.send(request);
 };
