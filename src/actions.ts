@@ -561,3 +561,13 @@ export const getRemovedPosts = (connection: Connection, auth: string) => {
 
   connection.send(request);
 };
+
+export const getLockedPosts = (connection: Connection, auth: string) => {
+  const request = client.getModlog({
+    type_: ModlogActionType.ModLockPost,
+    limit: 50,
+    auth
+  });
+
+  connection.send(request);
+};

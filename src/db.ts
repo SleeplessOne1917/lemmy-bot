@@ -13,7 +13,8 @@ const tableTypes = [
   'commentReports',
   'postReports',
   'messageReports',
-  'removedPosts'
+  'removedPosts',
+  'lockedPosts'
 ] as const;
 
 type TableType = (typeof tableTypes)[number];

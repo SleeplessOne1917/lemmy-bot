@@ -22,7 +22,8 @@ import {
   ListPrivateMessageReportsResponse,
   PostFeatureType,
   ModRemovePostView,
-  GetModlogResponse
+  GetModlogResponse,
+  ModLockPostView
 } from 'lemmy-js-client';
 import {
   correctVote,
@@ -50,6 +51,7 @@ import {
   enableBotAccount,
   getCommentReports,
   getComments,
+  getLockedPosts,
   getMentions,
   getPostReports,
   getPosts,
@@ -108,6 +110,7 @@ type LemmyBotOptions = {
     postReport?: HandlerOptions<{ report: PostReportView }>;
     privateMessageReport?: HandlerOptions<{ report: PrivateMessageReportView }>;
     modRemovePost?: HandlerOptions<{ removedPost: ModRemovePostView }>;
+    modLockPost?: HandlerOptions<{ lockedPost: ModLockPostView }>;
   };
 };
 
@@ -535,7 +538,8 @@ export class LemmyBot {
       commentReport: commentReportOptions,
       postReport: postReportOptions,
       privateMessageReport: privateMessageReportOptions,
-      modRemovePost: modRemovePostOptions
+      modRemovePost: modRemovePostOptions,
+      modLockPost: modLockPostOptions
     } = handlerOptions ?? {};
 
     client.on('connectFailed', (e) => {
@@ -781,21 +785,43 @@ export class LemmyBot {
                 break;
               }
               case 'GetModlog': {
-                const { removed_posts } = response.data as GetModlogResponse;
-                await useDatabaseFunctions(
-                  'removedPosts',
-                  async ({ get, upsert }) => {
-                    for (const removedPost of removed_posts) {
-                      await this.#handleEntry({
-                        entry: { removedPost },
-                        options: modRemovePostOptions!,
-                        getStorageInfo: get,
-                        id: removedPost.mod_remove_post.id,
-                        upsert
-                      });
+                if (modRemovePostOptions) {
+                  const { removed_posts } = response.data as GetModlogResponse;
+
+                  await useDatabaseFunctions(
+                    'removedPosts',
+                    async ({ get, upsert }) => {
+                      for (const removedPost of removed_posts) {
+                        await this.#handleEntry({
+                          entry: { removedPost },
+                          options: modRemovePostOptions!,
+                          getStorageInfo: get,
+                          id: removedPost.mod_remove_post.id,
+                          upsert
+                        });
+                      }
                     }
-                  }
-                );
+                  );
+                }
+
+                if (modLockPostOptions) {
+                  const { locked_posts } = response.data as GetModlogResponse;
+
+                  await useDatabaseFunctions(
+                    'lockedPosts',
+                    async ({ get, upsert }) => {
+                      for (const lockedPost of locked_posts) {
+                        await this.#handleEntry({
+                          entry: { lockedPost },
+                          options: modLockPostOptions!,
+                          getStorageInfo: get,
+                          id: lockedPost.mod_lock_post.id,
+                          upsert
+                        });
+                      }
+                    }
+                  );
+                }
                 break;
               }
               default: {
@@ -897,6 +923,10 @@ export class LemmyBot {
 
         if (modRemovePostOptions) {
           runChecker(getRemovedPosts, modRemovePostOptions.secondsBetweenPolls);
+        }
+
+        if (modLockPostOptions) {
+          runChecker(getLockedPosts, modLockPostOptions.secondsBetweenPolls);
         }
       };
 
