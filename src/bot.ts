@@ -141,7 +141,7 @@ export class LemmyBot {
   #forcingClosed = false;
   #timeouts: NodeJS.Timeout[] = [];
   #auth?: string;
-  #triedInsecureWs = false;
+  #isSecureConnection = true;
   #defaultMinutesUntilReprocess?: number;
   #botActions: BotActions = {
     replyToPost: (postId, content) => {
@@ -528,16 +528,16 @@ export class LemmyBot {
     } = parseHandlers(handlers);
 
     client.on('connectFailed', (e) => {
-      if (this.#triedInsecureWs) {
+      if (!this.#isSecureConnection) {
         console.log('Connection Failed!');
 
-        this.#triedInsecureWs = false;
+        this.#isSecureConnection = true;
 
         if (handleConnectionFailed) {
           handleConnectionFailed(e);
         }
       } else {
-        this.#triedInsecureWs = true;
+        this.#isSecureConnection = false;
         client.connect(getInsecureWebsocketUrl(this.#instanceDomain));
       }
     });
