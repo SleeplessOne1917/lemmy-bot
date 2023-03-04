@@ -12,13 +12,18 @@ import {
   ListPostReportsResponse,
   ListPrivateMessageReportsResponse,
   PostFeatureType,
-  GetModlogResponse
+  GetModlogResponse,
+  PostView,
+  CommentView
 } from 'lemmy-js-client';
 import {
   BotConnectionOptions,
   BotCredentials,
+  BotFederationOptions,
   correctVote,
   getInsecureWebsocketUrl,
+  getInstanceRegex,
+  getListingType,
   getSecureWebsocketUrl,
   HandlerOptions,
   Handlers,
@@ -82,9 +87,10 @@ const DEFAULT_MINUTES_UNTIL_REPROCESS: number | undefined = undefined;
 
 type LemmyBotOptions = {
   credentials?: BotCredentials;
-  instanceDomain: string;
+  instance: string;
   connection?: BotConnectionOptions;
   handlers?: Handlers;
+  federation?: 'local' | 'all' | BotFederationOptions;
 };
 
 export type BotActions = {
@@ -134,7 +140,7 @@ export type BotActions = {
 const client = new WebsocketClient();
 
 export class LemmyBot {
-  #instanceDomain: string;
+  #instance: string;
   #username?: string;
   #password?: string;
   #connection?: Connection = undefined;
@@ -143,6 +149,7 @@ export class LemmyBot {
   #auth?: string;
   #isSecureConnection = true;
   #defaultMinutesUntilReprocess?: number;
+  #federationOptions: BotFederationOptions;
   #botActions: BotActions = {
     replyToPost: (postId, content) => {
       if (this.#connection && this.#auth) {
@@ -276,7 +283,7 @@ export class LemmyBot {
     banFromSite: (options) => {
       if (this.#connection && this.#auth) {
         console.log(
-          `Banning user ID ${options.personId} from ${this.#instanceDomain}`
+          `Banning user ID ${options.personId} from ${this.#instance}`
         );
         createBanFromSite({
           ...options,
@@ -482,7 +489,7 @@ export class LemmyBot {
   };
 
   constructor({
-    instanceDomain,
+    instance,
     credentials,
     handlers,
     connection: {
@@ -497,10 +504,64 @@ export class LemmyBot {
       secondsBetweenPolls: DEFAULT_SECONDS_BETWEEN_POLLS,
       minutesBeforeRetryConnection: DEFAULT_MINUTES_BEFORE_RETRY_CONNECTION,
       minutesUntilReprocess: DEFAULT_MINUTES_UNTIL_REPROCESS
-    }
+    },
+    federation
   }: LemmyBotOptions) {
+    switch (federation) {
+      case undefined:
+      case 'local': {
+        this.#federationOptions = {
+          allowList: [instance]
+        };
+
+        break;
+      }
+      case 'all': {
+        this.#federationOptions = {
+          blockList: []
+        };
+
+        break;
+      }
+
+      default: {
+        if (
+          (federation.allowList?.length ?? 0) > 0 &&
+          (federation.blockList?.length ?? 0) > 0
+        ) {
+          console.error(
+            'Cannot have both block list and allow list defined for federation options'
+          );
+
+          process.exit(1);
+        } else if (
+          (!federation.allowList || federation.allowList.length === 0) &&
+          (!federation.blockList || federation.blockList.length === 0)
+        ) {
+          console.error(
+            'Neither the block list nor allow list has any instances. To fix this issue, make sure either allow list or block list (not both) has at least one instance.\n\nAlternatively, the you can set the federation property to one of the strings "local" or "all".'
+          );
+
+          process.exit(1);
+        } else if (federation.blockList?.includes(instance)) {
+          console.error('Cannot put bot instance in blocklist');
+
+          process.exit(1);
+        } else {
+          this.#federationOptions = federation;
+
+          if (
+            this.#federationOptions.allowList &&
+            !this.#federationOptions.allowList.includes(instance)
+          ) {
+            this.#federationOptions.allowList.push(instance);
+          }
+        }
+      }
+    }
+
     const { password, username } = credentials ?? {};
-    this.#instanceDomain = instanceDomain;
+    this.#instance = instance;
     this.#username = username;
     this.#password = password;
     this.#defaultMinutesUntilReprocess = defaultMinutesUntilReprocess;
@@ -538,7 +599,7 @@ export class LemmyBot {
         }
       } else {
         this.#isSecureConnection = false;
-        client.connect(getInsecureWebsocketUrl(this.#instanceDomain));
+        client.connect(getInsecureWebsocketUrl(this.#instance));
       }
     });
 
@@ -578,7 +639,10 @@ export class LemmyBot {
                 break;
               }
               case 'GetComments': {
-                const { comments } = response.data as GetCommentsResponse;
+                const comments = this.#filterInstancesFromResponse(
+                  (response.data as GetCommentsResponse).comments
+                );
+
                 await useDatabaseFunctions(
                   'comments',
                   async ({ get, upsert }) => {
@@ -596,7 +660,10 @@ export class LemmyBot {
                 break;
               }
               case 'GetPosts': {
-                const { posts } = response.data as GetPostsResponse;
+                const posts = this.#filterInstancesFromResponse(
+                  (response.data as GetPostsResponse).posts
+                );
+
                 await useDatabaseFunctions('posts', async ({ get, upsert }) => {
                   for (const post of posts) {
                     await this.#handleEntry({
@@ -1000,7 +1067,7 @@ export class LemmyBot {
           this.#timeouts.push(timeout);
         } else if (!this.#forcingClosed) {
           const timeout = setTimeout(() => {
-            client.connect(getSecureWebsocketUrl(this.#instanceDomain));
+            client.connect(getSecureWebsocketUrl(this.#instance));
             this.#timeouts = this.#timeouts.filter((t) => t !== timeout);
             // If bot can't connect, try again in the number of minutes provided
           }, 1000 * 60 * minutesBeforeRetryConnection);
@@ -1021,12 +1088,20 @@ export class LemmyBot {
           this.#login();
         }
 
+        const listingType = getListingType(this.#federationOptions);
+
         if (postOptions) {
-          runChecker(getPosts, postOptions.secondsBetweenPolls);
+          runChecker(
+            (conn, auth) => getPosts(conn, listingType, auth),
+            postOptions.secondsBetweenPolls
+          );
         }
 
         if (commentOptions) {
-          runChecker(getComments, commentOptions.secondsBetweenPolls);
+          runChecker(
+            (conn, auth) => getComments(conn, listingType, auth),
+            commentOptions.secondsBetweenPolls
+          );
         }
 
         if (privateMessageOptions && credentials) {
@@ -1137,7 +1212,7 @@ export class LemmyBot {
 
   start() {
     if (!this.#connection) {
-      client.connect(getSecureWebsocketUrl(this.#instanceDomain));
+      client.connect(getSecureWebsocketUrl(this.#instance));
     }
   }
 
@@ -1186,6 +1261,30 @@ export class LemmyBot {
 
       upsert(id, get());
     }
+  }
+
+  #filterInstancesFromResponse<T extends PostView | CommentView>(
+    response: T[]
+  ) {
+    let data = response;
+
+    if ((this.#federationOptions.allowList?.length ?? 0) > 1) {
+      const instanceRegex = getInstanceRegex(
+        this.#federationOptions.allowList!
+      );
+
+      data = data.filter((d) => instanceRegex.test(d.community.actor_id));
+    }
+
+    if ((this.#federationOptions.blockList?.length ?? 0) > 0) {
+      const instanceRegex = getInstanceRegex(
+        this.#federationOptions.blockList!
+      );
+
+      data = data.filter((d) => !instanceRegex.test(d.community.actor_id));
+    }
+
+    return data;
   }
 }
 

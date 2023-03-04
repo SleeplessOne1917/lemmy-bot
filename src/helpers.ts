@@ -17,7 +17,8 @@ import {
   ModAddCommunityView,
   ModTransferCommunityView,
   ModAddView,
-  ModBanView
+  ModBanView,
+  ListingType
 } from 'lemmy-js-client';
 import { BotActions } from './bot';
 import { StorageInfo } from './db';
@@ -131,3 +132,19 @@ export type BotCredentials = {
   username: string;
   password: string;
 };
+
+export type BotFederationOptions = {
+  allowList?: string[];
+  blockList?: string[];
+};
+
+export const getListingType = (options: BotFederationOptions) => {
+  if ((options.allowList?.length ?? 0) === 1) {
+    return ListingType.Local;
+  } else {
+    return ListingType.All;
+  }
+};
+
+export const getInstanceRegex = (instances: string[]) =>
+  new RegExp(instances.join('|'));

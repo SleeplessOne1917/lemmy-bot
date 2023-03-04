@@ -1,5 +1,6 @@
 import {
   CommentSortType,
+  ListingType,
   ModlogActionType,
   PostFeatureType,
   SortType
@@ -82,11 +83,16 @@ export const voteDBComment = ({
   connection.send(request);
 };
 
-export const getPosts = (connection: Connection, auth?: string) => {
+export const getPosts = (
+  connection: Connection,
+  listingType: ListingType,
+  auth?: string
+) => {
   const request = client.getPosts({
     sort: SortType.New,
-    limit: 10,
-    auth
+    limit: 50,
+    auth,
+    type_: listingType
   });
 
   connection.send(request);
@@ -112,11 +118,16 @@ export const createPostReport = ({
   connection.send(request);
 };
 
-export const getComments = (connection: Connection, auth?: string) => {
+export const getComments = (
+  connection: Connection,
+  listingType: ListingType,
+  auth?: string
+) => {
   const request = client.getComments({
     sort: CommentSortType.New,
-    limit: 10,
-    auth
+    limit: 50,
+    auth,
+    type_: listingType
   });
 
   connection.send(request);
@@ -296,7 +307,7 @@ export const getRegistrationApplications = (
 ) => {
   const request = client.listRegistrationApplications({
     unread_only: true,
-    limit: 10,
+    limit: 50,
     auth: auth ?? ''
   });
 
