@@ -133,9 +133,16 @@ export type BotCredentials = {
   password: string;
 };
 
+type InstanceList = (string | InstanceFederationOptions)[];
+
 export type BotFederationOptions = {
-  allowList?: string[];
-  blockList?: string[];
+  allowList?: InstanceList;
+  blockList?: InstanceList;
+};
+
+export type InstanceFederationOptions = {
+  instance: string;
+  communities: string[];
 };
 
 export const getListingType = (options: BotFederationOptions) => {
@@ -146,5 +153,50 @@ export const getListingType = (options: BotFederationOptions) => {
   }
 };
 
-export const getInstanceRegex = (instances: string[]) =>
-  new RegExp(instances.join('|'));
+const escapeRegexString = (str: string) => str.replace(/\./g, '\\.');
+
+const formatActorId = (instance: string, community: string) =>
+  `https?://${instance}/c/(${community})`;
+
+let instanceRegex: RegExp | undefined = undefined;
+
+export const getInstanceRegex = (instances: InstanceList) => {
+  if (!instanceRegex) {
+    const stringInstances: string[] = [],
+      objectInstances: InstanceFederationOptions[] = [];
+
+    for (const instance of instances) {
+      if (typeof instance === 'string') {
+        stringInstances.push(escapeRegexString(instance));
+      } else {
+        objectInstances.push(instance);
+      }
+    }
+
+    const regexParts = [];
+
+    if (stringInstances.length > 0) {
+      regexParts.push(`^${formatActorId(stringInstances.join('|'), '.*')}$`);
+    }
+
+    if (objectInstances.length > 0) {
+      regexParts.push(
+        `(${objectInstances
+          .map(
+            ({ instance, communities }) =>
+              `^${formatActorId(
+                escapeRegexString(instance),
+                communities.join('|')
+              )}$`
+          )
+          .join('|')})`
+      );
+    }
+
+    console.log(regexParts.join('|'));
+
+    instanceRegex = new RegExp(regexParts.join('|'));
+  }
+
+  return instanceRegex;
+};

@@ -27,6 +27,7 @@ import {
   getSecureWebsocketUrl,
   HandlerOptions,
   Handlers,
+  InstanceFederationOptions,
   parseHandlers,
   shouldProcess,
   Vote
@@ -529,30 +530,24 @@ export class LemmyBot {
           (federation.allowList?.length ?? 0) > 0 &&
           (federation.blockList?.length ?? 0) > 0
         ) {
-          console.error(
-            'Cannot have both block list and allow list defined for federation options'
-          );
-
-          process.exit(1);
+          throw 'Cannot have both block list and allow list defined for federation options';
         } else if (
           (!federation.allowList || federation.allowList.length === 0) &&
           (!federation.blockList || federation.blockList.length === 0)
         ) {
-          console.error(
-            'Neither the block list nor allow list has any instances. To fix this issue, make sure either allow list or block list (not both) has at least one instance.\n\nAlternatively, the you can set the federation property to one of the strings "local" or "all".'
-          );
-
-          process.exit(1);
+          throw 'Neither the block list nor allow list has any instances. To fix this issue, make sure either allow list or block list (not both) has at least one instance.\n\nAlternatively, the you can set the federation property to one of the strings "local" or "all".';
         } else if (federation.blockList?.includes(instance)) {
-          console.error('Cannot put bot instance in blocklist');
-
-          process.exit(1);
+          throw 'Cannot put bot instance in blocklist unless blocking specific communitiess';
         } else {
           this.#federationOptions = federation;
 
           if (
             this.#federationOptions.allowList &&
-            !this.#federationOptions.allowList.includes(instance)
+            !this.#federationOptions.allowList.some(
+              (i) =>
+                i === instance ||
+                (i as InstanceFederationOptions).instance === instance
+            )
           ) {
             this.#federationOptions.allowList.push(instance);
           }
@@ -1268,7 +1263,7 @@ export class LemmyBot {
   ) {
     let data = response;
 
-    if ((this.#federationOptions.allowList?.length ?? 0) > 1) {
+    if ((this.#federationOptions.allowList?.length ?? 0) > 0) {
       const instanceRegex = getInstanceRegex(
         this.#federationOptions.allowList!
       );
