@@ -641,13 +641,13 @@ export class LemmyBot {
                 await useDatabaseFunctions(
                   'comments',
                   async ({ get, upsert }) => {
-                    for (const comment of comments) {
+                    for (const commentView of comments) {
                       await this.#handleEntry({
                         getStorageInfo: get,
                         upsert,
                         options: commentOptions!,
-                        entry: { comment },
-                        id: comment.comment.id
+                        entry: { commentView },
+                        id: commentView.comment.id
                       });
                     }
                   }
@@ -660,12 +660,12 @@ export class LemmyBot {
                 );
 
                 await useDatabaseFunctions('posts', async ({ get, upsert }) => {
-                  for (const post of posts) {
+                  for (const postView of posts) {
                     await this.#handleEntry({
                       getStorageInfo: get,
                       upsert,
-                      entry: { post },
-                      id: post.post.id,
+                      entry: { postView },
+                      id: postView.post.id,
                       options: postOptions!
                     });
                   }
@@ -678,12 +678,12 @@ export class LemmyBot {
                 await useDatabaseFunctions(
                   'messages',
                   async ({ get, upsert }) => {
-                    for (const message of private_messages) {
+                    for (const messageView of private_messages) {
                       await this.#handleEntry({
                         getStorageInfo: get,
                         options: privateMessageOptions!,
-                        entry: { message },
-                        id: message.private_message.id,
+                        entry: { messageView },
+                        id: messageView.private_message.id,
                         upsert
                       });
 
@@ -691,11 +691,11 @@ export class LemmyBot {
                         markPrivateMessageAsRead({
                           auth: this.#auth,
                           connection: this.#connection,
-                          id: message.private_message.id
+                          id: messageView.private_message.id
                         });
 
                         console.log(
-                          `Marked private message ID ${message.private_message.id} from ${message.creator.id} as read`
+                          `Marked private message ID ${messageView.private_message.id} from ${messageView.creator.id} as read`
                         );
                       }
                     }
@@ -709,12 +709,12 @@ export class LemmyBot {
                 await useDatabaseFunctions(
                   'registrations',
                   async ({ get, upsert }) => {
-                    for (const application of registration_applications) {
+                    for (const applicationView of registration_applications) {
                       await this.#handleEntry({
                         getStorageInfo: get,
                         upsert,
-                        entry: { application },
-                        id: application.registration_application.id,
+                        entry: { applicationView },
+                        id: applicationView.registration_application.id,
                         options: registrationAppicationOptions!
                       });
                     }
@@ -727,12 +727,12 @@ export class LemmyBot {
                 await useDatabaseFunctions(
                   'mentions',
                   async ({ get, upsert }) => {
-                    for (const mention of mentions) {
+                    for (const mentionView of mentions) {
                       await this.#handleEntry({
-                        entry: { mention },
+                        entry: { mentionView },
                         options: mentionOptions!,
                         getStorageInfo: get,
-                        id: mention.person_mention.id,
+                        id: mentionView.person_mention.id,
                         upsert
                       });
 
@@ -740,7 +740,7 @@ export class LemmyBot {
                         markMentionAsRead({
                           connection: this.#connection,
                           auth: this.#auth,
-                          id: mention.person_mention.id
+                          id: mentionView.person_mention.id
                         });
                       }
                     }
@@ -753,12 +753,12 @@ export class LemmyBot {
                 await useDatabaseFunctions(
                   'replies',
                   async ({ get, upsert }) => {
-                    for (const reply of replies) {
+                    for (const replyView of replies) {
                       await this.#handleEntry({
-                        entry: { reply },
+                        entry: { replyView },
                         options: replyOptions!,
                         getStorageInfo: get,
-                        id: reply.comment_reply.id,
+                        id: replyView.comment_reply.id,
                         upsert
                       });
 
@@ -766,7 +766,7 @@ export class LemmyBot {
                         markReplyAsRead({
                           connection: this.#connection,
                           auth: this.#auth,
-                          id: reply.comment_reply.id
+                          id: replyView.comment_reply.id
                         });
                       }
                     }
@@ -780,12 +780,12 @@ export class LemmyBot {
                 await useDatabaseFunctions(
                   'commentReports',
                   async ({ get, upsert }) => {
-                    for (const report of comment_reports) {
+                    for (const reportView of comment_reports) {
                       await this.#handleEntry({
-                        entry: { report },
+                        entry: { reportView },
                         options: commentReportOptions!,
                         getStorageInfo: get,
-                        id: report.comment_report.id,
+                        id: reportView.comment_report.id,
                         upsert
                       });
                     }
@@ -799,12 +799,12 @@ export class LemmyBot {
                 await useDatabaseFunctions(
                   'postReports',
                   async ({ get, upsert }) => {
-                    for (const report of post_reports) {
+                    for (const reportView of post_reports) {
                       await this.#handleEntry({
-                        entry: { report },
+                        entry: { reportView },
                         options: postReportOptions!,
                         getStorageInfo: get,
-                        id: report.post_report.id,
+                        id: reportView.post_report.id,
                         upsert
                       });
                     }
@@ -818,12 +818,12 @@ export class LemmyBot {
                 await useDatabaseFunctions(
                   'messageReports',
                   async ({ get, upsert }) => {
-                    for (const report of private_message_reports) {
+                    for (const reportView of private_message_reports) {
                       await this.#handleEntry({
-                        entry: { report },
+                        entry: { reportView },
                         options: privateMessageReportOptions!,
                         getStorageInfo: get,
-                        id: report.private_message_report.id,
+                        id: reportView.private_message_report.id,
                         upsert
                       });
                     }
@@ -849,12 +849,12 @@ export class LemmyBot {
                   await useDatabaseFunctions(
                     'removedPosts',
                     async ({ get, upsert }) => {
-                      for (const removedPost of removed_posts) {
+                      for (const removedPostView of removed_posts) {
                         await this.#handleEntry({
-                          entry: { removedPost },
+                          entry: { removedPostView },
                           options: modRemovePostOptions!,
                           getStorageInfo: get,
-                          id: removedPost.mod_remove_post.id,
+                          id: removedPostView.mod_remove_post.id,
                           upsert
                         });
                       }
@@ -866,12 +866,12 @@ export class LemmyBot {
                   await useDatabaseFunctions(
                     'lockedPosts',
                     async ({ get, upsert }) => {
-                      for (const lockedPost of locked_posts) {
+                      for (const lockedPostView of locked_posts) {
                         await this.#handleEntry({
-                          entry: { lockedPost },
+                          entry: { lockedPostView },
                           options: modLockPostOptions!,
                           getStorageInfo: get,
-                          id: lockedPost.mod_lock_post.id,
+                          id: lockedPostView.mod_lock_post.id,
                           upsert
                         });
                       }
@@ -883,12 +883,12 @@ export class LemmyBot {
                   await useDatabaseFunctions(
                     'featuredPosts',
                     async ({ get, upsert }) => {
-                      for (const featuredPost of featured_posts) {
+                      for (const featuredPostView of featured_posts) {
                         await this.#handleEntry({
-                          entry: { featuredPost },
+                          entry: { featuredPostView },
                           options: modFeaturePostOptions!,
                           getStorageInfo: get,
-                          id: featuredPost.mod_feature_post.id,
+                          id: featuredPostView.mod_feature_post.id,
                           upsert
                         });
                       }
@@ -900,12 +900,12 @@ export class LemmyBot {
                   await useDatabaseFunctions(
                     'removedComments',
                     async ({ get, upsert }) => {
-                      for (const removedComment of removed_comments) {
+                      for (const removedCommentView of removed_comments) {
                         await this.#handleEntry({
-                          entry: { removedComment },
+                          entry: { removedCommentView },
                           options: modRemoveCommentOptions!,
                           getStorageInfo: get,
-                          id: removedComment.mod_remove_comment.id,
+                          id: removedCommentView.mod_remove_comment.id,
                           upsert
                         });
                       }
@@ -920,12 +920,12 @@ export class LemmyBot {
                   await useDatabaseFunctions(
                     'removedCommunities',
                     async ({ get, upsert }) => {
-                      for (const removedCommunity of removed_communities) {
+                      for (const removedCommunityView of removed_communities) {
                         await this.#handleEntry({
-                          entry: { removedCommunity },
+                          entry: { removedCommunityView },
                           options: modRemoveCommunityOptions!,
                           getStorageInfo: get,
-                          id: removedCommunity.mod_remove_community.id,
+                          id: removedCommunityView.mod_remove_community.id,
                           upsert
                         });
                       }
@@ -940,12 +940,12 @@ export class LemmyBot {
                   await useDatabaseFunctions(
                     'communityBans',
                     async ({ get, upsert }) => {
-                      for (const ban of banned_from_community) {
+                      for (const banView of banned_from_community) {
                         await this.#handleEntry({
-                          entry: { ban },
+                          entry: { banView },
                           options: modBanFromCommunityOptions!,
                           getStorageInfo: get,
-                          id: ban.mod_ban_from_community.id,
+                          id: banView.mod_ban_from_community.id,
                           upsert
                         });
                       }
@@ -960,12 +960,12 @@ export class LemmyBot {
                   await useDatabaseFunctions(
                     'modsAddedToCommunities',
                     async ({ get, upsert }) => {
-                      for (const modAddedToCommunity of added_to_community) {
+                      for (const modAddedToCommunityView of added_to_community) {
                         await this.#handleEntry({
-                          entry: { modAddedToCommunity },
+                          entry: { modAddedToCommunityView },
                           options: modAddModToCommunityOptions!,
                           getStorageInfo: get,
-                          id: modAddedToCommunity.mod_add_community.id,
+                          id: modAddedToCommunityView.mod_add_community.id,
                           upsert
                         });
                       }
@@ -980,13 +980,13 @@ export class LemmyBot {
                   await useDatabaseFunctions(
                     'modsTransferredToCommunities',
                     async ({ get, upsert }) => {
-                      for (const modTransferredToCommunity of transferred_to_community) {
+                      for (const modTransferredToCommunityView of transferred_to_community) {
                         await this.#handleEntry({
-                          entry: { modTransferredToCommunity },
+                          entry: { modTransferredToCommunityView },
                           options: modTransferCommunityOptions!,
                           getStorageInfo: get,
-                          id: modTransferredToCommunity.mod_transfer_community
-                            .id,
+                          id: modTransferredToCommunityView
+                            .mod_transfer_community.id,
                           upsert
                         });
                       }
@@ -998,12 +998,12 @@ export class LemmyBot {
                   await useDatabaseFunctions(
                     'siteBans',
                     async ({ get, upsert }) => {
-                      for (const ban of banned) {
+                      for (const banView of banned) {
                         await this.#handleEntry({
-                          entry: { ban },
+                          entry: { banView },
                           options: modBanFromSiteOptions!,
                           getStorageInfo: get,
-                          id: ban.mod_ban.id,
+                          id: banView.mod_ban.id,
                           upsert
                         });
                       }
@@ -1015,12 +1015,12 @@ export class LemmyBot {
                   await useDatabaseFunctions(
                     'adminsAdded',
                     async ({ get, upsert }) => {
-                      for (const addedAdmin of added) {
+                      for (const addedAdminView of added) {
                         await this.#handleEntry({
-                          entry: { addedAdmin },
+                          entry: { addedAdminView },
                           options: modAddAdminOptions!,
                           getStorageInfo: get,
-                          id: addedAdmin.mod_add.id,
+                          id: addedAdminView.mod_add.id,
                           upsert
                         });
                       }

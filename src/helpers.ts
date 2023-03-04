@@ -72,33 +72,37 @@ export type HandlerOptions<T> = {
 };
 
 type InternalHandlers = {
-  comment?: HandlerOptions<{ comment: CommentView }>;
-  post?: HandlerOptions<{ post: PostView }>;
-  privateMessage?: HandlerOptions<{ message: PrivateMessageView }>;
+  comment?: HandlerOptions<{ commentView: CommentView }>;
+  post?: HandlerOptions<{ postView: PostView }>;
+  privateMessage?: HandlerOptions<{ messageView: PrivateMessageView }>;
   registrationApplication?: HandlerOptions<{
-    application: RegistrationApplicationView;
+    applicationView: RegistrationApplicationView;
   }>;
-  mention?: HandlerOptions<{ mention: PersonMentionView }>;
-  reply?: HandlerOptions<{ reply: CommentReplyView }>;
-  commentReport?: HandlerOptions<{ report: CommentReportView }>;
-  postReport?: HandlerOptions<{ report: PostReportView }>;
-  privateMessageReport?: HandlerOptions<{ report: PrivateMessageReportView }>;
-  modRemovePost?: HandlerOptions<{ removedPost: ModRemovePostView }>;
-  modLockPost?: HandlerOptions<{ lockedPost: ModLockPostView }>;
-  modFeaturePost?: HandlerOptions<{ featuredPost: ModFeaturePostView }>;
-  modRemoveComment?: HandlerOptions<{ removedComment: ModRemoveCommentView }>;
+  mention?: HandlerOptions<{ mentionView: PersonMentionView }>;
+  reply?: HandlerOptions<{ replyView: CommentReplyView }>;
+  commentReport?: HandlerOptions<{ reportView: CommentReportView }>;
+  postReport?: HandlerOptions<{ reportView: PostReportView }>;
+  privateMessageReport?: HandlerOptions<{
+    reportView: PrivateMessageReportView;
+  }>;
+  modRemovePost?: HandlerOptions<{ removedPostView: ModRemovePostView }>;
+  modLockPost?: HandlerOptions<{ lockedPostView: ModLockPostView }>;
+  modFeaturePost?: HandlerOptions<{ featuredPostView: ModFeaturePostView }>;
+  modRemoveComment?: HandlerOptions<{
+    removedCommentView: ModRemoveCommentView;
+  }>;
   modRemoveCommunity?: HandlerOptions<{
-    removedCommunity: ModRemoveCommunityView;
+    removedCommunityView: ModRemoveCommunityView;
   }>;
-  modBanFromCommunity?: HandlerOptions<{ ban: ModBanFromCommunityView }>;
+  modBanFromCommunity?: HandlerOptions<{ banView: ModBanFromCommunityView }>;
   modAddModToCommunity?: HandlerOptions<{
-    modAddedToCommunity: ModAddCommunityView;
+    modAddedToCommunityView: ModAddCommunityView;
   }>;
   modTransferCommunity?: HandlerOptions<{
-    modTransferredToCommunity: ModTransferCommunityView;
+    modTransferredToCommunityView: ModTransferCommunityView;
   }>;
-  modAddAdmin?: HandlerOptions<{ addedAdmin: ModAddView }>;
-  modBanFromSite?: HandlerOptions<{ ban: ModBanView }>;
+  modAddAdmin?: HandlerOptions<{ addedAdminView: ModAddView }>;
+  modBanFromSite?: HandlerOptions<{ banView: ModBanView }>;
 };
 
 export type Handlers = {
