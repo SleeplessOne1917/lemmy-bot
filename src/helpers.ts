@@ -126,3 +126,8 @@ export type BotConnectionOptions = {
   secondsBetweenPolls?: number;
   minutesUntilReprocess?: number;
 };
+
+export type BotCredentials = {
+  username: string;
+  password: string;
+};

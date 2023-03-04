@@ -16,6 +16,7 @@ import {
 } from 'lemmy-js-client';
 import {
   BotConnectionOptions,
+  BotCredentials,
   correctVote,
   getInsecureWebsocketUrl,
   getSecureWebsocketUrl,
@@ -80,8 +81,7 @@ const DEFAULT_MINUTES_BEFORE_RETRY_CONNECTION = 5;
 const DEFAULT_MINUTES_UNTIL_REPROCESS: number | undefined = undefined;
 
 type LemmyBotOptions = {
-  username: string;
-  password: string;
+  credentials?: BotCredentials;
   instanceDomain: string;
   connection?: BotConnectionOptions;
   handlers?: Handlers;
@@ -135,14 +135,14 @@ const client = new WebsocketClient();
 
 export class LemmyBot {
   #instanceDomain: string;
-  #username: string;
-  #password: string;
-  #connection: Connection | undefined = undefined;
+  #username?: string;
+  #password?: string;
+  #connection?: Connection = undefined;
   #forcingClosed = false;
   #timeouts: NodeJS.Timeout[] = [];
-  #auth: string | undefined = undefined;
+  #auth?: string;
   #triedInsecureWs = false;
-  #defaultMinutesUntilReprocess: number | undefined;
+  #defaultMinutesUntilReprocess?: number;
   #botActions: BotActions = {
     replyToPost: (postId, content) => {
       if (this.#connection && this.#auth) {
@@ -483,8 +483,7 @@ export class LemmyBot {
 
   constructor({
     instanceDomain,
-    username,
-    password,
+    credentials,
     handlers,
     connection: {
       handleConnectionError,
@@ -500,6 +499,7 @@ export class LemmyBot {
       minutesUntilReprocess: DEFAULT_MINUTES_UNTIL_REPROCESS
     }
   }: LemmyBotOptions) {
+    const { password, username } = credentials ?? {};
     this.#instanceDomain = instanceDomain;
     this.#username = username;
     this.#password = password;
@@ -968,7 +968,6 @@ export class LemmyBot {
                 break;
               }
               default: {
-                console.log(response.op);
                 if (response.error) {
                   console.log(`Got error: ${response.error}`);
                 }
@@ -979,10 +978,10 @@ export class LemmyBot {
       });
 
       const runChecker = (
-        checker: (conn: Connection, auth: string) => void,
+        checker: (conn: Connection, auth?: string) => void,
         secondsBetweenPolls: number = defaultSecondsBetweenPolls
       ) => {
-        if (this.#connection?.connected && this.#auth) {
+        if (this.#connection?.connected && (this.#auth || !credentials)) {
           checker(this.#connection, this.#auth);
           const timeout = setTimeout(() => {
             runChecker(checker, secondsBetweenPolls);
@@ -990,7 +989,7 @@ export class LemmyBot {
           }, 1000 * secondsBetweenPolls);
 
           this.#timeouts.push(timeout);
-        } else if (this.#connection?.connected) {
+        } else if (this.#connection?.connected && credentials && !this.#auth) {
           this.#login();
 
           const timeout = setTimeout(() => {
@@ -1017,7 +1016,10 @@ export class LemmyBot {
 
       const runBot = async () => {
         await setupDB();
-        this.#login();
+
+        if (credentials) {
+          this.#login();
+        }
 
         if (postOptions) {
           runChecker(getPosts, postOptions.secondsBetweenPolls);
@@ -1027,40 +1029,40 @@ export class LemmyBot {
           runChecker(getComments, commentOptions.secondsBetweenPolls);
         }
 
-        if (privateMessageOptions) {
+        if (privateMessageOptions && credentials) {
           runChecker(
             getPrivateMessages,
             privateMessageOptions.secondsBetweenPolls
           );
         }
 
-        if (registrationAppicationOptions) {
+        if (registrationAppicationOptions && credentials) {
           runChecker(
             getRegistrationApplications,
             registrationAppicationOptions.secondsBetweenPolls
           );
         }
 
-        if (mentionOptions) {
+        if (mentionOptions && credentials) {
           runChecker(getMentions, mentionOptions.secondsBetweenPolls);
         }
 
-        if (replyOptions) {
+        if (replyOptions && credentials) {
           runChecker(getReplies, replyOptions.secondsBetweenPolls);
         }
 
-        if (commentReportOptions) {
+        if (commentReportOptions && credentials) {
           runChecker(
             getCommentReports,
             commentReportOptions.secondsBetweenPolls
           );
         }
 
-        if (postReportOptions) {
+        if (postReportOptions && credentials) {
           runChecker(getPostReports, postReportOptions.secondsBetweenPolls);
         }
 
-        if (privateMessageReportOptions) {
+        if (privateMessageReportOptions && credentials) {
           runChecker(
             getPrivateMessageReports,
             privateMessageReportOptions.secondsBetweenPolls
@@ -1147,7 +1149,7 @@ export class LemmyBot {
   }
 
   #login() {
-    if (this.#connection) {
+    if (this.#connection && this.#username && this.#password) {
       logIn({
         connection: this.#connection,
         username: this.#username,
