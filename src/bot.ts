@@ -20,6 +20,7 @@ import {
   BotConnectionOptions,
   BotCredentials,
   BotFederationOptions,
+  BotTask,
   correctVote,
   getInsecureWebsocketUrl,
   getInstanceRegex,
@@ -82,6 +83,7 @@ import {
   useDatabaseFunctions
 } from './db';
 import { getReprocessFunctions } from './reprocessHandler';
+import cron, { ScheduledTask } from 'node-cron';
 
 const DEFAULT_SECONDS_BETWEEN_POLLS = 10;
 const DEFAULT_MINUTES_BEFORE_RETRY_CONNECTION = 5;
@@ -93,6 +95,7 @@ type LemmyBotOptions = {
   connection?: BotConnectionOptions;
   handlers?: Handlers;
   federation?: 'local' | 'all' | BotFederationOptions;
+  schedule?: BotTask | BotTask[];
 };
 
 export type BotActions = {
@@ -152,6 +155,8 @@ export class LemmyBot {
   #isSecureConnection = true;
   #defaultMinutesUntilReprocess?: number;
   #federationOptions: BotFederationOptions;
+  #tasks: ScheduledTask[] = [];
+  #delayedTasks: (() => Promise<void>)[] = [];
   #botActions: BotActions = {
     replyToPost: (postId, content) => {
       if (this.#connection && this.#auth) {
@@ -507,7 +512,8 @@ export class LemmyBot {
       minutesBeforeRetryConnection: DEFAULT_MINUTES_BEFORE_RETRY_CONNECTION,
       minutesUntilReprocess: DEFAULT_MINUTES_UNTIL_REPROCESS
     },
-    federation
+    federation,
+    schedule
   }: LemmyBotOptions) {
     switch (federation) {
       case undefined:
@@ -553,6 +559,35 @@ export class LemmyBot {
             this.#federationOptions.allowList.push(instance);
           }
         }
+      }
+    }
+
+    if (schedule) {
+      const tasks = Array.isArray(schedule) ? schedule : [schedule];
+
+      for (const task of tasks) {
+        if (!cron.validate(task.cronExpression)) {
+          throw `Schedule has invalid cron expression (${task.cronExpression}). Consult this documentation for valid expressions: https://www.gnu.org/software/mcron/manual/html_node/Crontab-file.html`;
+        }
+
+        this.#tasks.push(
+          cron.schedule(
+            task.cronExpression,
+            async () => {
+              if (this.#connection?.connected) {
+                await task.doTask(this.#botActions);
+              } else {
+                this.#delayedTasks.push(async () =>
+                  task.doTask(this.#botActions)
+                );
+                client.connect(getSecureWebsocketUrl(instance));
+              }
+            },
+            task.timezone || task.runAtStart
+              ? { timezone: task.timezone, runOnInit: task.runAtStart }
+              : undefined
+          )
+        );
       }
     }
 
@@ -623,6 +658,16 @@ export class LemmyBot {
           if (response.error && response.error === 'not_logged_in') {
             console.log('Not Logged in');
             this.#login();
+          } else if (
+            response.error &&
+            (response.error === 'couldnt_find_that_username_or_email' ||
+              response.error === 'password_incorrect')
+          ) {
+            console.log('Could not log on');
+
+            connection.close();
+
+            process.exit(1);
           } else {
             switch (response.op) {
               case 'Login': {
@@ -1084,6 +1129,14 @@ export class LemmyBot {
           this.#login();
         }
 
+        while (this.#delayedTasks.length > 0) {
+          await this.#delayedTasks.pop()!();
+        }
+
+        for (const task of this.#tasks) {
+          task.start();
+        }
+
         const listingType = getListingType(this.#federationOptions);
 
         if (postOptions) {
@@ -1215,6 +1268,9 @@ export class LemmyBot {
   stop() {
     if (this.#connection) {
       this.#forcingClosed = true;
+      for (const task of this.#tasks) {
+        task.stop();
+      }
       this.#connection.close();
     }
   }
@@ -1264,7 +1320,10 @@ export class LemmyBot {
   ) {
     let data = response;
 
-    if ((this.#federationOptions.allowList?.length ?? 0) > 0) {
+    if (
+      (this.#federationOptions.allowList?.length ?? 0) > 0 &&
+      !this.#federationOptions.allowList?.includes(this.#instance)
+    ) {
       const instanceRegex = getInstanceRegex(
         this.#federationOptions.allowList!
       );

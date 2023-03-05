@@ -149,6 +149,13 @@ export type InstanceFederationOptions = {
   communities: string[];
 };
 
+export type BotTask = {
+  cronExpression: string;
+  doTask: (botActions: BotActions) => Promise<void>;
+  timezone?: string;
+  runAtStart?: boolean;
+};
+
 export const getListingType = (options: BotFederationOptions) => {
   if ((options.allowList?.length ?? 0) === 1) {
     return ListingType.Local;
@@ -196,8 +203,6 @@ export const getInstanceRegex = (instances: InstanceList) => {
           .join('|')})`
       );
     }
-
-    console.log(regexParts.join('|'));
 
     instanceRegex = new RegExp(regexParts.join('|'));
   }
