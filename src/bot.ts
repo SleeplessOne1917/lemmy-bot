@@ -687,15 +687,17 @@ export class LemmyBot {
                 await useDatabaseFunctions(
                   'comments',
                   async ({ get, upsert }) => {
-                    for (const commentView of comments) {
-                      await this.#handleEntry({
-                        getStorageInfo: get,
-                        upsert,
-                        options: commentOptions!,
-                        entry: { commentView },
-                        id: commentView.comment.id
-                      });
-                    }
+                    await Promise.all(
+                      comments.map((commentView) =>
+                        this.#handleEntry({
+                          getStorageInfo: get,
+                          upsert,
+                          options: commentOptions!,
+                          entry: { commentView },
+                          id: commentView.comment.id
+                        })
+                      )
+                    );
                   }
                 );
                 break;
@@ -706,15 +708,17 @@ export class LemmyBot {
                 );
 
                 await useDatabaseFunctions('posts', async ({ get, upsert }) => {
-                  for (const postView of posts) {
-                    await this.#handleEntry({
-                      getStorageInfo: get,
-                      upsert,
-                      entry: { postView },
-                      id: postView.post.id,
-                      options: postOptions!
-                    });
-                  }
+                  await Promise.all(
+                    posts.map((postView) =>
+                      this.#handleEntry({
+                        getStorageInfo: get,
+                        upsert,
+                        entry: { postView },
+                        id: postView.post.id,
+                        options: postOptions!
+                      })
+                    )
+                  );
                 });
                 break;
               }
@@ -724,27 +728,31 @@ export class LemmyBot {
                 await useDatabaseFunctions(
                   'messages',
                   async ({ get, upsert }) => {
-                    for (const messageView of private_messages) {
-                      await this.#handleEntry({
-                        getStorageInfo: get,
-                        options: privateMessageOptions!,
-                        entry: { messageView },
-                        id: messageView.private_message.id,
-                        upsert
-                      });
-
-                      if (this.#connection && this.#auth) {
-                        markPrivateMessageAsRead({
-                          auth: this.#auth,
-                          connection: this.#connection,
-                          id: messageView.private_message.id
+                    await Promise.all(
+                      private_messages.map((messageView) => {
+                        const promise = this.#handleEntry({
+                          getStorageInfo: get,
+                          options: privateMessageOptions!,
+                          entry: { messageView },
+                          id: messageView.private_message.id,
+                          upsert
                         });
 
-                        console.log(
-                          `Marked private message ID ${messageView.private_message.id} from ${messageView.creator.id} as read`
-                        );
-                      }
-                    }
+                        if (this.#connection && this.#auth) {
+                          markPrivateMessageAsRead({
+                            auth: this.#auth,
+                            connection: this.#connection,
+                            id: messageView.private_message.id
+                          });
+
+                          console.log(
+                            `Marked private message ID ${messageView.private_message.id} from ${messageView.creator.id} as read`
+                          );
+
+                          return promise;
+                        }
+                      })
+                    );
                   }
                 );
                 break;
@@ -755,15 +763,17 @@ export class LemmyBot {
                 await useDatabaseFunctions(
                   'registrations',
                   async ({ get, upsert }) => {
-                    for (const applicationView of registration_applications) {
-                      await this.#handleEntry({
-                        getStorageInfo: get,
-                        upsert,
-                        entry: { applicationView },
-                        id: applicationView.registration_application.id,
-                        options: registrationAppicationOptions!
-                      });
-                    }
+                    await Promise.all(
+                      registration_applications.map((applicationView) =>
+                        this.#handleEntry({
+                          getStorageInfo: get,
+                          upsert,
+                          entry: { applicationView },
+                          id: applicationView.registration_application.id,
+                          options: registrationAppicationOptions!
+                        })
+                      )
+                    );
                   }
                 );
                 break;
@@ -773,23 +783,27 @@ export class LemmyBot {
                 await useDatabaseFunctions(
                   'mentions',
                   async ({ get, upsert }) => {
-                    for (const mentionView of mentions) {
-                      await this.#handleEntry({
-                        entry: { mentionView },
-                        options: mentionOptions!,
-                        getStorageInfo: get,
-                        id: mentionView.person_mention.id,
-                        upsert
-                      });
-
-                      if (this.#connection && this.#auth) {
-                        markMentionAsRead({
-                          connection: this.#connection,
-                          auth: this.#auth,
-                          id: mentionView.person_mention.id
+                    await Promise.all(
+                      mentions.map((mentionView) => {
+                        const promise = this.#handleEntry({
+                          entry: { mentionView },
+                          options: mentionOptions!,
+                          getStorageInfo: get,
+                          id: mentionView.person_mention.id,
+                          upsert
                         });
-                      }
-                    }
+
+                        if (this.#connection && this.#auth) {
+                          markMentionAsRead({
+                            connection: this.#connection,
+                            auth: this.#auth,
+                            id: mentionView.person_mention.id
+                          });
+                        }
+
+                        return promise;
+                      })
+                    );
                   }
                 );
                 break;
@@ -799,23 +813,27 @@ export class LemmyBot {
                 await useDatabaseFunctions(
                   'replies',
                   async ({ get, upsert }) => {
-                    for (const replyView of replies) {
-                      await this.#handleEntry({
-                        entry: { replyView },
-                        options: replyOptions!,
-                        getStorageInfo: get,
-                        id: replyView.comment_reply.id,
-                        upsert
-                      });
-
-                      if (this.#connection && this.#auth) {
-                        markReplyAsRead({
-                          connection: this.#connection,
-                          auth: this.#auth,
-                          id: replyView.comment_reply.id
+                    await Promise.all(
+                      replies.map((replyView) => {
+                        const promise = this.#handleEntry({
+                          entry: { replyView },
+                          options: replyOptions!,
+                          getStorageInfo: get,
+                          id: replyView.comment_reply.id,
+                          upsert
                         });
-                      }
-                    }
+
+                        if (this.#connection && this.#auth) {
+                          markReplyAsRead({
+                            connection: this.#connection,
+                            auth: this.#auth,
+                            id: replyView.comment_reply.id
+                          });
+                        }
+
+                        return promise;
+                      })
+                    );
                   }
                 );
                 break;
@@ -826,15 +844,17 @@ export class LemmyBot {
                 await useDatabaseFunctions(
                   'commentReports',
                   async ({ get, upsert }) => {
-                    for (const reportView of comment_reports) {
-                      await this.#handleEntry({
-                        entry: { reportView },
-                        options: commentReportOptions!,
-                        getStorageInfo: get,
-                        id: reportView.comment_report.id,
-                        upsert
-                      });
-                    }
+                    await Promise.all(
+                      comment_reports.map((reportView) =>
+                        this.#handleEntry({
+                          entry: { reportView },
+                          options: commentReportOptions!,
+                          getStorageInfo: get,
+                          id: reportView.comment_report.id,
+                          upsert
+                        })
+                      )
+                    );
                   }
                 );
                 break;
@@ -845,15 +865,17 @@ export class LemmyBot {
                 await useDatabaseFunctions(
                   'postReports',
                   async ({ get, upsert }) => {
-                    for (const reportView of post_reports) {
-                      await this.#handleEntry({
-                        entry: { reportView },
-                        options: postReportOptions!,
-                        getStorageInfo: get,
-                        id: reportView.post_report.id,
-                        upsert
-                      });
-                    }
+                    await Promise.all(
+                      post_reports.map((reportView) =>
+                        this.#handleEntry({
+                          entry: { reportView },
+                          options: postReportOptions!,
+                          getStorageInfo: get,
+                          id: reportView.post_report.id,
+                          upsert
+                        })
+                      )
+                    );
                   }
                 );
                 break;
@@ -864,15 +886,17 @@ export class LemmyBot {
                 await useDatabaseFunctions(
                   'messageReports',
                   async ({ get, upsert }) => {
-                    for (const reportView of private_message_reports) {
-                      await this.#handleEntry({
-                        entry: { reportView },
-                        options: privateMessageReportOptions!,
-                        getStorageInfo: get,
-                        id: reportView.private_message_report.id,
-                        upsert
-                      });
-                    }
+                    await Promise.all(
+                      private_message_reports.map((reportView) =>
+                        this.#handleEntry({
+                          entry: { reportView },
+                          options: privateMessageReportOptions!,
+                          getStorageInfo: get,
+                          id: reportView.private_message_report.id,
+                          upsert
+                        })
+                      )
+                    );
                   }
                 );
                 break;
@@ -895,15 +919,17 @@ export class LemmyBot {
                   await useDatabaseFunctions(
                     'removedPosts',
                     async ({ get, upsert }) => {
-                      for (const removedPostView of removed_posts) {
-                        await this.#handleEntry({
-                          entry: { removedPostView },
-                          options: modRemovePostOptions!,
-                          getStorageInfo: get,
-                          id: removedPostView.mod_remove_post.id,
-                          upsert
-                        });
-                      }
+                      await Promise.all(
+                        removed_posts.map((removedPostView) =>
+                          this.#handleEntry({
+                            entry: { removedPostView },
+                            options: modRemovePostOptions!,
+                            getStorageInfo: get,
+                            id: removedPostView.mod_remove_post.id,
+                            upsert
+                          })
+                        )
+                      );
                     }
                   );
                 }
@@ -912,15 +938,17 @@ export class LemmyBot {
                   await useDatabaseFunctions(
                     'lockedPosts',
                     async ({ get, upsert }) => {
-                      for (const lockedPostView of locked_posts) {
-                        await this.#handleEntry({
-                          entry: { lockedPostView },
-                          options: modLockPostOptions!,
-                          getStorageInfo: get,
-                          id: lockedPostView.mod_lock_post.id,
-                          upsert
-                        });
-                      }
+                      await Promise.all(
+                        locked_posts.map((lockedPostView) =>
+                          this.#handleEntry({
+                            entry: { lockedPostView },
+                            options: modLockPostOptions!,
+                            getStorageInfo: get,
+                            id: lockedPostView.mod_lock_post.id,
+                            upsert
+                          })
+                        )
+                      );
                     }
                   );
                 }
@@ -929,15 +957,17 @@ export class LemmyBot {
                   await useDatabaseFunctions(
                     'featuredPosts',
                     async ({ get, upsert }) => {
-                      for (const featuredPostView of featured_posts) {
-                        await this.#handleEntry({
-                          entry: { featuredPostView },
-                          options: modFeaturePostOptions!,
-                          getStorageInfo: get,
-                          id: featuredPostView.mod_feature_post.id,
-                          upsert
-                        });
-                      }
+                      await Promise.all(
+                        featured_posts.map((featuredPostView) =>
+                          this.#handleEntry({
+                            entry: { featuredPostView },
+                            options: modFeaturePostOptions!,
+                            getStorageInfo: get,
+                            id: featuredPostView.mod_feature_post.id,
+                            upsert
+                          })
+                        )
+                      );
                     }
                   );
                 }
@@ -946,15 +976,17 @@ export class LemmyBot {
                   await useDatabaseFunctions(
                     'removedComments',
                     async ({ get, upsert }) => {
-                      for (const removedCommentView of removed_comments) {
-                        await this.#handleEntry({
-                          entry: { removedCommentView },
-                          options: modRemoveCommentOptions!,
-                          getStorageInfo: get,
-                          id: removedCommentView.mod_remove_comment.id,
-                          upsert
-                        });
-                      }
+                      await Promise.all(
+                        removed_comments.map((removedCommentView) =>
+                          this.#handleEntry({
+                            entry: { removedCommentView },
+                            options: modRemoveCommentOptions!,
+                            getStorageInfo: get,
+                            id: removedCommentView.mod_remove_comment.id,
+                            upsert
+                          })
+                        )
+                      );
                     }
                   );
                 }
@@ -966,15 +998,17 @@ export class LemmyBot {
                   await useDatabaseFunctions(
                     'removedCommunities',
                     async ({ get, upsert }) => {
-                      for (const removedCommunityView of removed_communities) {
-                        await this.#handleEntry({
-                          entry: { removedCommunityView },
-                          options: modRemoveCommunityOptions!,
-                          getStorageInfo: get,
-                          id: removedCommunityView.mod_remove_community.id,
-                          upsert
-                        });
-                      }
+                      await Promise.all(
+                        removed_communities.map((removedCommunityView) =>
+                          this.#handleEntry({
+                            entry: { removedCommunityView },
+                            options: modRemoveCommunityOptions!,
+                            getStorageInfo: get,
+                            id: removedCommunityView.mod_remove_community.id,
+                            upsert
+                          })
+                        )
+                      );
                     }
                   );
                 }
@@ -986,15 +1020,17 @@ export class LemmyBot {
                   await useDatabaseFunctions(
                     'communityBans',
                     async ({ get, upsert }) => {
-                      for (const banView of banned_from_community) {
-                        await this.#handleEntry({
-                          entry: { banView },
-                          options: modBanFromCommunityOptions!,
-                          getStorageInfo: get,
-                          id: banView.mod_ban_from_community.id,
-                          upsert
-                        });
-                      }
+                      await Promise.all(
+                        banned_from_community.map((banView) =>
+                          this.#handleEntry({
+                            entry: { banView },
+                            options: modBanFromCommunityOptions!,
+                            getStorageInfo: get,
+                            id: banView.mod_ban_from_community.id,
+                            upsert
+                          })
+                        )
+                      );
                     }
                   );
                 }
@@ -1006,15 +1042,17 @@ export class LemmyBot {
                   await useDatabaseFunctions(
                     'modsAddedToCommunities',
                     async ({ get, upsert }) => {
-                      for (const modAddedToCommunityView of added_to_community) {
-                        await this.#handleEntry({
-                          entry: { modAddedToCommunityView },
-                          options: modAddModToCommunityOptions!,
-                          getStorageInfo: get,
-                          id: modAddedToCommunityView.mod_add_community.id,
-                          upsert
-                        });
-                      }
+                      await Promise.all(
+                        added_to_community.map((modAddedToCommunityView) =>
+                          this.#handleEntry({
+                            entry: { modAddedToCommunityView },
+                            options: modAddModToCommunityOptions!,
+                            getStorageInfo: get,
+                            id: modAddedToCommunityView.mod_add_community.id,
+                            upsert
+                          })
+                        )
+                      );
                     }
                   );
                 }
@@ -1026,16 +1064,19 @@ export class LemmyBot {
                   await useDatabaseFunctions(
                     'modsTransferredToCommunities',
                     async ({ get, upsert }) => {
-                      for (const modTransferredToCommunityView of transferred_to_community) {
-                        await this.#handleEntry({
-                          entry: { modTransferredToCommunityView },
-                          options: modTransferCommunityOptions!,
-                          getStorageInfo: get,
-                          id: modTransferredToCommunityView
-                            .mod_transfer_community.id,
-                          upsert
-                        });
-                      }
+                      await Promise.all(
+                        transferred_to_community.map(
+                          (modTransferredToCommunityView) =>
+                            this.#handleEntry({
+                              entry: { modTransferredToCommunityView },
+                              options: modTransferCommunityOptions!,
+                              getStorageInfo: get,
+                              id: modTransferredToCommunityView
+                                .mod_transfer_community.id,
+                              upsert
+                            })
+                        )
+                      );
                     }
                   );
                 }
@@ -1044,15 +1085,17 @@ export class LemmyBot {
                   await useDatabaseFunctions(
                     'siteBans',
                     async ({ get, upsert }) => {
-                      for (const banView of banned) {
-                        await this.#handleEntry({
-                          entry: { banView },
-                          options: modBanFromSiteOptions!,
-                          getStorageInfo: get,
-                          id: banView.mod_ban.id,
-                          upsert
-                        });
-                      }
+                      await Promise.all(
+                        banned.map((banView) =>
+                          this.#handleEntry({
+                            entry: { banView },
+                            options: modBanFromSiteOptions!,
+                            getStorageInfo: get,
+                            id: banView.mod_ban.id,
+                            upsert
+                          })
+                        )
+                      );
                     }
                   );
                 }
@@ -1061,15 +1104,17 @@ export class LemmyBot {
                   await useDatabaseFunctions(
                     'adminsAdded',
                     async ({ get, upsert }) => {
-                      for (const addedAdminView of added) {
-                        await this.#handleEntry({
-                          entry: { addedAdminView },
-                          options: modAddAdminOptions!,
-                          getStorageInfo: get,
-                          id: addedAdminView.mod_add.id,
-                          upsert
-                        });
-                      }
+                      await Promise.all(
+                        added.map((addedAdminView) =>
+                          this.#handleEntry({
+                            entry: { addedAdminView },
+                            options: modAddAdminOptions,
+                            getStorageInfo: get,
+                            upsert,
+                            id: addedAdminView.mod_add.id
+                          })
+                        )
+                      );
                     }
                   );
                 }
