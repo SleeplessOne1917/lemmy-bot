@@ -3,6 +3,7 @@ lockfileVersion: 5.4
 specifiers:
   '@types/node': ^18.14.2
   '@types/node-cron': ^3.0.7
+  '@types/uuid': ^9.0.1
   '@types/websocket': ^1.0.5
   '@typescript-eslint/eslint-plugin': ^5.54.0
   '@typescript-eslint/parser': ^5.54.0
@@ -15,17 +16,20 @@ specifiers:
   sqlite3: ^5.1.4
   ts-node: ^10.9.1
   typescript: ^4.9.5
+  uuid: ^9.0.0
   websocket: ^1.0.34
 
 dependencies:
   lemmy-js-client: 0.17.2
   node-cron: 3.0.2
   sqlite3: 5.1.4
+  uuid: 9.0.0
   websocket: 1.0.34
 
 devDependencies:
   '@types/node': 18.14.2
   '@types/node-cron': 3.0.7
+  '@types/uuid': 9.0.1
   '@types/websocket': 1.0.5
   '@typescript-eslint/eslint-plugin': 5.54.0_6mj2wypvdnknez7kws2nfdgupi
   '@typescript-eslint/parser': 5.54.0_ycpbpc6yetojsgtrx3mwntkhsu
@@ -201,6 +205,10 @@ packages:
 
   /@types/semver/7.3.13:
     resolution: {integrity: sha512-21cFJr9z3g5dW8B0CVI9g2O9beqaThGQ6ZFBqHfwhzLDKUxaqTIy3vnfah/UPkfOiF2pLq+tGz+W8RyCskuslw==}
+    dev: true
+
+  /@types/uuid/9.0.1:
+    resolution: {integrity: sha512-rFT3ak0/2trgvp4yYZo5iKFEPsET7vKydKF+VRCxlQ9bpheehyAJH89dAkaLEq/j/RZXJIqcgsmPJKUP1Z28HA==}
     dev: true
 
   /@types/websocket/1.0.5:
@@ -1846,6 +1854,11 @@ packages:
 
   /uuid/8.3.2:
     resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
+    hasBin: true
+    dev: false
+
+  /uuid/9.0.0:
+    resolution: {integrity: sha512-MXcSTerfPa4uqyzStbRoTgt5XIe3x5+42+q1sDuy3R5MDk66URdLMOZe5aPX/SQd+kuYAh0FdP/pO28IkQyTeg==}
     hasBin: true
     dev: false
 

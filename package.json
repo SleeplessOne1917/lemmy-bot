@@ -12,6 +12,7 @@
   "devDependencies": {
     "@types/node": "^18.14.2",
     "@types/node-cron": "^3.0.7",
+    "@types/uuid": "^9.0.1",
     "@types/websocket": "^1.0.5",
     "@typescript-eslint/eslint-plugin": "^5.54.0",
     "@typescript-eslint/parser": "^5.54.0",
@@ -26,6 +27,7 @@
     "lemmy-js-client": "^0.17.2",
     "node-cron": "^3.0.2",
     "sqlite3": "^5.1.4",
+    "uuid": "^9.0.0",
     "websocket": "^1.0.34"
   }
 }

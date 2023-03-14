@@ -3,6 +3,7 @@ import {
   ListingType,
   ModlogActionType,
   PostFeatureType,
+  SearchType,
   SortType
 } from 'lemmy-js-client';
 import { LemmyWebsocket } from 'lemmy-js-client';
@@ -541,6 +542,29 @@ export const createFeaturePost = ({
     feature_type: featureType,
     featured,
     post_id: id
+  });
+
+  connection.send(request);
+};
+
+export const createSearch = ({
+  connection,
+  query,
+  type,
+  auth
+}: {
+  connection: Connection;
+  auth?: string;
+  type: SearchType;
+  query: string;
+}) => {
+  const request = client.search({
+    sort: SortType.TopAll,
+    q: query,
+    auth,
+    limit: 50,
+    type_: type,
+    listing_type: ListingType.All
   });
 
   connection.send(request);

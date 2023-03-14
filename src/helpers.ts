@@ -18,7 +18,8 @@ import {
   ModTransferCommunityView,
   ModAddView,
   ModBanView,
-  ListingType
+  ListingType,
+  SearchType
 } from 'lemmy-js-client';
 import { BotActions } from './bot';
 import { StorageInfo } from './db';
@@ -169,6 +170,9 @@ const escapeRegexString = (str: string) => str.replace(/\./g, '\\.');
 const formatActorId = (instance: string, community: string) =>
   `https?://${instance}/c/(${community})`;
 
+export const extractInstanceFromActorId = (actorId: string) =>
+  actorId.match(/https?:\/\/(.*)\/(?:c|u)\/.*/)![1];
+
 let instanceRegex: RegExp | undefined = undefined;
 
 export const getInstanceRegex = (instances: InstanceList) => {
@@ -209,3 +213,11 @@ export const getInstanceRegex = (instances: InstanceList) => {
 
   return instanceRegex;
 };
+
+export type InternalSearchOptions = {
+  name: string;
+  instance: string;
+  type: SearchType.Communities | SearchType.Users;
+};
+
+export type SearchOptions = Omit<InternalSearchOptions, 'type'>;

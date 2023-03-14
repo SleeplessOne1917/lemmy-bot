@@ -1,4 +1,5 @@
 import { connection as Connection, client as WebsocketClient } from 'websocket';
+import { v4 as uuidv4 } from 'uuid';
 
 import {
   GetPostsResponse,
@@ -14,7 +15,9 @@ import {
   PostFeatureType,
   GetModlogResponse,
   PostView,
-  CommentView
+  CommentView,
+  SearchType,
+  SearchResponse
 } from 'lemmy-js-client';
 import {
   BotConnectionOptions,
@@ -22,6 +25,7 @@ import {
   BotFederationOptions,
   BotTask,
   correctVote,
+  extractInstanceFromActorId,
   getInsecureWebsocketUrl,
   getInstanceRegex,
   getListingType,
@@ -29,7 +33,9 @@ import {
   HandlerOptions,
   Handlers,
   InstanceFederationOptions,
+  InternalSearchOptions,
   parseHandlers,
+  SearchOptions,
   shouldProcess,
   Vote
 } from './helpers';
@@ -49,6 +55,7 @@ import {
   createResolveCommentReport,
   createResolvePostReport,
   createResolvePrivateMessageReport,
+  createSearch,
   enableBotAccount,
   getAddedAdmins,
   getBansFromCommunities,
@@ -140,6 +147,8 @@ export type BotActions = {
     featured: boolean;
   }) => void;
   lockPost: (postId: number, locked: boolean) => void;
+  getCommunityId: (options: SearchOptions) => Promise<number | null>;
+  getUserId: (options: SearchOptions) => Promise<number | null>;
 };
 
 const client = new WebsocketClient();
@@ -157,6 +166,8 @@ export class LemmyBot {
   #federationOptions: BotFederationOptions;
   #tasks: ScheduledTask[] = [];
   #delayedTasks: (() => Promise<void>)[] = [];
+  #unfinishedSearchMap: Map<string, InternalSearchOptions> = new Map();
+  #finishedSearchMap: Map<string, number | null> = new Map();
   #botActions: BotActions = {
     replyToPost: (postId, content) => {
       if (this.#connection && this.#auth) {
@@ -492,7 +503,10 @@ export class LemmyBot {
             : 'Must log in to lock post'
         );
       }
-    }
+    },
+    getCommunityId: (options) =>
+      this.#getId(options, SearchType.Communities, 'community'),
+    getUserId: (options) => this.#getId(options, SearchType.Users, 'user')
   };
 
   constructor({
@@ -584,7 +598,10 @@ export class LemmyBot {
               }
             },
             task.timezone || task.runAtStart
-              ? { timezone: task.timezone, runOnInit: task.runAtStart }
+              ? {
+                  ...(task.timezone ? { timezone: task.timezone } : {}),
+                  ...(task.runAtStart ? { runOnInit: task.runAtStart } : {})
+                }
               : undefined
           )
         );
@@ -1120,6 +1137,45 @@ export class LemmyBot {
                 }
                 break;
               }
+              case 'Search': {
+                const { communities, users } = response.data as SearchResponse;
+                for (const [
+                  key,
+                  searchOptions
+                ] of this.#unfinishedSearchMap.entries()) {
+                  this.#unfinishedSearchMap.delete(key);
+                  let id: number | null = null;
+
+                  if (searchOptions.type === SearchType.Communities) {
+                    for (const { community } of communities) {
+                      if (
+                        (community.name === searchOptions.name ||
+                          community.title === searchOptions.name) &&
+                        extractInstanceFromActorId(community.actor_id) ===
+                          searchOptions.instance
+                      ) {
+                        id = community.id;
+                        break;
+                      }
+                    }
+                  } else {
+                    for (const { person } of users) {
+                      if (
+                        (person.name === searchOptions.name ||
+                          person.display_name === searchOptions.name) &&
+                        extractInstanceFromActorId(person.actor_id) ===
+                          searchOptions.instance
+                      ) {
+                        id = person.id;
+                        break;
+                      }
+                    }
+                  }
+
+                  this.#finishedSearchMap.set(key, id);
+                }
+                break;
+              }
               default: {
                 if (response.error) {
                   console.log(`Got error: ${response.error}`);
@@ -1174,8 +1230,8 @@ export class LemmyBot {
           this.#login();
         }
 
-        while (this.#delayedTasks.length > 0) {
-          await this.#delayedTasks.pop()!();
+        if (this.#delayedTasks.length > 0) {
+          await Promise.all(this.#delayedTasks);
         }
 
         for (const task of this.#tasks) {
@@ -1356,7 +1412,7 @@ export class LemmyBot {
         ...entry
       });
 
-      upsert(id, get());
+      await upsert(id, get());
     }
   }
 
@@ -1385,5 +1441,48 @@ export class LemmyBot {
     }
 
     return data;
+  }
+
+  #getId(
+    options: SearchOptions,
+    type: SearchType.Communities | SearchType.Users,
+    label: string
+  ) {
+    return new Promise<number | null>((resolve, reject) => {
+      if (this.#connection) {
+        const key = uuidv4();
+        this.#unfinishedSearchMap.set(key, {
+          ...options,
+          type
+        });
+
+        createSearch({
+          connection: this.#connection,
+          auth: this.#auth,
+          query: options.name,
+          type
+        });
+
+        let tries = 0;
+
+        const timeoutFunction = () => {
+          const result = this.#finishedSearchMap.get(key);
+          if (result !== undefined) {
+            this.#finishedSearchMap.delete(key);
+
+            resolve(result);
+          } else if (tries < 20) {
+            ++tries;
+            setTimeout(timeoutFunction, 1000);
+          } else {
+            reject(`Could not get ${label} ID`);
+          }
+        };
+
+        setTimeout(timeoutFunction, 1000);
+      }
+
+      reject('Connection closed');
+    });
   }
 }
