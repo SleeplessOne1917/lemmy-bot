@@ -12,32 +12,23 @@ import {
   ListCommentReportsResponse,
   ListPostReportsResponse,
   ListPrivateMessageReportsResponse,
-  PostFeatureType,
   GetModlogResponse,
   PostView,
   CommentView,
   SearchType,
-  SearchResponse
+  SearchResponse,
+  LemmyHttp
 } from 'lemmy-js-client';
 import {
-  BotConnectionOptions,
-  BotCredentials,
-  BotFederationOptions,
-  BotTask,
   correctVote,
   extractInstanceFromActorId,
   getInsecureWebsocketUrl,
   getInstanceRegex,
   getListingType,
   getSecureWebsocketUrl,
-  HandlerOptions,
-  Handlers,
-  InstanceFederationOptions,
   InternalSearchOptions,
   parseHandlers,
-  SearchOptions,
-  shouldProcess,
-  Vote
+  shouldProcess
 } from './helpers';
 import {
   createApplicationApproval,
@@ -91,69 +82,23 @@ import {
 } from './db';
 import { getReprocessFunctions } from './reprocessHandler';
 import cron, { ScheduledTask } from 'node-cron';
+import {
+  BotActions,
+  BotFederationOptions,
+  HandlerOptions,
+  InstanceFederationOptions,
+  LemmyBotOptions,
+  SearchOptions,
+  Vote
+} from './types';
 
 const DEFAULT_SECONDS_BETWEEN_POLLS = 10;
 const DEFAULT_MINUTES_BEFORE_RETRY_CONNECTION = 5;
 const DEFAULT_MINUTES_UNTIL_REPROCESS: number | undefined = undefined;
 
-type LemmyBotOptions = {
-  credentials?: BotCredentials;
-  instance: string;
-  connection?: BotConnectionOptions;
-  handlers?: Handlers;
-  federation?: 'local' | 'all' | BotFederationOptions;
-  schedule?: BotTask | BotTask[];
-};
-
-export type BotActions = {
-  replyToComment: (options: {
-    commentId: number;
-    postId: number;
-    content: string;
-  }) => void;
-  reportComment: (commentId: number, reason: string) => void;
-  replyToPost: (postId: number, content: string) => void;
-  reportPost: (postId: number, reason: string) => void;
-  votePost: (postId: number, vote: Vote) => void;
-  voteComment: (commentId: number, vote: Vote) => void;
-  banFromCommunity: (options: {
-    communityId: number;
-    personId: number;
-    daysUntilExpires?: number;
-    reason?: string;
-    removeData?: boolean;
-  }) => void;
-  banFromSite: (options: {
-    personId: number;
-    daysUntilExpires?: number;
-    reason?: string;
-    removeData?: boolean;
-  }) => void;
-  sendPrivateMessage: (recipientId: number, content: string) => void;
-  reportPrivateMessage: (messageId: number, reason: string) => void;
-  approveRegistrationApplication: (applicationId: number) => void;
-  rejectRegistrationApplication: (
-    applicationId: number,
-    denyReason?: string
-  ) => void;
-  removePost: (postId: number, reason?: string) => void;
-  removeComment: (commentId: number, reason?: string) => void;
-  resolvePostReport: (postReportId: number) => void;
-  resolveCommentReport: (commentReportId: number) => void;
-  resolvePrivateMessageReport: (privateMessageReportId: number) => void;
-  featurePost: (options: {
-    postId: number;
-    featureType: PostFeatureType;
-    featured: boolean;
-  }) => void;
-  lockPost: (postId: number, locked: boolean) => void;
-  getCommunityId: (options: SearchOptions) => Promise<number | null>;
-  getUserId: (options: SearchOptions) => Promise<number | null>;
-};
-
 const client = new WebsocketClient();
 
-export class LemmyBot {
+class LemmyBot {
   #instance: string;
   #username?: string;
   #password?: string;
@@ -168,6 +113,7 @@ export class LemmyBot {
   #delayedTasks: (() => Promise<void>)[] = [];
   #unfinishedSearchMap: Map<string, InternalSearchOptions> = new Map();
   #finishedSearchMap: Map<string, number | null> = new Map();
+  #httpClient: LemmyHttp;
   #botActions: BotActions = {
     replyToPost: (postId, content) => {
       if (this.#connection && this.#auth) {
@@ -506,7 +452,9 @@ export class LemmyBot {
     },
     getCommunityId: (options) =>
       this.#getId(options, SearchType.Communities, 'community'),
-    getUserId: (options) => this.#getId(options, SearchType.Users, 'user')
+    getUserId: (options) => this.#getId(options, SearchType.Users, 'user'),
+    uploadImage: async (image) =>
+      await this.#httpClient.uploadImage({ image, auth: this.#auth })
   };
 
   constructor({
@@ -558,7 +506,7 @@ export class LemmyBot {
         ) {
           throw 'Neither the block list nor allow list has any instances. To fix this issue, make sure either allow list or block list (not both) has at least one instance.\n\nAlternatively, the you can set the federation property to one of the strings "local" or "all".';
         } else if (federation.blockList?.includes(instance)) {
-          throw 'Cannot put bot instance in blocklist unless blocking specific communitiess';
+          throw 'Cannot put bot instance in blocklist unless blocking specific communities';
         } else {
           this.#federationOptions = federation;
 
@@ -591,8 +539,8 @@ export class LemmyBot {
               if (this.#connection?.connected) {
                 await task.doTask(this.#botActions);
               } else {
-                this.#delayedTasks.push(async () =>
-                  task.doTask(this.#botActions)
+                this.#delayedTasks.push(
+                  async () => await task.doTask(this.#botActions)
                 );
                 client.connect(getSecureWebsocketUrl(instance));
               }
@@ -613,6 +561,7 @@ export class LemmyBot {
     this.#username = username;
     this.#password = password;
     this.#defaultMinutesUntilReprocess = defaultMinutesUntilReprocess;
+    this.#httpClient = new LemmyHttp(`https://${this.#instance}`);
 
     const {
       comment: commentOptions,
@@ -648,6 +597,7 @@ export class LemmyBot {
       } else {
         this.#isSecureConnection = false;
         client.connect(getInsecureWebsocketUrl(this.#instance));
+        this.#httpClient = new LemmyHttp(`http://${this.#instance}`);
       }
     });
 
@@ -1486,3 +1436,5 @@ export class LemmyBot {
     });
   }
 }
+
+export default LemmyBot;

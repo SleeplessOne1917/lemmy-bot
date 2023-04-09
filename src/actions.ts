@@ -8,7 +8,8 @@ import {
 } from 'lemmy-js-client';
 import { LemmyWebsocket } from 'lemmy-js-client';
 import { connection as Connection } from 'websocket';
-import { futureDaysToUnixTime, Vote } from './helpers';
+import { futureDaysToUnixTime } from './helpers';
+import { Vote } from './types';
 
 const client = new LemmyWebsocket();
 

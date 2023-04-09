@@ -2,10 +2,11 @@
   "name": "lemmy-bot",
   "version": "1.0.0",
   "description": "A bot API for Lemmy, the fediverse link aggregator.",
-  "main": "index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
-    "start": "ts-node index.ts",
-    "lint": "npx eslint ."
+    "lint": "npx eslint .",
+    "build": "tsc"
   },
   "author": "SleeplessOne1917",
   "license": "GNU Affero General Public License v3.0",
@@ -29,5 +30,8 @@
     "sqlite3": "^5.1.6",
     "uuid": "^9.0.0",
     "websocket": "^1.0.34"
-  }
+  },
+  "files": [
+    "/dist"
+  ]
 }

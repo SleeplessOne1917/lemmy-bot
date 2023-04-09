@@ -17,12 +17,13 @@ class ReprocessHandler {
     return this.#minutesUntilReprocess;
   }
 }
+
 export const getReprocessFunctions = (minutes?: number) => {
-  const reprocessHandler = new ReprocessHandler(minutes);
+  const { reprocess, preventReprocess, get } = new ReprocessHandler(minutes);
 
   return {
-    reprocess: (minutes: number) => reprocessHandler.reprocess(minutes),
-    preventReprocess: () => reprocessHandler.preventReprocess(),
-    get: () => reprocessHandler.get()
+    reprocess,
+    preventReprocess,
+    get
   };
 };

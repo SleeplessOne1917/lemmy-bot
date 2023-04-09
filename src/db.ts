@@ -48,7 +48,7 @@ const getRow = (db: Database, id: number, table: string) =>
     db.get(
       `SELECT id, reprocessTime FROM ${table} WHERE id=?;`,
       id,
-      (err, row) => {
+      (err, row: { reprocessTime: number }) => {
         if (err) {
           reject(err);
         } else {

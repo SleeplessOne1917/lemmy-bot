@@ -21,20 +21,21 @@ import {
   ListingType,
   SearchType
 } from 'lemmy-js-client';
-import { BotActions } from './bot';
 import { StorageInfo } from './db';
+import {
+  BotFederationOptions,
+  HandlerOptions,
+  Handlers,
+  InstanceFederationOptions,
+  InstanceList,
+  Vote
+} from './types';
 
 export const getSecureWebsocketUrl = (instanceDomain: string) =>
   `wss://${instanceDomain}/api/v3/ws`;
 
 export const getInsecureWebsocketUrl = (instanceDomain: string) =>
   `ws://${instanceDomain}/api/v3/ws`;
-
-export enum Vote {
-  Upvote = 1,
-  Downvote = -1,
-  Neutral = 0
-}
 
 export const correctVote = (vote: number): Vote => {
   if (vote < -1) {
@@ -58,21 +59,7 @@ export const futureDaysToUnixTime = (days?: number) =>
 export const shouldProcess = ({ exists, reprocessTime }: StorageInfo) =>
   !exists || (reprocessTime && reprocessTime < new Date(Date.now()));
 
-type Handler<T> = (
-  options: {
-    botActions: BotActions;
-    preventReprocess: () => void;
-    reprocess: (minutes: number) => void;
-  } & T
-) => void;
-
-export type HandlerOptions<T> = {
-  handle: Handler<T>;
-  secondsBetweenPolls?: number;
-  minutesUntilReprocess?: number;
-};
-
-type InternalHandlers = {
+export type InternalHandlers = {
   comment?: HandlerOptions<{ commentView: CommentView }>;
   post?: HandlerOptions<{ postView: PostView }>;
   privateMessage?: HandlerOptions<{ messageView: PrivateMessageView }>;
@@ -106,14 +93,6 @@ type InternalHandlers = {
   modBanFromSite?: HandlerOptions<{ banView: ModBanView }>;
 };
 
-export type Handlers = {
-  [K in keyof InternalHandlers]?: InternalHandlers[K] extends
-    | HandlerOptions<infer U>
-    | undefined
-    ? InternalHandlers[K] | Handler<U>
-    : undefined;
-};
-
 export const parseHandlers = (handlers?: Handlers) =>
   handlers
     ? Object.entries(handlers).reduce(
@@ -124,38 +103,6 @@ export const parseHandlers = (handlers?: Handlers) =>
         {} as InternalHandlers
       )
     : ({} as InternalHandlers);
-
-export type BotConnectionOptions = {
-  handleConnectionFailed?: (e: Error) => void;
-  handleConnectionError?: (e: Error) => void;
-  minutesBeforeRetryConnection?: number;
-  secondsBetweenPolls?: number;
-  minutesUntilReprocess?: number;
-};
-
-export type BotCredentials = {
-  username: string;
-  password: string;
-};
-
-type InstanceList = (string | InstanceFederationOptions)[];
-
-export type BotFederationOptions = {
-  allowList?: InstanceList;
-  blockList?: InstanceList;
-};
-
-export type InstanceFederationOptions = {
-  instance: string;
-  communities: string[];
-};
-
-export type BotTask = {
-  cronExpression: string;
-  doTask: (botActions: BotActions) => Promise<void>;
-  timezone?: string;
-  runAtStart?: boolean;
-};
 
 export const getListingType = (options: BotFederationOptions) => {
   if ((options.allowList?.length ?? 0) === 1) {
@@ -173,45 +120,39 @@ const formatActorId = (instance: string, community: string) =>
 export const extractInstanceFromActorId = (actorId: string) =>
   actorId.match(/https?:\/\/(.*)\/(?:c|u)\/.*/)![1];
 
-let instanceRegex: RegExp | undefined = undefined;
-
 export const getInstanceRegex = (instances: InstanceList) => {
-  if (!instanceRegex) {
-    const stringInstances: string[] = [],
-      objectInstances: InstanceFederationOptions[] = [];
+  const stringInstances: string[] = [],
+    objectInstances: InstanceFederationOptions[] = [];
 
-    for (const instance of instances) {
-      if (typeof instance === 'string') {
-        stringInstances.push(escapeRegexString(instance));
-      } else {
-        objectInstances.push(instance);
-      }
+  for (const instance of instances) {
+    if (typeof instance === 'string') {
+      stringInstances.push(escapeRegexString(instance));
+    } else {
+      objectInstances.push(instance);
     }
-
-    const regexParts = [];
-
-    if (stringInstances.length > 0) {
-      regexParts.push(`^${formatActorId(stringInstances.join('|'), '.*')}$`);
-    }
-
-    if (objectInstances.length > 0) {
-      regexParts.push(
-        `(${objectInstances
-          .map(
-            ({ instance, communities }) =>
-              `^${formatActorId(
-                escapeRegexString(instance),
-                communities.join('|')
-              )}$`
-          )
-          .join('|')})`
-      );
-    }
-
-    instanceRegex = new RegExp(regexParts.join('|'));
   }
 
-  return instanceRegex;
+  const regexParts = [];
+
+  if (stringInstances.length > 0) {
+    regexParts.push(`^${formatActorId(stringInstances.join('|'), '.*')}$`);
+  }
+
+  if (objectInstances.length > 0) {
+    regexParts.push(
+      `(${objectInstances
+        .map(
+          ({ instance, communities }) =>
+            `^${formatActorId(
+              escapeRegexString(instance),
+              communities.join('|')
+            )}$`
+        )
+        .join('|')})`
+    );
+  }
+
+  return new RegExp(regexParts.join('|'));
 };
 
 export type InternalSearchOptions = {
@@ -219,5 +160,3 @@ export type InternalSearchOptions = {
   instance: string;
   type: SearchType.Communities | SearchType.Users;
 };
-
-export type SearchOptions = Omit<InternalSearchOptions, 'type'>;
