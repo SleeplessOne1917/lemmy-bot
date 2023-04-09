@@ -1,5 +1,7 @@
 import { verbose, Database } from 'sqlite3';
-import fs from 'fs';
+import { existsSync } from 'fs';
+import { writeFile, mkdir } from 'fs/promises';
+import path from 'path';
 const sqlite = verbose();
 
 const tableTypes = [
@@ -102,17 +104,36 @@ const tableFuncMap = new Map(
   ])
 );
 
-const useDatabase = async (doStuffWithDB: (db: Database) => Promise<void>) => {
-  const db = new sqlite.Database('./db.sqlite3');
+let memoryDb: Database | undefined = undefined;
+
+const useDatabase = async (
+  doStuffWithDB: (db: Database) => Promise<void>,
+  dbPath?: string
+) => {
+  let db: Database;
+
+  if (!dbPath) {
+    if (memoryDb) {
+      db = memoryDb;
+    } else {
+      memoryDb = new Database(':memory:');
+      db = memoryDb;
+    }
+  } else {
+    db = new sqlite.Database(dbPath);
+  }
 
   await doStuffWithDB(db);
 
-  db.close();
+  if (dbPath) {
+    db.close();
+  }
 };
 
 export const useDatabaseFunctions = async (
   table: TableType,
-  doStuff: (funcs: DatabaseFunctions) => Promise<void>
+  doStuff: (funcs: DatabaseFunctions) => Promise<void>,
+  dbPath?: string
 ) => {
   await useDatabase(async (db) => {
     const { get, upsert } = tableFuncMap.get(table)!;
@@ -122,7 +143,7 @@ export const useDatabaseFunctions = async (
       upsert: (id: number, minutesUntilReprocess?: number) =>
         upsert(db, id, minutesUntilReprocess)
     });
-  });
+  }, dbPath);
 };
 
 const createTable = (db: Database, table: string) => {
@@ -133,16 +154,18 @@ const createTable = (db: Database, table: string) => {
   db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_${table}_id ON ${table} (id);`);
 };
 
-export const setupDB = async () => {
-  if (!fs.existsSync('./db.sqlite3')) {
+export const setupDB = async (dbPath?: string) => {
+  if (dbPath && !existsSync(dbPath)) {
     console.log('Creating database file');
 
-    fs.writeFile('./db.sqlite3', '', (err) => {
-      if (err) {
-        console.log('Database error: ' + err.message);
-        process.exit(1);
-      }
-    });
+    try {
+      await mkdir(path.dirname(dbPath), { recursive: true });
+      await writeFile(dbPath, '');
+    } catch (error) {
+      console.log('Error making database file: ' + error);
+
+      process.exit(1);
+    }
   }
 
   await useDatabase(async (db) => {
@@ -152,5 +175,5 @@ export const setupDB = async () => {
         createTable(db, table);
       }
     });
-  });
+  }, dbPath);
 };

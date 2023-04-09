@@ -34,6 +34,10 @@ export type LemmyBotOptions = {
    * Task or tasks to be run periodically without needing to respond to events
    */
   schedule?: BotTask | BotTask[];
+  /**
+   * File to use for SQLite DB. If not provided, will store DB in memory.
+   */
+  dbFile?: string;
 };
 
 export type BotActions = {

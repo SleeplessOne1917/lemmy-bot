@@ -1,8 +1,11 @@
-class ReprocessHandler {
+export default class ReprocessHandler {
   #minutesUntilReprocess?: number;
 
   constructor(minutesUntilReprocess?: number) {
     this.#minutesUntilReprocess = minutesUntilReprocess;
+    this.reprocess = this.reprocess.bind(this);
+    this.preventReprocess = this.preventReprocess.bind(this);
+    this.get = this.get.bind(this);
   }
 
   reprocess(minutes: number) {
@@ -17,13 +20,3 @@ class ReprocessHandler {
     return this.#minutesUntilReprocess;
   }
 }
-
-export const getReprocessFunctions = (minutes?: number) => {
-  const { reprocess, preventReprocess, get } = new ReprocessHandler(minutes);
-
-  return {
-    reprocess,
-    preventReprocess,
-    get
-  };
-};

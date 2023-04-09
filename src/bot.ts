@@ -81,7 +81,7 @@ import {
   StorageInfoGetter,
   useDatabaseFunctions
 } from './db';
-import { getReprocessFunctions } from './reprocessHandler';
+import ReprocessHandler from './reprocessHandler';
 import cron, { ScheduledTask } from 'node-cron';
 import {
   BotActions,
@@ -115,6 +115,7 @@ class LemmyBot {
   #unfinishedSearchMap: Map<string, InternalSearchOptions> = new Map();
   #finishedSearchMap: Map<string, number | null> = new Map();
   #httpClient: LemmyHttp;
+  #dbFile?: string;
   #botActions: BotActions = {
     replyToPost: (postId, content) => {
       if (this.#connection && this.#auth) {
@@ -469,8 +470,8 @@ class LemmyBot {
     getCommunityId: (options) =>
       this.#getId(options, SearchType.Communities, 'community'),
     getUserId: (options) => this.#getId(options, SearchType.Users, 'user'),
-    uploadImage: async (image) =>
-      await this.#httpClient.uploadImage({ image, auth: this.#auth })
+    uploadImage: (image) =>
+      this.#httpClient.uploadImage({ image, auth: this.#auth })
   };
 
   constructor({
@@ -488,6 +489,7 @@ class LemmyBot {
       minutesBeforeRetryConnection: DEFAULT_MINUTES_BEFORE_RETRY_CONNECTION,
       minutesUntilReprocess: DEFAULT_MINUTES_UNTIL_REPROCESS
     },
+    dbFile,
     federation,
     schedule
   }: LemmyBotOptions) {
@@ -576,6 +578,7 @@ class LemmyBot {
     this.#password = password;
     this.#defaultMinutesUntilReprocess = defaultMinutesUntilReprocess;
     this.#httpClient = new LemmyHttp(`https://${this.#instance}`);
+    this.#dbFile = dbFile;
 
     const {
       comment: commentOptions,
@@ -650,8 +653,10 @@ class LemmyBot {
                   console.log('Marking account as bot account');
                   enableBotAccount({ connection, auth: this.#auth });
                 }
+
                 break;
               }
+
               case 'GetComments': {
                 const comments = this.#filterInstancesFromResponse(
                   (response.data as GetCommentsResponse).comments
@@ -671,30 +676,39 @@ class LemmyBot {
                         })
                       )
                     );
-                  }
+                  },
+                  this.#dbFile
                 );
+
                 break;
               }
+
               case 'GetPosts': {
                 const posts = this.#filterInstancesFromResponse(
                   (response.data as GetPostsResponse).posts
                 );
 
-                await useDatabaseFunctions('posts', async ({ get, upsert }) => {
-                  await Promise.all(
-                    posts.map((postView) =>
-                      this.#handleEntry({
-                        getStorageInfo: get,
-                        upsert,
-                        entry: { postView },
-                        id: postView.post.id,
-                        options: postOptions!
-                      })
-                    )
-                  );
-                });
+                await useDatabaseFunctions(
+                  'posts',
+                  async ({ get, upsert }) => {
+                    await Promise.all(
+                      posts.map((postView) =>
+                        this.#handleEntry({
+                          getStorageInfo: get,
+                          upsert,
+                          entry: { postView },
+                          id: postView.post.id,
+                          options: postOptions!
+                        })
+                      )
+                    );
+                  },
+                  this.#dbFile
+                );
+
                 break;
               }
+
               case 'GetPrivateMessages': {
                 const { private_messages } =
                   response.data as PrivateMessagesResponse;
@@ -726,10 +740,13 @@ class LemmyBot {
                         }
                       })
                     );
-                  }
+                  },
+                  this.#dbFile
                 );
+
                 break;
               }
+
               case 'ListRegistrationApplications': {
                 const { registration_applications } =
                   response.data as ListRegistrationApplicationsResponse;
@@ -747,10 +764,13 @@ class LemmyBot {
                         })
                       )
                     );
-                  }
+                  },
+                  this.#dbFile
                 );
+
                 break;
               }
+
               case 'GetPersonMentions': {
                 const { mentions } = response.data as GetPersonMentionsResponse;
                 await useDatabaseFunctions(
@@ -777,10 +797,13 @@ class LemmyBot {
                         return promise;
                       })
                     );
-                  }
+                  },
+                  this.#dbFile
                 );
+
                 break;
               }
+
               case 'GetReplies': {
                 const { replies } = response.data as GetRepliesResponse;
                 await useDatabaseFunctions(
@@ -807,10 +830,13 @@ class LemmyBot {
                         return promise;
                       })
                     );
-                  }
+                  },
+                  this.#dbFile
                 );
+
                 break;
               }
+
               case 'ListCommentReports': {
                 const { comment_reports } =
                   response.data as ListCommentReportsResponse;
@@ -828,10 +854,13 @@ class LemmyBot {
                         })
                       )
                     );
-                  }
+                  },
+                  this.#dbFile
                 );
+
                 break;
               }
+
               case 'ListPostReports': {
                 const { post_reports } =
                   response.data as ListPostReportsResponse;
@@ -849,10 +878,13 @@ class LemmyBot {
                         })
                       )
                     );
-                  }
+                  },
+                  this.#dbFile
                 );
+
                 break;
               }
+
               case 'ListPrivateMessageReports': {
                 const { private_message_reports } =
                   response.data as ListPrivateMessageReportsResponse;
@@ -870,10 +902,13 @@ class LemmyBot {
                         })
                       )
                     );
-                  }
+                  },
+                  this.#dbFile
                 );
+
                 break;
               }
+
               case 'GetModlog': {
                 const {
                   removed_posts,
@@ -903,7 +938,8 @@ class LemmyBot {
                           })
                         )
                       );
-                    }
+                    },
+                    this.#dbFile
                   );
                 }
 
@@ -922,7 +958,8 @@ class LemmyBot {
                           })
                         )
                       );
-                    }
+                    },
+                    this.#dbFile
                   );
                 }
 
@@ -941,7 +978,8 @@ class LemmyBot {
                           })
                         )
                       );
-                    }
+                    },
+                    this.#dbFile
                   );
                 }
 
@@ -960,7 +998,8 @@ class LemmyBot {
                           })
                         )
                       );
-                    }
+                    },
+                    this.#dbFile
                   );
                 }
 
@@ -982,7 +1021,8 @@ class LemmyBot {
                           })
                         )
                       );
-                    }
+                    },
+                    this.#dbFile
                   );
                 }
 
@@ -1004,7 +1044,8 @@ class LemmyBot {
                           })
                         )
                       );
-                    }
+                    },
+                    this.#dbFile
                   );
                 }
 
@@ -1026,7 +1067,8 @@ class LemmyBot {
                           })
                         )
                       );
-                    }
+                    },
+                    this.#dbFile
                   );
                 }
 
@@ -1050,7 +1092,8 @@ class LemmyBot {
                             })
                         )
                       );
-                    }
+                    },
+                    this.#dbFile
                   );
                 }
 
@@ -1069,7 +1112,8 @@ class LemmyBot {
                           })
                         )
                       );
-                    }
+                    },
+                    this.#dbFile
                   );
                 }
 
@@ -1088,11 +1132,14 @@ class LemmyBot {
                           })
                         )
                       );
-                    }
+                    },
+                    this.#dbFile
                   );
                 }
+
                 break;
               }
+
               case 'Search': {
                 const { communities, users } = response.data as SearchResponse;
                 for (const [
@@ -1130,12 +1177,16 @@ class LemmyBot {
 
                   this.#finishedSearchMap.set(key, id);
                 }
+
                 break;
               }
+
               default: {
                 if (response.error) {
                   console.log(`Got error: ${response.error}`);
                 }
+
+                break;
               }
             }
           }
@@ -1180,7 +1231,7 @@ class LemmyBot {
       };
 
       const runBot = async () => {
-        await setupDB();
+        await setupDB(this.#dbFile);
 
         if (credentials) {
           this.#login();
@@ -1357,7 +1408,7 @@ class LemmyBot {
   }) {
     const storageInfo = await getStorageInfo(id);
     if (shouldProcess(storageInfo)) {
-      const { get, preventReprocess, reprocess } = getReprocessFunctions(
+      const { get, preventReprocess, reprocess } = new ReprocessHandler(
         options?.minutesUntilReprocess ?? this.#defaultMinutesUntilReprocess
       );
 
