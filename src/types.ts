@@ -1,11 +1,32 @@
 import {
+  CommentReplyView,
+  CommentReportView,
+  CommentSortType,
+  CommentView,
   CreatePost,
+  ModAddCommunityView,
+  ModAddView,
+  ModBanFromCommunityView,
+  ModBanView,
+  ModFeaturePostView,
+  ModLockPostView,
+  ModRemoveCommentView,
+  ModRemoveCommunityView,
+  ModRemovePostView,
+  ModTransferCommunityView,
+  PersonMentionView,
   PostFeatureType,
+  PostReportView,
+  PostView,
+  PrivateMessageReportView,
+  PrivateMessageView,
+  RegistrationApplicationView,
+  SearchType,
+  SortType,
   UploadImageResponse
 } from 'lemmy-js-client';
-import { InternalHandlers, InternalSearchOptions } from './internalTypes';
 
-export type LemmyBotOptions = {
+export type BotOptions = {
   credentials?: BotCredentials;
   /**
    * Domain name of the instance the bot will run on.
@@ -24,7 +45,7 @@ export type LemmyBotOptions = {
    * Options for handling different events, e.g. the creation of a comment,
    * a mod log action, or a private message
    */
-  handlers?: Handlers;
+  handlers?: BotHandlers;
   /**
    * Controls whether the bot should respond to events from all instances, just the local instance,
    * or a more fine grained selection.
@@ -104,6 +125,49 @@ export type BotActions = {
   uploadImage: (image: Buffer) => Promise<UploadImageResponse>;
 };
 
+export type InternalSearchOptions = {
+  name: string;
+  instance: string;
+  type: SearchType.Communities | SearchType.Users;
+};
+
+export type InternalHandlers = {
+  comment?: BotHandlerOptions<
+    { commentView: CommentView },
+    { sort?: CommentSortType }
+  >;
+  post?: BotHandlerOptions<{ postView: PostView }, { sort?: SortType }>;
+  privateMessage?: BotHandlerOptions<{ messageView: PrivateMessageView }>;
+  registrationApplication?: BotHandlerOptions<{
+    applicationView: RegistrationApplicationView;
+  }>;
+  mention?: BotHandlerOptions<{ mentionView: PersonMentionView }>;
+  reply?: BotHandlerOptions<{ replyView: CommentReplyView }>;
+  commentReport?: BotHandlerOptions<{ reportView: CommentReportView }>;
+  postReport?: BotHandlerOptions<{ reportView: PostReportView }>;
+  privateMessageReport?: BotHandlerOptions<{
+    reportView: PrivateMessageReportView;
+  }>;
+  modRemovePost?: BotHandlerOptions<{ removedPostView: ModRemovePostView }>;
+  modLockPost?: BotHandlerOptions<{ lockedPostView: ModLockPostView }>;
+  modFeaturePost?: BotHandlerOptions<{ featuredPostView: ModFeaturePostView }>;
+  modRemoveComment?: BotHandlerOptions<{
+    removedCommentView: ModRemoveCommentView;
+  }>;
+  modRemoveCommunity?: BotHandlerOptions<{
+    removedCommunityView: ModRemoveCommunityView;
+  }>;
+  modBanFromCommunity?: BotHandlerOptions<{ banView: ModBanFromCommunityView }>;
+  modAddModToCommunity?: BotHandlerOptions<{
+    modAddedToCommunityView: ModAddCommunityView;
+  }>;
+  modTransferCommunity?: BotHandlerOptions<{
+    modTransferredToCommunityView: ModTransferCommunityView;
+  }>;
+  modAddAdmin?: BotHandlerOptions<{ addedAdminView: ModAddView }>;
+  modBanFromSite?: BotHandlerOptions<{ banView: ModBanView }>;
+};
+
 type Handler<T> = (
   options: {
     botActions: BotActions;
@@ -122,8 +186,11 @@ type Handler<T> = (
   } & T
 ) => Promise<void>;
 
-export type HandlerOptions<T> = {
-  handle: Handler<T>;
+export type BotHandlerOptions<
+  THandledItem,
+  TOptions extends Record<string, any> = Record<string, never>
+> = {
+  handle: Handler<THandledItem>;
   /**
    * Seconds between each fetch of data.
    * Overrides the value set in {@link BotConnectionOptions.secondsBetweenPolls}
@@ -140,13 +207,13 @@ export type HandlerOptions<T> = {
    * @defaultValue undefined
    */
   minutesUntilReprocess?: number;
-};
+} & TOptions;
 
-export type Handlers = {
+export type BotHandlers = {
   [K in keyof InternalHandlers]?: InternalHandlers[K] extends
-    | HandlerOptions<infer U>
+    | BotHandlerOptions<infer U, infer O>
     | undefined
-    ? InternalHandlers[K] | Handler<U>
+    ? (InternalHandlers[K] & O) | Handler<U>
     : undefined;
 };
 
@@ -156,14 +223,14 @@ export enum Vote {
   Neutral = 0
 }
 
-export type InstanceList = (string | InstanceFederationOptions)[];
+export type BotInstanceList = (string | BotInstanceFederationOptions)[];
 
 export type BotFederationOptions = {
-  allowList?: InstanceList;
-  blockList?: InstanceList;
+  allowList?: BotInstanceList;
+  blockList?: BotInstanceList;
 };
 
-export type InstanceFederationOptions = {
+export type BotInstanceFederationOptions = {
   /**
    * Domain name of the instance to allow/block content from.
    *
@@ -206,14 +273,14 @@ export type BotConnectionOptions = {
   minutesBeforeRetryConnection?: number;
   /**
    * Seconds between each fetch of data.
-   * Can be overridden by {@link HandlerOptions.secondsBetweenPolls}
+   * Can be overridden by {@link BotHandlerOptions.secondsBetweenPolls}
    *
    * @defaultValue 10
    */
   secondsBetweenPolls?: number;
   /**
    * Minutes until an item is able to be reprocessed. Items will not be reprocessed at all if not provided.
-   * Can be overridden by {@link HandlerOptions.minutesUntilReprocess}
+   * Can be overridden by {@link BotHandlerOptions.minutesUntilReprocess}
    *
    * NOTE: An item being marked as able to be reprocessed does not necessarily mean that it will be reprocessed.
    *

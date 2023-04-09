@@ -86,13 +86,19 @@ export const voteDBComment = ({
   connection.send(request);
 };
 
-export const getPosts = (
-  connection: Connection,
-  listingType: ListingType,
-  auth?: string
-) => {
+export const getPosts = ({
+  connection,
+  listingType,
+  auth,
+  sort = SortType.New
+}: {
+  connection: Connection;
+  listingType: ListingType;
+  auth?: string;
+  sort?: SortType;
+}) => {
   const request = client.getPosts({
-    sort: SortType.New,
+    sort,
     limit: 50,
     auth,
     type_: listingType
@@ -127,13 +133,19 @@ export const createPostReport = ({
   connection.send(request);
 };
 
-export const getComments = (
-  connection: Connection,
-  listingType: ListingType,
-  auth?: string
-) => {
+export const getComments = ({
+  connection,
+  listingType,
+  auth,
+  sort = CommentSortType.New
+}: {
+  connection: Connection;
+  listingType: ListingType;
+  auth?: string;
+  sort?: CommentSortType;
+}) => {
   const request = client.getComments({
-    sort: CommentSortType.New,
+    sort,
     limit: 50,
     auth,
     type_: listingType

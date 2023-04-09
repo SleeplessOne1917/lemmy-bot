@@ -85,13 +85,13 @@ import cron, { ScheduledTask } from 'node-cron';
 import {
   BotActions,
   BotFederationOptions,
-  HandlerOptions,
-  InstanceFederationOptions,
-  LemmyBotOptions,
+  BotHandlerOptions,
+  BotInstanceFederationOptions,
+  BotOptions,
   SearchOptions,
-  Vote
+  Vote,
+  InternalSearchOptions
 } from './types';
-import { InternalSearchOptions } from './internalTypes';
 
 const DEFAULT_SECONDS_BETWEEN_POLLS = 10;
 const DEFAULT_MINUTES_BEFORE_RETRY_CONNECTION = 5;
@@ -392,7 +392,7 @@ class LemmyBot {
     dbFile,
     federation,
     schedule
-  }: LemmyBotOptions) {
+  }: BotOptions) {
     switch (federation) {
       case undefined:
       case 'local': {
@@ -431,7 +431,7 @@ class LemmyBot {
             !this.#federationOptions.allowList.some(
               (i) =>
                 i === instance ||
-                (i as InstanceFederationOptions).instance === instance
+                (i as BotInstanceFederationOptions).instance === instance
             )
           ) {
             this.#federationOptions.allowList.push(instance);
@@ -1149,14 +1149,26 @@ class LemmyBot {
 
         if (postOptions) {
           runChecker(
-            (conn, auth) => getPosts(conn, listingType, auth),
+            (conn, auth) =>
+              getPosts({
+                connection: conn,
+                listingType,
+                auth,
+                sort: postOptions.sort
+              }),
             postOptions.secondsBetweenPolls
           );
         }
 
         if (commentOptions) {
           runChecker(
-            (conn, auth) => getComments(conn, listingType, auth),
+            (conn, auth) =>
+              getComments({
+                connection: conn,
+                auth,
+                listingType,
+                sort: commentOptions.sort
+              }),
             commentOptions.secondsBetweenPolls
           );
         }
@@ -1293,7 +1305,10 @@ class LemmyBot {
     }
   }
 
-  async #handleEntry<T>({
+  async #handleEntry<
+    THandledItem,
+    TOptions extends Record<string, any> = Record<string, never>
+  >({
     getStorageInfo,
     upsert,
     options,
@@ -1302,9 +1317,9 @@ class LemmyBot {
   }: {
     getStorageInfo: StorageInfoGetter;
     upsert: RowUpserter;
-    options: HandlerOptions<T>;
+    options: BotHandlerOptions<THandledItem, TOptions>;
     id: number;
-    entry: T;
+    entry: THandledItem;
   }) {
     const storageInfo = await getStorageInfo(id);
     if (shouldProcess(storageInfo)) {

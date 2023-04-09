@@ -2,12 +2,12 @@ import { ListingType } from 'lemmy-js-client';
 import { StorageInfo } from './db';
 import {
   BotFederationOptions,
-  Handlers,
-  InstanceFederationOptions,
-  InstanceList,
-  Vote
+  BotHandlers,
+  BotInstanceFederationOptions,
+  BotInstanceList,
+  Vote,
+  InternalHandlers
 } from './types';
-import { InternalHandlers } from './internalTypes';
 
 export const getSecureWebsocketUrl = (instanceDomain: string) =>
   `wss://${instanceDomain}/api/v3/ws`;
@@ -37,7 +37,7 @@ export const futureDaysToUnixTime = (days?: number) =>
 export const shouldProcess = ({ exists, reprocessTime }: StorageInfo) =>
   !exists || (reprocessTime && reprocessTime < new Date(Date.now()));
 
-export const parseHandlers = (handlers?: Handlers) =>
+export const parseHandlers = (handlers?: BotHandlers) =>
   handlers
     ? Object.entries(handlers).reduce(
         (acc, [key, val]) => ({
@@ -64,9 +64,9 @@ const formatActorId = (instance: string, community: string) =>
 export const extractInstanceFromActorId = (actorId: string) =>
   actorId.match(/https?:\/\/(.*)\/(?:c|u)\/.*/)![1];
 
-export const getInstanceRegex = (instances: InstanceList) => {
+export const getInstanceRegex = (instances: BotInstanceList) => {
   const stringInstances: string[] = [],
-    objectInstances: InstanceFederationOptions[] = [];
+    objectInstances: BotInstanceFederationOptions[] = [];
 
   for (const instance of instances) {
     if (typeof instance === 'string') {
