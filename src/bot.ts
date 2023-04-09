@@ -1097,18 +1097,18 @@ class LemmyBot {
                 const { communities, users } = response.data as SearchResponse;
                 for (const [
                   key,
-                  searchOptions
+                  { instance, name, type }
                 ] of this.#unfinishedSearchMap.entries()) {
                   this.#unfinishedSearchMap.delete(key);
                   let id: number | null = null;
+                  const instanceWithoutPort = instance.replace(/:.*/, '');
 
-                  if (searchOptions.type === SearchType.Communities) {
+                  if (type === SearchType.Communities) {
                     for (const { community } of communities) {
                       if (
-                        (community.name === searchOptions.name ||
-                          community.title === searchOptions.name) &&
+                        (community.name === name || community.title === name) &&
                         extractInstanceFromActorId(community.actor_id) ===
-                          searchOptions.instance
+                          instanceWithoutPort
                       ) {
                         id = community.id;
                         break;
@@ -1117,10 +1117,10 @@ class LemmyBot {
                   } else {
                     for (const { person } of users) {
                       if (
-                        (person.name === searchOptions.name ||
-                          person.display_name === searchOptions.name) &&
+                        (person.name === name ||
+                          person.display_name === name) &&
                         extractInstanceFromActorId(person.actor_id) ===
-                          searchOptions.instance
+                          instanceWithoutPort
                       ) {
                         id = person.id;
                         break;
@@ -1400,22 +1400,33 @@ class LemmyBot {
   }
 
   #getId(
-    options: SearchOptions,
+    options: SearchOptions | string,
     type: SearchType.Communities | SearchType.Users,
     label: string
   ) {
-    return new Promise<number | null>((resolve, reject) => {
+    return new Promise<number | undefined>((resolve, reject) => {
       if (this.#connection?.connected) {
         const key = uuidv4();
+        let localOptions: SearchOptions;
+
+        if (typeof options === 'string') {
+          localOptions = {
+            name: options,
+            instance: this.#instance
+          };
+        } else {
+          localOptions = options;
+        }
+
         this.#unfinishedSearchMap.set(key, {
-          ...options,
+          ...localOptions,
           type
         });
 
         createSearch({
           connection: this.#connection,
           auth: this.#auth,
-          query: options.name,
+          query: localOptions.name,
           type
         });
 
@@ -1427,7 +1438,7 @@ class LemmyBot {
           if (result !== undefined) {
             this.#finishedSearchMap.delete(key);
 
-            resolve(result);
+            resolve(result ?? undefined);
           } else if (tries < 20) {
             ++tries;
             setTimeout(timeoutFunction, 1000);

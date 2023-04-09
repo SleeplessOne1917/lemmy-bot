@@ -79,8 +79,24 @@ export type BotActions = {
     featured: boolean;
   }) => void;
   lockPost: (postId: number, locked: boolean) => void;
-  getCommunityId: (options: SearchOptions) => Promise<number | null>;
-  getUserId: (options: SearchOptions) => Promise<number | null>;
+  /**
+   * Gets a community ID by name.
+   *
+   * @param options - If just a string, will search for the community on the bot's local instance. Pass a {@link SearchOptions} object to search for a community on another instance
+   *
+   * @returns The ID of the searched for community, or undefined if not found
+   */
+  getCommunityId: (
+    options: SearchOptions | string
+  ) => Promise<number | undefined>;
+  /**
+   * Gets user ID by name.
+   *
+   * @param options - If just a string, will search for the user on the bot's local instance. Pass a {@link SearchOptions} object to search for a user on another instance
+   *
+   * @returns The ID of the searched for user, or undefined if not found
+   */
+  getUserId: (options: SearchOptions | string) => Promise<number | undefined>;
   uploadImage: (image: Buffer) => Promise<UploadImageResponse>;
 };
 
