@@ -1,4 +1,8 @@
-import { PostFeatureType, UploadImageResponse } from 'lemmy-js-client';
+import {
+  CreatePost,
+  PostFeatureType,
+  UploadImageResponse
+} from 'lemmy-js-client';
 import { InternalHandlers, InternalSearchOptions } from './helpers';
 
 export type LemmyBotOptions = {
@@ -20,6 +24,7 @@ export type BotActions = {
   replyToPost: (postId: number, content: string) => void;
   reportPost: (postId: number, reason: string) => void;
   votePost: (postId: number, vote: Vote) => void;
+  createPost: (form: Omit<CreatePost, 'auth'>) => void;
   voteComment: (commentId: number, vote: Vote) => void;
   banFromCommunity: (options: {
     communityId: number;
@@ -63,7 +68,7 @@ type Handler<T> = (
     preventReprocess: () => void;
     reprocess: (minutes: number) => void;
   } & T
-) => void;
+) => Promise<void>;
 
 export type HandlerOptions<T> = {
   handle: Handler<T>;

@@ -1,5 +1,6 @@
 import {
   CommentSortType,
+  CreatePost,
   ListingType,
   ModlogActionType,
   PostFeatureType,
@@ -96,6 +97,12 @@ export const getPosts = (
     auth,
     type_: listingType
   });
+
+  connection.send(request);
+};
+
+export const createPost = (connection: Connection, form: CreatePost) => {
+  const request = client.createPost(form);
 
   connection.send(request);
 };

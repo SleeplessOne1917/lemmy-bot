@@ -38,6 +38,7 @@ import {
   createCommentReport,
   createFeaturePost,
   createLockPost,
+  createPost,
   createPostReport,
   createPrivateMessage,
   createPrivateMessageReport,
@@ -129,6 +130,21 @@ class LemmyBot {
           !this.#connection
             ? 'Must be connected to post comment'
             : 'Must log in to post comment'
+        );
+      }
+    },
+    createPost: (form) => {
+      if (this.#connection && this.#auth) {
+        console.log('Creating post');
+        createPost(this.#connection, {
+          ...form,
+          auth: this.#auth
+        });
+      } else {
+        console.log(
+          !this.#connection
+            ? 'Must be connected to create post'
+            : 'Must log in to create post'
         );
       }
     },
@@ -567,7 +583,7 @@ class LemmyBot {
       comment: commentOptions,
       post: postOptions,
       privateMessage: privateMessageOptions,
-      registrationApplication: registrationAppicationOptions,
+      registrationApplication: registrationApplicationOptions,
       mention: mentionOptions,
       reply: replyOptions,
       commentReport: commentReportOptions,
@@ -737,7 +753,7 @@ class LemmyBot {
                           upsert,
                           entry: { applicationView },
                           id: applicationView.registration_application.id,
-                          options: registrationAppicationOptions!
+                          options: registrationApplicationOptions!
                         })
                       )
                     );
@@ -1211,10 +1227,10 @@ class LemmyBot {
           );
         }
 
-        if (registrationAppicationOptions && credentials) {
+        if (registrationApplicationOptions && credentials) {
           runChecker(
             getRegistrationApplications,
-            registrationAppicationOptions.secondsBetweenPolls
+            registrationApplicationOptions.secondsBetweenPolls
           );
         }
 
@@ -1355,7 +1371,7 @@ class LemmyBot {
         options?.minutesUntilReprocess ?? this.#defaultMinutesUntilReprocess
       );
 
-      options!.handle!({
+      await options!.handle!({
         botActions: this.#botActions,
         preventReprocess,
         reprocess,
@@ -1399,7 +1415,7 @@ class LemmyBot {
     label: string
   ) {
     return new Promise<number | null>((resolve, reject) => {
-      if (this.#connection) {
+      if (this.#connection?.connected) {
         const key = uuidv4();
         this.#unfinishedSearchMap.set(key, {
           ...options,
@@ -1417,6 +1433,7 @@ class LemmyBot {
 
         const timeoutFunction = () => {
           const result = this.#finishedSearchMap.get(key);
+          console.log('Timeout result: ' + result);
           if (result !== undefined) {
             this.#finishedSearchMap.delete(key);
 
@@ -1425,14 +1442,14 @@ class LemmyBot {
             ++tries;
             setTimeout(timeoutFunction, 1000);
           } else {
-            reject(`Could not get ${label} ID`);
+            reject(`Could not find ${label} ID`);
           }
         };
 
         setTimeout(timeoutFunction, 1000);
+      } else {
+        reject(`Could no get ${label} ID: connection closed`);
       }
-
-      reject('Connection closed');
     });
   }
 }
