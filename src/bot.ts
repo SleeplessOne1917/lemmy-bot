@@ -478,8 +478,6 @@ class LemmyBot {
     credentials,
     handlers,
     connection: {
-      handleConnectionError,
-      handleConnectionFailed,
       minutesBeforeRetryConnection = DEFAULT_MINUTES_BEFORE_RETRY_CONNECTION,
       minutesUntilReprocess:
         defaultMinutesUntilReprocess = DEFAULT_MINUTES_UNTIL_REPROCESS,
@@ -601,15 +599,11 @@ class LemmyBot {
       modBanFromSite: modBanFromSiteOptions
     } = parseHandlers(handlers);
 
-    client.on('connectFailed', (e) => {
+    client.on('connectFailed', () => {
       if (!this.#isSecureConnection) {
         console.log('Connection Failed!');
 
         this.#isSecureConnection = true;
-
-        if (handleConnectionFailed) {
-          handleConnectionFailed(e);
-        }
       } else {
         this.#isSecureConnection = false;
         client.connect(getInsecureWebsocketUrl(this.#instance));
@@ -624,10 +618,6 @@ class LemmyBot {
       connection.on('error', (error) => {
         console.log('Connection error');
         console.log(`Error was: ${error.message}`);
-
-        if (handleConnectionError) {
-          handleConnectionError(error);
-        }
       });
 
       connection.on('close', () => {
