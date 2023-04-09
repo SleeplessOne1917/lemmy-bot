@@ -1,35 +1,13 @@
-import {
-  CommentView,
-  PostView,
-  PrivateMessageView,
-  RegistrationApplicationView,
-  PersonMentionView,
-  CommentReplyView,
-  CommentReportView,
-  PostReportView,
-  PrivateMessageReportView,
-  ModRemovePostView,
-  ModLockPostView,
-  ModFeaturePostView,
-  ModRemoveCommentView,
-  ModRemoveCommunityView,
-  ModBanFromCommunityView,
-  ModAddCommunityView,
-  ModTransferCommunityView,
-  ModAddView,
-  ModBanView,
-  ListingType,
-  SearchType
-} from 'lemmy-js-client';
+import { ListingType } from 'lemmy-js-client';
 import { StorageInfo } from './db';
 import {
   BotFederationOptions,
-  HandlerOptions,
   Handlers,
   InstanceFederationOptions,
   InstanceList,
   Vote
 } from './types';
+import { InternalHandlers } from './internalTypes';
 
 export const getSecureWebsocketUrl = (instanceDomain: string) =>
   `wss://${instanceDomain}/api/v3/ws`;
@@ -58,40 +36,6 @@ export const futureDaysToUnixTime = (days?: number) =>
 
 export const shouldProcess = ({ exists, reprocessTime }: StorageInfo) =>
   !exists || (reprocessTime && reprocessTime < new Date(Date.now()));
-
-export type InternalHandlers = {
-  comment?: HandlerOptions<{ commentView: CommentView }>;
-  post?: HandlerOptions<{ postView: PostView }>;
-  privateMessage?: HandlerOptions<{ messageView: PrivateMessageView }>;
-  registrationApplication?: HandlerOptions<{
-    applicationView: RegistrationApplicationView;
-  }>;
-  mention?: HandlerOptions<{ mentionView: PersonMentionView }>;
-  reply?: HandlerOptions<{ replyView: CommentReplyView }>;
-  commentReport?: HandlerOptions<{ reportView: CommentReportView }>;
-  postReport?: HandlerOptions<{ reportView: PostReportView }>;
-  privateMessageReport?: HandlerOptions<{
-    reportView: PrivateMessageReportView;
-  }>;
-  modRemovePost?: HandlerOptions<{ removedPostView: ModRemovePostView }>;
-  modLockPost?: HandlerOptions<{ lockedPostView: ModLockPostView }>;
-  modFeaturePost?: HandlerOptions<{ featuredPostView: ModFeaturePostView }>;
-  modRemoveComment?: HandlerOptions<{
-    removedCommentView: ModRemoveCommentView;
-  }>;
-  modRemoveCommunity?: HandlerOptions<{
-    removedCommunityView: ModRemoveCommunityView;
-  }>;
-  modBanFromCommunity?: HandlerOptions<{ banView: ModBanFromCommunityView }>;
-  modAddModToCommunity?: HandlerOptions<{
-    modAddedToCommunityView: ModAddCommunityView;
-  }>;
-  modTransferCommunity?: HandlerOptions<{
-    modTransferredToCommunityView: ModTransferCommunityView;
-  }>;
-  modAddAdmin?: HandlerOptions<{ addedAdminView: ModAddView }>;
-  modBanFromSite?: HandlerOptions<{ banView: ModBanView }>;
-};
 
 export const parseHandlers = (handlers?: Handlers) =>
   handlers
@@ -153,10 +97,4 @@ export const getInstanceRegex = (instances: InstanceList) => {
   }
 
   return new RegExp(regexParts.join('|'));
-};
-
-export type InternalSearchOptions = {
-  name: string;
-  instance: string;
-  type: SearchType.Communities | SearchType.Users;
 };

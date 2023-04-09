@@ -2,6 +2,7 @@ import { verbose, Database } from 'sqlite3';
 import { existsSync } from 'fs';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
+
 const sqlite = verbose();
 
 const tableTypes = [

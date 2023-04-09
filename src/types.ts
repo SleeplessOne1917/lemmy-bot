@@ -3,7 +3,7 @@ import {
   PostFeatureType,
   UploadImageResponse
 } from 'lemmy-js-client';
-import { InternalHandlers, InternalSearchOptions } from './helpers';
+import { InternalHandlers, InternalSearchOptions } from './internalTypes';
 
 export type LemmyBotOptions = {
   credentials?: BotCredentials;

@@ -26,7 +26,6 @@ import {
   getInstanceRegex,
   getListingType,
   getSecureWebsocketUrl,
-  InternalSearchOptions,
   parseHandlers,
   shouldProcess
 } from './helpers';
@@ -92,6 +91,7 @@ import {
   SearchOptions,
   Vote
 } from './types';
+import { InternalSearchOptions } from './internalTypes';
 
 const DEFAULT_SECONDS_BETWEEN_POLLS = 10;
 const DEFAULT_MINUTES_BEFORE_RETRY_CONNECTION = 5;
@@ -117,356 +117,256 @@ class LemmyBot {
   #httpClient: LemmyHttp;
   #dbFile?: string;
   #botActions: BotActions = {
-    replyToPost: (postId, content) => {
-      if (this.#connection && this.#auth) {
-        console.log(`Replying to post ID ${postId}`);
-        createComment({
-          connection: this.#connection,
-          auth: this.#auth,
-          content,
-          postId: postId
-        });
-      } else {
-        console.log(
-          !this.#connection
-            ? 'Must be connected to post comment'
-            : 'Must log in to post comment'
-        );
-      }
-    },
-    createPost: (form) => {
-      if (this.#connection && this.#auth) {
-        console.log('Creating post');
-        createPost(this.#connection, {
-          ...form,
-          auth: this.#auth
-        });
-      } else {
-        console.log(
-          !this.#connection
-            ? 'Must be connected to create post'
-            : 'Must log in to create post'
-        );
-      }
-    },
-    reportPost: (postId, reason) => {
-      if (this.#connection && this.#auth) {
-        console.log(`Reporting to post ID ${postId} for ${reason}`);
-        createPostReport({
-          auth: this.#auth,
-          connection: this.#connection,
-          id: postId,
-          reason
-        });
-      } else {
-        console.log(
-          !this.#connection
-            ? 'Must be connected to report post'
-            : 'Must log in to report post'
-        );
-      }
-    },
+    replyToPost: (postId, content) =>
+      this.#performLoggedInBotAction({
+        action: () =>
+          createComment({
+            connection: this.#connection!,
+            auth: this.#auth!,
+            content,
+            postId: postId
+          }),
+        description: 'post comment',
+        logMessage: `Replying to post ID ${postId}`
+      }),
+    createPost: (form) =>
+      this.#performLoggedInBotAction({
+        logMessage: 'Creating post',
+        action: () =>
+          createPost(this.#connection!, {
+            ...form,
+            auth: this.#auth!
+          }),
+        description: 'create post'
+      }),
+    reportPost: (postId, reason) =>
+      this.#performLoggedInBotAction({
+        logMessage: `Reporting to post ID ${postId} for ${reason}`,
+        action: () =>
+          createPostReport({
+            auth: this.#auth!,
+            connection: this.#connection!,
+            id: postId,
+            reason
+          }),
+        description: 'report post'
+      }),
     votePost: (postId, vote) => {
       vote = correctVote(vote);
       const prefix =
         vote === Vote.Upvote ? 'Up' : vote === Vote.Downvote ? 'Down' : 'Un';
 
-      if (this.#connection && this.#auth) {
-        console.log(`${prefix}voting post ID ${postId}`);
-        voteDBPost({
-          connection: this.#connection,
-          auth: this.#auth,
-          id: postId,
-          vote
-        });
-      } else {
-        console.log(
-          !this.#connection
-            ? `Must be connected to ${prefix.toLowerCase()}vote post`
-            : `Must log in to ${prefix.toLowerCase()}vote post`
-        );
-      }
+      this.#performLoggedInBotAction({
+        logMessage: `${prefix}voting post ID ${postId}`,
+        action: () =>
+          voteDBPost({
+            connection: this.#connection!,
+            auth: this.#auth!,
+            id: postId,
+            vote
+          }),
+        description: `${prefix.toLowerCase()}vote post`
+      });
     },
-    replyToComment: ({ commentId, content, postId }) => {
-      if (this.#connection && this.#auth) {
-        console.log(`Replying to comment ID ${commentId}`);
-        createComment({
-          connection: this.#connection,
-          auth: this.#auth,
-          content,
-          postId: postId,
-          parentId: commentId
-        });
-      } else {
-        console.log(
-          !this.#connection
-            ? 'Must be connected to post comment'
-            : 'Must log in to post comment'
-        );
-      }
-    },
-    reportComment: (commentId, reason) => {
-      if (this.#connection && this.#auth) {
-        console.log(`Reporting to comment ID ${commentId} for ${reason}`);
-        createCommentReport({
-          auth: this.#auth,
-          connection: this.#connection,
-          id: commentId,
-          reason
-        });
-      } else {
-        console.log(
-          !this.#connection
-            ? 'Must be connected to report comment'
-            : 'Must log in to report comment'
-        );
-      }
-    },
+    replyToComment: ({ commentId, content, postId }) =>
+      this.#performLoggedInBotAction({
+        logMessage: `Replying to comment ID ${commentId}`,
+        action: () =>
+          createComment({
+            connection: this.#connection!,
+            auth: this.#auth!,
+            content,
+            postId: postId,
+            parentId: commentId
+          }),
+        description: 'post comment'
+      }),
+    reportComment: (commentId, reason) =>
+      this.#performLoggedInBotAction({
+        action: () =>
+          createCommentReport({
+            auth: this.#auth!,
+            connection: this.#connection!,
+            id: commentId,
+            reason
+          }),
+        logMessage: `Reporting to comment ID ${commentId} for ${reason}`,
+        description: 'report comment'
+      }),
     voteComment: (commentId, vote) => {
       vote = correctVote(vote);
       const prefix =
         vote === Vote.Upvote ? 'Up' : vote === Vote.Downvote ? 'Down' : 'Un';
 
-      if (this.#connection && this.#auth) {
-        console.log(`${prefix}voting comment ID ${commentId}`);
-        voteDBComment({
-          connection: this.#connection,
-          auth: this.#auth,
-          id: commentId,
-          vote
-        });
-      } else {
-        console.log(
-          !this.#connection
-            ? `Must be connected to ${prefix.toLowerCase()}vote comment`
-            : `Must log in to ${prefix.toLowerCase()}vote comment`
-        );
-      }
+      this.#performLoggedInBotAction({
+        logMessage: `${prefix}voting comment ID ${commentId}`,
+        action: () =>
+          voteDBComment({
+            connection: this.#connection!,
+            auth: this.#auth!,
+            id: commentId,
+            vote
+          }),
+        description: `${prefix.toLowerCase()}vote comment`
+      });
     },
-    banFromCommunity: (options) => {
-      if (this.#connection && this.#auth) {
-        console.log(
-          `Banning user ID ${options.personId} from ${options.communityId}`
-        );
-        createBanFromCommunity({
-          ...options,
-          auth: this.#auth,
-          connection: this.#connection
-        });
-      } else {
-        console.log(
-          !this.#connection
-            ? 'Must be connected to ban user'
-            : 'Must log in to ban user'
-        );
-      }
-    },
-    banFromSite: (options) => {
-      if (this.#connection && this.#auth) {
-        console.log(
-          `Banning user ID ${options.personId} from ${this.#instance}`
-        );
-        createBanFromSite({
-          ...options,
-          auth: this.#auth,
-          connection: this.#connection
-        });
-      } else {
-        console.log(
-          !this.#connection
-            ? 'Must be connected to ban user'
-            : 'Must log in to ban user'
-        );
-      }
-    },
-    sendPrivateMessage: (recipientId, content) => {
-      if (this.#connection && this.#auth) {
-        createPrivateMessage({
-          auth: this.#auth,
-          connection: this.#connection,
-          content,
-          recipientId
-        });
-      } else {
-        console.log(
-          !this.#connection
-            ? 'Must be connected to send message'
-            : 'Must log in to send message'
-        );
-      }
-    },
-    reportPrivateMessage: (messageId, reason) => {
-      if (this.#connection && this.#auth) {
-        createPrivateMessageReport({
-          auth: this.#auth,
-          connection: this.#connection,
-          id: messageId,
-          reason
-        });
-      } else {
-        console.log(
-          !this.#connection
-            ? 'Must be connected to report message'
-            : 'Must log in to report message'
-        );
-      }
-    },
-    approveRegistrationApplication: (applicationId) => {
-      if (this.#connection && this.#auth) {
-        console.log(`Approving application ID ${applicationId}`);
-        createApplicationApproval({
-          auth: this.#auth,
-          connection: this.#connection,
-          approve: true,
-          id: applicationId
-        });
-      } else {
-        console.log(
-          !this.#connection
-            ? 'Must be connected to approve application'
-            : 'Must log in to approve application'
-        );
-      }
-    },
-    rejectRegistrationApplication: (applicationId, denyReason) => {
-      if (this.#connection && this.#auth) {
-        console.log(`Rejecting application ID ${applicationId}`);
-        createApplicationApproval({
-          auth: this.#auth,
-          connection: this.#connection,
-          approve: false,
-          id: applicationId,
-          denyReason
-        });
-      } else {
-        console.log(
-          !this.#connection
-            ? 'Must be connected to reject application'
-            : 'Must log in to reject application'
-        );
-      }
-    },
-    removePost: (postId, reason) => {
-      if (this.#connection && this.#auth) {
-        console.log(`Removing post ID ${postId}`);
-        createRemovePost({
-          auth: this.#auth,
-          connection: this.#connection,
-          id: postId,
-          removed: true,
-          reason
-        });
-      } else {
-        console.log(
-          !this.#connection
-            ? 'Must be connected to remove post'
-            : 'Must log in to remove post'
-        );
-      }
-    },
-    removeComment: (commentId, reason) => {
-      if (this.#connection && this.#auth) {
-        console.log(`Removing comment ID ${commentId}`);
-        createRemoveComment({
-          auth: this.#auth,
-          connection: this.#connection,
-          id: commentId,
-          removed: true,
-          reason
-        });
-      } else {
-        console.log(
-          !this.#connection
-            ? 'Must be connected to remove comment'
-            : 'Must log in to remove comment'
-        );
-      }
-    },
-    resolvePostReport: (postReportId) => {
-      if (this.#connection && this.#auth) {
-        console.log(`Resolving post report ID ${postReportId}`);
-        createResolvePostReport({
-          auth: this.#auth,
-          connection: this.#connection,
-          id: postReportId
-        });
-      } else {
-        console.log(
-          !this.#connection
-            ? 'Must be connected to resolve post report'
-            : 'Must log in to resolve post report'
-        );
-      }
-    },
-    resolveCommentReport: (commentReportId) => {
-      if (this.#connection && this.#auth) {
-        console.log(`Resolving comment report ID ${commentReportId}`);
-        createResolveCommentReport({
-          auth: this.#auth,
-          connection: this.#connection,
-          id: commentReportId
-        });
-      } else {
-        console.log(
-          !this.#connection
-            ? 'Must be connected to resolve comment report'
-            : 'Must log in to resolve comment report'
-        );
-      }
-    },
-    resolvePrivateMessageReport: (privateMessageReportId) => {
-      if (this.#connection && this.#auth) {
-        console.log(
-          `Resolving private message report ID ${privateMessageReportId}`
-        );
-        createResolvePrivateMessageReport({
-          auth: this.#auth,
-          connection: this.#connection,
-          id: privateMessageReportId
-        });
-      } else {
-        console.log(
-          !this.#connection
-            ? 'Must be connected to resolve comment report'
-            : 'Must log in to resolve comment report'
-        );
-      }
-    },
-    featurePost: ({ featureType, featured, postId }) => {
-      if (this.#connection && this.#auth) {
-        console.log(`${featured ? 'F' : 'Unf'}eaturing report ID ${postId}`);
-        createFeaturePost({
-          auth: this.#auth,
-          connection: this.#connection,
-          id: postId,
-          featured,
-          featureType
-        });
-      } else {
-        console.log(
-          !this.#connection
-            ? 'Must be connected to feature post'
-            : 'Must log in to feature post'
-        );
-      }
-    },
-    lockPost: (postId, locked) => {
-      if (this.#connection && this.#auth) {
-        console.log(`${locked ? 'L' : 'Unl'}ocking report ID ${postId}`);
-        createLockPost({
-          auth: this.#auth,
-          connection: this.#connection,
-          id: postId,
-          locked
-        });
-      } else {
-        console.log(
-          !this.#connection
-            ? 'Must be connected to lock post'
-            : 'Must log in to lock post'
-        );
-      }
-    },
+    banFromCommunity: (options) =>
+      this.#performLoggedInBotAction({
+        logMessage: `Banning user ID ${options.personId} from ${options.communityId}`,
+        action: () =>
+          createBanFromCommunity({
+            ...options,
+            auth: this.#auth!,
+            connection: this.#connection!
+          }),
+        description: 'ban user'
+      }),
+    banFromSite: (options) =>
+      this.#performLoggedInBotAction({
+        logMessage: `Banning user ID ${options.personId} from ${
+          this.#instance
+        }`,
+        action: () =>
+          createBanFromSite({
+            ...options,
+            auth: this.#auth!,
+            connection: this.#connection!
+          }),
+        description: 'ban user'
+      }),
+    sendPrivateMessage: (recipientId, content) =>
+      this.#performLoggedInBotAction({
+        logMessage: `Sending private message to user ID ${recipientId}`,
+        action: () =>
+          createPrivateMessage({
+            auth: this.#auth!,
+            connection: this.#connection!,
+            content,
+            recipientId
+          }),
+        description: 'send message'
+      }),
+    reportPrivateMessage: (messageId, reason) =>
+      this.#performLoggedInBotAction({
+        logMessage: `Reporting private message ID ${messageId}. Reason: ${reason}`,
+        action: () =>
+          createPrivateMessageReport({
+            auth: this.#auth!,
+            connection: this.#connection!,
+            id: messageId,
+            reason
+          }),
+        description: 'report message'
+      }),
+    approveRegistrationApplication: (applicationId) =>
+      this.#performLoggedInBotAction({
+        logMessage: `Approving application ID ${applicationId}`,
+        action: () =>
+          createApplicationApproval({
+            auth: this.#auth!,
+            connection: this.#connection!,
+            approve: true,
+            id: applicationId
+          }),
+        description: 'approve application'
+      }),
+    rejectRegistrationApplication: (applicationId, denyReason) =>
+      this.#performLoggedInBotAction({
+        logMessage: `Rejecting application ID ${applicationId}`,
+        action: () =>
+          createApplicationApproval({
+            auth: this.#auth!,
+            connection: this.#connection!,
+            approve: false,
+            id: applicationId,
+            denyReason
+          }),
+        description: 'reject application'
+      }),
+    removePost: (postId, reason) =>
+      this.#performLoggedInBotAction({
+        logMessage: `Removing post ID ${postId}`,
+        action: () =>
+          createRemovePost({
+            auth: this.#auth!,
+            connection: this.#connection!,
+            id: postId,
+            removed: true,
+            reason
+          }),
+        description: 'remove post'
+      }),
+    removeComment: (commentId, reason) =>
+      this.#performLoggedInBotAction({
+        logMessage: `Removing comment ID ${commentId}`,
+        action: () =>
+          createRemoveComment({
+            auth: this.#auth!,
+            connection: this.#connection!,
+            id: commentId,
+            removed: true,
+            reason
+          }),
+        description: 'remove comment'
+      }),
+    resolvePostReport: (postReportId) =>
+      this.#performLoggedInBotAction({
+        logMessage: `Resolving post report ID ${postReportId}`,
+        action: () =>
+          createResolvePostReport({
+            auth: this.#auth!,
+            connection: this.#connection!,
+            id: postReportId
+          }),
+        description: 'resolve post report'
+      }),
+    resolveCommentReport: (commentReportId) =>
+      this.#performLoggedInBotAction({
+        logMessage: `Resolving comment report ID ${commentReportId}`,
+        action: () =>
+          createResolveCommentReport({
+            auth: this.#auth!,
+            connection: this.#connection!,
+            id: commentReportId
+          }),
+        description: 'resolve comment report'
+      }),
+    resolvePrivateMessageReport: (privateMessageReportId) =>
+      this.#performLoggedInBotAction({
+        logMessage: `Resolving private message report ID ${privateMessageReportId}`,
+        action: () =>
+          createResolvePrivateMessageReport({
+            auth: this.#auth!,
+            connection: this.#connection!,
+            id: privateMessageReportId
+          }),
+        description: 'resolve message report'
+      }),
+    featurePost: ({ featureType, featured, postId }) =>
+      this.#performLoggedInBotAction({
+        logMessage: `${featured ? 'F' : 'Unf'}eaturing report ID ${postId}`,
+        action: () =>
+          createFeaturePost({
+            auth: this.#auth!,
+            connection: this.#connection!,
+            id: postId,
+            featured,
+            featureType
+          }),
+        description: 'feature post'
+      }),
+    lockPost: (postId, locked) =>
+      this.#performLoggedInBotAction({
+        logMessage: `${locked ? 'L' : 'Unl'}ocking report ID ${postId}`,
+        action: () =>
+          createLockPost({
+            auth: this.#auth!,
+            connection: this.#connection!,
+            id: postId,
+            locked
+          }),
+        description: `${locked ? '' : 'un'}lock post`
+      }),
     getCommunityId: (options) =>
       this.#getId(options, SearchType.Communities, 'community'),
     getUserId: (options) => this.#getId(options, SearchType.Users, 'user'),
@@ -1503,6 +1403,27 @@ class LemmyBot {
         reject(`Could no get ${label} ID: connection closed`);
       }
     });
+  }
+
+  #performLoggedInBotAction({
+    logMessage,
+    action,
+    description
+  }: {
+    logMessage: string;
+    action: () => void;
+    description: string;
+  }) {
+    if (this.#connection && this.#auth) {
+      console.log(logMessage);
+      action();
+    } else {
+      console.log(
+        `Must be ${
+          !this.#connection ? 'connected' : 'logged in'
+        } to ${description}`
+      );
+    }
   }
 }
 
