@@ -1,4 +1,5 @@
 <div align="center">
+  <img src="https://img.shields.io/npm/l/lemmy-bot?style=plastic" alt="License" />
   <img src="https://img.shields.io/librariesio/github/SleeplessOne1917/lemmy-bot?style=plastic" alt="Dependencies up to date" />
   <img src="https://img.shields.io/github/stars/SleeplessOne1917/lemmy-bot?style=social" alt="Github stars" />
   <img src="https://img.shields.io/npm/v/lemmy-bot?style=plastic" alt="npm version" />
