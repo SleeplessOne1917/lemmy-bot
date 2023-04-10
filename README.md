@@ -226,6 +226,186 @@ The actions are as follows, grouped by access level in ascending order:
 - `approveRegistrationApplication(applicationId: number)`: Approve the creation of an account.
 - `rejectRegistrationApplication(applicationId: number, denyReason?: string)`: Deny a request to create an account on the instance.
 
+## Examples
+
+### Like Me Bot
+
+This example bot will like users' posts adn comments on request. Users can subscribe and unsubscribe to the liking by messaging the bot.
+
+```typescript
+import LemmyBot, { Vote } from 'lemmy-bot';
+
+const usersToLike: number[] = [];
+
+const bot = new LemmyBot({
+  instance: 'instance.xyz',
+  credentials: {
+    username: 'LikeMeBot',
+    password: 'password'
+  },
+  federation: 'all',
+  dbFile: 'db.sqlite3',
+  handlers: {
+    post: {
+      handle: ({
+        postView: {
+          post: { creator_id, id }
+        },
+        botActions: { votePost }
+      }) => {
+        if (usersToLike.includes(creator_id)) {
+          votePost(id, Vote.Upvote);
+        }
+      }
+    },
+    comment: ({
+      commentView: {
+        comment: { creator_id, id }
+      },
+      botActions: { voteComment }
+    }) => {
+      if (usersToLike.includes(creator_id)) {
+        voteComment(creator_id, Vote.Upvote);
+      }
+    },
+    privateMessage: ({
+      messageView: {
+        private_message: { content, creator_id }
+      },
+      botActions: { sendPrivateMessage }
+    }) => {
+      const lcContent = content.toLowerCase();
+      if (lcContent.includes('like me')) {
+        if (usersToLike.includes(creator_id)) {
+          sendPrivateMessage(
+            creator_id,
+            'I am already liking your posts. Message "Stop" to unsubscribe.'
+          );
+        } else {
+          usersToLike.push(creator_id);
+          sendPrivateMessage(
+            creator_id,
+            'You are now subscribed! I will like anything you post'
+          );
+        }
+      } else if (lcContent.includes('stop')) {
+        if (!usersToLike.includes(creator_id)) {
+          sendPrivateMessage(
+            creator_id,
+            'You are already unsubscribed from my likes'
+          );
+        } else {
+          for (let i = 0; i < usersToLike.length; ++i) {
+            if (usersToLike[i] === creator_id) {
+              usersToLike.splice(i, 1);
+              break;
+            }
+          }
+        }
+      } else {
+        sendPrivateMessage(
+          creator_id,
+          'Command not recognized. Send a message to me that says "Like me" if you want me to like your posts. If you don\'t want me to like your posts anymore, message me "Stop"'
+        );
+      }
+    }
+  }
+});
+
+bot.start();
+```
+
+### Congratulator Bot
+
+This bot will comment a cringy congratulations whenever a post on certain communities receives a score or 25 or more.
+Posts are valid to be handled after 10 minutes, but if a post ist congratulated it will no longer be eligible to be processed
+(due to `preventReprocess` being called). Posts that it's polling will be sorted by hot, and the bot will only be able to check posts in the shrek or tv communities on instance.xyz or the fediverse, cringe, and cooking communities on fediplace.ml.
+
+```typescript
+import LemmyBot, { SortType } from 'lemmy-bot';
+
+const bot = new LemmyBot({
+  instance: 'instance.xyz',
+  credentials: {
+    username: 'CongratulatorBot',
+    password: 'password'
+  },
+  connection: {
+    minutesUntilReprocess: 10,
+    secondsBetweenPolls: 120
+  },
+  dbFile: 'db.sqlite3',
+  federation: {
+    allowList: [
+      {
+        instance: 'instance.xyz',
+        communities: ['shrek', 'tv']
+      },
+      {
+        instance: 'fediplace.ml',
+        communities: ['fediverse', 'cringe', 'cooking']
+      }
+    ]
+  },
+  handlers: {
+    post: {
+      sort: SortType.Hot,
+      handle: ({
+        postView: {
+          counts: { score },
+          post: { id }
+        },
+        botActions: { replyToPost },
+        preventReprocess
+      }) => {
+        if (score > 25) {
+          replyToPost(
+            id,
+            'WOW, 25+ score!?!?! Das a lot of score-arinos!!!!! Congratulations fedizen! :)'
+          );
+          preventReprocess();
+        }
+      }
+    }
+  }
+});
+
+bot.start();
+```
+
+### Cringe username rejector
+
+This bot will reject registration applications of anyone with a cringy username. The bot must have admin privileges to work.
+
+```typescript
+import LemmyBot from 'lemmy-bot';
+
+const cringeNameRegex = /(^(x|X)+.+(x|X)+$)|69|420/;
+
+const bot = new LemmyBot({
+  instance: 'instance.ml',
+  credentials: {
+    username: 'CringeRejector',
+    password: 'password'
+  },
+  handlers: {
+    registrationApplication: ({
+      applicationView: {
+        creator: { name },
+        registration_application: { id }
+      },
+      botActions: { rejectRegistrationApplication }
+    }) => {
+      if (cringeNameRegex.test(name)) {
+        rejectRegistrationApplication(id, 'No cringy usernames allowed');
+      }
+    }
+  }
+});
+
+bot.start();
+```
+
 ## Credits
 
 Logo made by Andy Cuccaro (@andycuccaro) under the CC-BY-SA 4.0 license.

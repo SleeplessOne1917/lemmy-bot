@@ -1082,7 +1082,10 @@ class LemmyBot {
               }
 
               default: {
-                if (response.error) {
+                if (
+                  response.error &&
+                  response.error !== 'user_already_exists'
+                ) {
                   console.log(`Got error: ${response.error}`);
                 }
 
