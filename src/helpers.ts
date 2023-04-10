@@ -56,6 +56,15 @@ export const getListingType = (options: BotFederationOptions) => {
   }
 };
 
+export function removeItem<T>(items: T[], itemPredicate: (item: T) => boolean) {
+  for (let i = 0; i < items.length; ++i) {
+    if (itemPredicate(items[i])) {
+      items.splice(i, 1);
+      break;
+    }
+  }
+}
+
 const escapeRegexString = (str: string) => str.replace(/\./g, '\\.');
 
 const formatActorId = (instance: string, community: string) =>

@@ -86,6 +86,20 @@ export const voteDBComment = ({
   connection.send(request);
 };
 
+export const getPost = ({
+  connection,
+  id,
+  auth
+}: {
+  connection: Connection;
+  auth?: string;
+  id: number;
+}) => {
+  const request = client.getPost({ auth, id });
+
+  connection.send(request);
+};
+
 export const getPosts = ({
   connection,
   listingType,
@@ -137,18 +151,22 @@ export const getComments = ({
   connection,
   listingType,
   auth,
-  sort = CommentSortType.New
+  sort = CommentSortType.New,
+  postId
 }: {
   connection: Connection;
   listingType: ListingType;
   auth?: string;
   sort?: CommentSortType;
+  postId?: number;
 }) => {
   const request = client.getComments({
     sort,
     limit: 50,
     auth,
-    type_: listingType
+    type_: listingType,
+    post_id: postId,
+    max_depth: postId ? 100 : undefined
   });
 
   connection.send(request);

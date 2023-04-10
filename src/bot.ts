@@ -17,7 +17,9 @@ import {
   CommentView,
   SearchType,
   SearchResponse,
-  LemmyHttp
+  LemmyHttp,
+  GetPostResponse,
+  ListingType
 } from 'lemmy-js-client';
 import {
   correctVote,
@@ -27,6 +29,7 @@ import {
   getListingType,
   getSecureWebsocketUrl,
   parseHandlers,
+  removeItem,
   shouldProcess
 } from './helpers';
 import {
@@ -58,6 +61,7 @@ import {
   getMentions,
   getModsAddedToCommunities,
   getModsTransferringCommunities,
+  getPost,
   getPostReports,
   getPosts,
   getPrivateMessageReports,
@@ -116,6 +120,12 @@ class LemmyBot {
   #finishedSearchMap: Map<string, number | null> = new Map();
   #httpClient: LemmyHttp;
   #dbFile?: string;
+  #postIds: number[] = [];
+  #postMap: Map<number, PostView[]> = new Map();
+  #commentIds: number[] = [];
+  #commentMap: Map<number, CommentView> = new Map();
+  #listingType: ListingType;
+  #currentlyProcessingCommentIds: number[] = [];
   #botActions: BotActions = {
     replyToPost: (postId, content) =>
       this.#performLoggedInBotAction({
@@ -371,7 +381,74 @@ class LemmyBot {
       this.#getId(options, SearchType.Communities, 'community'),
     getUserId: (options) => this.#getId(options, SearchType.Users, 'user'),
     uploadImage: (image) =>
-      this.#httpClient.uploadImage({ image, auth: this.#auth })
+      this.#httpClient.uploadImage({ image, auth: this.#auth }),
+    getPost: (postId) =>
+      new Promise((resolve, reject) => {
+        if (this.#connection?.connected) {
+          this.#postIds.push(postId);
+
+          getPost({
+            connection: this.#connection,
+            auth: this.#auth,
+            id: postId
+          });
+
+          let tries = 0;
+
+          const timeoutFunction = () => {
+            const postView = this.#postMap.get(postId)?.pop();
+            if (postView !== undefined) {
+              if (this.#postMap.get(postId)?.length === 0) {
+                this.#postMap.delete(postId);
+              }
+              resolve(postView);
+            } else if (tries < 20) {
+              ++tries;
+              setTimeout(timeoutFunction, 1000);
+            } else {
+              removeItem(this.#postIds, (id) => id === postId);
+              reject(`Could not find post with ID ${postId}`);
+            }
+          };
+
+          setTimeout(timeoutFunction, 1000);
+        } else {
+          reject(`Could not get post ${postId}: connection closed`);
+        }
+      }),
+    getComment: (commentId, postId) =>
+      new Promise((resolve, reject) => {
+        if (this.#connection?.connected) {
+          this.#commentIds.push(commentId);
+
+          getComments({
+            connection: this.#connection,
+            listingType: this.#listingType,
+            auth: this.#auth,
+            postId
+          });
+
+          let tries = 0;
+
+          const timeoutFunction = () => {
+            const commentView = this.#commentMap.get(commentId);
+            if (commentView !== undefined) {
+              this.#commentMap.delete(commentId);
+              resolve(commentView);
+            } else if (tries < 20) {
+              ++tries;
+              setTimeout(timeoutFunction, 1000);
+            } else {
+              removeItem(this.#commentIds, (id) => id === commentId);
+              reject(`Could not find comment with ID ${commentId}`);
+            }
+          };
+
+          setTimeout(timeoutFunction, 1000);
+        } else {
+          reject(`Could not get comment ${commentId}: connection closed`);
+        }
+      })
   };
 
   constructor({
@@ -479,6 +556,7 @@ class LemmyBot {
     this.#defaultMinutesUntilReprocess = defaultMinutesUntilReprocess;
     this.#httpClient = new LemmyHttp(`https://${this.#instance}`);
     this.#dbFile = dbFile;
+    this.#listingType = getListingType(this.#federationOptions);
 
     const {
       comment: commentOptions,
@@ -566,15 +644,45 @@ class LemmyBot {
                   'comments',
                   async ({ get, upsert }) => {
                     await Promise.all(
-                      comments.map((commentView) =>
-                        this.#handleEntry({
-                          getStorageInfo: get,
-                          upsert,
-                          options: commentOptions!,
-                          entry: { commentView },
-                          id: commentView.comment.id
+                      comments
+                        .filter(
+                          ({ comment: { id } }) =>
+                            !this.#currentlyProcessingCommentIds.includes(id)
+                        )
+                        .map(async (commentView) => {
+                          this.#currentlyProcessingCommentIds.push(
+                            commentView.comment.id
+                          );
+
+                          if (
+                            this.#commentIds.includes(commentView.comment.id)
+                          ) {
+                            removeItem(
+                              this.#commentIds,
+                              (id) => id === commentView.comment.id
+                            );
+
+                            this.#commentMap.set(
+                              commentView.comment.id,
+                              commentView
+                            );
+                          }
+
+                          const result = await this.#handleEntry({
+                            getStorageInfo: get,
+                            upsert,
+                            options: commentOptions!,
+                            entry: { commentView },
+                            id: commentView.comment.id
+                          });
+
+                          removeItem(
+                            this.#currentlyProcessingCommentIds,
+                            (id) => id === commentView.comment.id
+                          );
+
+                          return result;
                         })
-                      )
                     );
                   },
                   this.#dbFile
@@ -643,6 +751,20 @@ class LemmyBot {
                   },
                   this.#dbFile
                 );
+
+                break;
+              }
+
+              case 'GetPost': {
+                const { post_view } = response.data as GetPostResponse;
+
+                removeItem(this.#postIds, (id) => id === post_view.post.id);
+                const posts = this.#postMap.get(post_view.post.id);
+                if (!posts) {
+                  this.#postMap.set(post_view.post.id, [post_view]);
+                } else {
+                  posts.push(post_view);
+                }
 
                 break;
               }
@@ -1148,14 +1270,12 @@ class LemmyBot {
           task.start();
         }
 
-        const listingType = getListingType(this.#federationOptions);
-
         if (postOptions) {
           runChecker(
             (conn, auth) =>
               getPosts({
                 connection: conn,
-                listingType,
+                listingType: this.#listingType,
                 auth,
                 sort: postOptions.sort
               }),
@@ -1169,7 +1289,7 @@ class LemmyBot {
               getComments({
                 connection: conn,
                 auth,
-                listingType,
+                listingType: this.#listingType,
                 sort: commentOptions.sort
               }),
             commentOptions.secondsBetweenPolls
@@ -1403,7 +1523,6 @@ class LemmyBot {
 
         const timeoutFunction = () => {
           const result = this.#finishedSearchMap.get(key);
-          console.log('Timeout result: ' + result);
           if (result !== undefined) {
             this.#finishedSearchMap.delete(key);
 
@@ -1412,13 +1531,14 @@ class LemmyBot {
             ++tries;
             setTimeout(timeoutFunction, 1000);
           } else {
+            this.#unfinishedSearchMap.delete(key);
             reject(`Could not find ${label} ID`);
           }
         };
 
         setTimeout(timeoutFunction, 1000);
       } else {
-        reject(`Could no get ${label} ID: connection closed`);
+        reject(`Could not get ${label} ID: connection closed`);
       }
     });
   }

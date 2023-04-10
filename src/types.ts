@@ -123,6 +123,8 @@ export type BotActions = {
    */
   getUserId: (options: SearchOptions | string) => Promise<number | undefined>;
   uploadImage: (image: Buffer) => Promise<UploadImageResponse>;
+  getPost: (postId: number) => Promise<PostView>;
+  getComment: (commentId: number, postId: number) => Promise<CommentView>;
 };
 
 export type InternalSearchOptions = {
