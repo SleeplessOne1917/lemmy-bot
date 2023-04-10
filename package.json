@@ -1,6 +1,6 @@
 {
   "name": "lemmy-bot",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "A bot API for Lemmy, the fediverse link aggregator.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -9,7 +9,7 @@
     "build": "tsc"
   },
   "author": "SleeplessOne1917",
-  "license": "GNU Affero General Public License v3.0",
+  "license": "AGPL-3.0",
   "devDependencies": {
     "@types/node": "^18.15.11",
     "@types/node-cron": "^3.0.7",
@@ -21,7 +21,7 @@
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-prettier": "^4.2.1",
     "prettier": "^2.8.7",
-    "ts-node": "^10.9.1",
+    "tsc": "^2.0.4",
     "typescript": "^5.0.4"
   },
   "dependencies": {
