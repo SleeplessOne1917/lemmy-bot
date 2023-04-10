@@ -3,7 +3,7 @@ import {
   CommentReportView,
   CommentSortType,
   CommentView,
-  CreatePost,
+  CreatePost as CreateClientPost,
   ModAddCommunityView,
   ModAddView,
   ModBanFromCommunityView,
@@ -71,7 +71,7 @@ export type BotActions = {
   replyToPost: (postId: number, content: string) => void;
   reportPost: (postId: number, reason: string) => void;
   votePost: (postId: number, vote: Vote) => void;
-  createPost: (form: Omit<CreatePost, 'auth'>) => void;
+  createPost: (form: CreatePost) => void;
   voteComment: (commentId: number, vote: Vote) => void;
   banFromCommunity: (options: {
     communityId: number;
@@ -184,7 +184,7 @@ type Handler<T> = (
      */
     reprocess: (minutes: number) => void;
   } & T
-) => Promise<void>;
+) => Promise<void> | void;
 
 export type BotHandlerOptions<
   THandledItem,
@@ -295,3 +295,5 @@ export type BotCredentials = {
 };
 
 export type SearchOptions = Omit<InternalSearchOptions, 'type'>;
+
+export type CreatePost = Omit<CreateClientPost, 'auth'>;
