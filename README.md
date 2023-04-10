@@ -230,7 +230,7 @@ The actions are as follows, grouped by access level in ascending order:
 
 ### Like Me Bot
 
-This example bot will like users' posts adn comments on request. Users can subscribe and unsubscribe to the liking by messaging the bot.
+This example bot will like users' posts and comments on request. Users can subscribe and unsubscribe to the liking by messaging the bot.
 
 ```typescript
 import LemmyBot, { Vote } from 'lemmy-bot';
