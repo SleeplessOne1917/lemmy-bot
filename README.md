@@ -162,6 +162,8 @@ Task object or list of task objects. Task objects have the following properties:
 The bot tracks which items it has handled already in a SQLite database. Accepts a string path to the file to use a database: will create the file if it does not already exist.
 If this option is not specified, the bot will store the SQLite DB in memory. This can be useful during development, but it is recommended to use a file when running in production.
 
+---
+
 ### Bot Actions
 
 When handling an item or running a scheduled task, the bot will have access to several actions it can perform as an argument.
