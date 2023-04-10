@@ -1,4 +1,12 @@
 <div align="center">
+  <img src="https://img.shields.io/librariesio/github/SleeplessOne1917/lemmy-bot?style=plastic" alt="Dependencies up to date" />
+  <img src="https://img.shields.io/github/stars/SleeplessOne1917/lemmy-bot?style=social" alt="Github stars" />
+  <img src="https://img.shields.io/npm/v/lemmy-bot?style=plastic" alt="npm version" />
+  <img src="https://img.shields.io/github/last-commit/SleeplessOne1917/lemmy-bot/main?style=plastic" alt="Last commit" />
+  <img src="https://img.shields.io/github/issues/SleeplessOne1917/lemmy-bot?style=plastic" alt="Issues" />
+  <img src="https://img.shields.io/github/issues-pr-raw/SleeplessOne1917/lemmy-bot?style=plastic" alt="Open pull requests" />
+</div>
+<div align="center">
   <a href="https://github.com/LemmyNet/lemmy" rel="noopener">
   <img src="images/lemmy_logo.svg" alt="Lemmy logo" width="250px" height="250px"/>
   
