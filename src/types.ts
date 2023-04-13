@@ -15,7 +15,6 @@ import {
   ModRemovePostView,
   ModTransferCommunityView,
   PersonMentionView,
-  PostFeatureType,
   PostReportView,
   PostView,
   PrivateMessageReportView,
@@ -23,7 +22,22 @@ import {
   RegistrationApplicationView,
   SearchType,
   SortType,
-  UploadImageResponse
+  UploadImageResponse,
+  CreateComment,
+  CreatePostReport,
+  CreateCommentReport,
+  CreatePostLike,
+  CreateCommentLike,
+  BanFromCommunity as ClientBanFromCommunity,
+  CreatePrivateMessage,
+  BanPerson,
+  CreatePrivateMessageReport,
+  ApproveRegistrationApplication,
+  RemoveComment as ClientRemoveComment,
+  RemovePost as ClientRemovePost,
+  FeaturePost as ClientFeaturePost,
+  LockPost as ClientLockPost,
+  Comment
 } from 'lemmy-js-client';
 
 export type BotOptions = {
@@ -62,48 +76,26 @@ export type BotOptions = {
 };
 
 export type BotActions = {
-  replyToComment: (options: {
-    commentId: number;
-    postId: number;
-    content: string;
-  }) => void;
-  reportComment: (commentId: number, reason: string) => void;
-  replyToPost: (postId: number, content: string) => void;
-  reportPost: (postId: number, reason: string) => void;
-  votePost: (postId: number, vote: Vote) => void;
+  replyToComment: (form: ReplyToComment) => void;
+  reportComment: (form: ReportComment) => void;
+  replyToPost: (form: ReplyToPost) => void;
+  reportPost: (form: ReportPort) => void;
+  votePost: (form: VotePost) => void;
   createPost: (form: CreatePost) => void;
-  voteComment: (commentId: number, vote: Vote) => void;
-  banFromCommunity: (options: {
-    communityId: number;
-    personId: number;
-    daysUntilExpires?: number;
-    reason?: string;
-    removeData?: boolean;
-  }) => void;
-  banFromSite: (options: {
-    personId: number;
-    daysUntilExpires?: number;
-    reason?: string;
-    removeData?: boolean;
-  }) => void;
-  sendPrivateMessage: (recipientId: number, content: string) => void;
-  reportPrivateMessage: (messageId: number, reason: string) => void;
+  voteComment: (form: VoteComment) => void;
+  banFromCommunity: (form: BanFromCommunity) => void;
+  banFromSite: (form: BanFromSite) => void;
+  sendPrivateMessage: (form: SendPrivateMessage) => void;
+  reportPrivateMessage: (form: ReportPrivateMessage) => void;
   approveRegistrationApplication: (applicationId: number) => void;
-  rejectRegistrationApplication: (
-    applicationId: number,
-    denyReason?: string
-  ) => void;
-  removePost: (postId: number, reason?: string) => void;
-  removeComment: (commentId: number, reason?: string) => void;
+  rejectRegistrationApplication: (form: RejectApplicationApplication) => void;
+  removePost: (form: RemovePost) => void;
+  removeComment: (form: RemoveComment) => void;
   resolvePostReport: (postReportId: number) => void;
   resolveCommentReport: (commentReportId: number) => void;
   resolvePrivateMessageReport: (privateMessageReportId: number) => void;
-  featurePost: (options: {
-    postId: number;
-    featureType: PostFeatureType;
-    featured: boolean;
-  }) => void;
-  lockPost: (postId: number, locked: boolean) => void;
+  featurePost: (form: FeaturePost) => void;
+  lockPost: (form: LockPost) => void;
   /**
    * Gets a community ID by name.
    *
@@ -124,7 +116,7 @@ export type BotActions = {
   getUserId: (options: SearchOptions | string) => Promise<number | undefined>;
   uploadImage: (image: Buffer) => Promise<UploadImageResponse>;
   getPost: (postId: number) => Promise<PostView>;
-  getComment: (commentId: number, postId: number) => Promise<CommentView>;
+  getComment: (form: GetComment) => Promise<CommentView>;
 };
 
 export type InternalSearchOptions = {
@@ -296,6 +288,96 @@ export type BotCredentials = {
   password: string;
 };
 
+type OptionalKeys<T extends Record<string, any>> = {
+  [K in keyof T]?: Exclude<T, NonNullable<T>> extends never ? never : T[K];
+};
+
+type RequiredKeys<T> = {
+  [K in keyof T]: Exclude<T, NonNullable<T>> extends never ? T[K] : never;
+};
+
+type UnderscoreToCamelCase<T extends string> = T extends `${infer U}_${infer R}`
+  ? `${Lowercase<U>}${Capitalize<UnderscoreToCamelCase<R>>}`
+  : T;
+
+type UnderscoreObjToCamelCaseObj<T extends Record<string, any>> = {
+  [K in keyof OptionalKeys<T> as K extends string
+    ? UnderscoreToCamelCase<K>
+    : K]?: T[K];
+} & {
+  [K in keyof RequiredKeys<T> as K extends string
+    ? UnderscoreToCamelCase<K>
+    : K]: T[K];
+};
+
 export type SearchOptions = Omit<InternalSearchOptions, 'type'>;
 
-export type CreatePost = Omit<CreateClientPost, 'auth'>;
+export type CreatePost = UnderscoreObjToCamelCaseObj<
+  Omit<CreateClientPost, 'auth'>
+>;
+
+export type ReplyToPost = UnderscoreObjToCamelCaseObj<
+  Omit<ReplyToComment, 'parent_id'>
+>;
+
+export type ReportPort = UnderscoreObjToCamelCaseObj<
+  Omit<CreatePostReport, 'auth'>
+>;
+
+export type ReplyToComment = UnderscoreObjToCamelCaseObj<
+  Omit<CreateComment, 'auth' | 'form_id' | 'language-id'>
+>;
+
+export type ReportComment = UnderscoreObjToCamelCaseObj<
+  Omit<CreateCommentReport, 'auth'>
+>;
+
+export type VotePost = UnderscoreObjToCamelCaseObj<
+  Omit<CreatePostLike, 'auth' | 'score'>
+> & { vote: Vote };
+
+export type VoteComment = UnderscoreObjToCamelCaseObj<
+  Omit<CreateCommentLike, 'auth' | 'score'>
+> & { vote: Vote };
+
+export type BanFromCommunity = UnderscoreObjToCamelCaseObj<
+  Omit<ClientBanFromCommunity, 'auth' | 'ban' | 'expires'>
+> & { daysUntilExpires?: number };
+
+export type BanFromSite = UnderscoreObjToCamelCaseObj<
+  Omit<BanPerson, 'auth' | 'ban' | 'expires'>
+> & {
+  daysUntilExpires?: number;
+};
+
+export type SendPrivateMessage = UnderscoreObjToCamelCaseObj<
+  Omit<CreatePrivateMessage, 'auth'>
+>;
+
+export type ReportPrivateMessage = UnderscoreObjToCamelCaseObj<
+  Omit<CreatePrivateMessageReport, 'auth'>
+>;
+
+export type RejectApplicationApplication = UnderscoreObjToCamelCaseObj<
+  Omit<ApproveRegistrationApplication, 'approve' | 'auth'>
+>;
+
+export type RemovePost = UnderscoreObjToCamelCaseObj<
+  Omit<ClientRemovePost, 'auth' | 'removed'>
+>;
+
+export type RemoveComment = UnderscoreObjToCamelCaseObj<
+  Omit<ClientRemoveComment, 'auth' | 'removed'>
+>;
+
+export type FeaturePost = UnderscoreObjToCamelCaseObj<
+  Omit<ClientFeaturePost, 'auth'>
+>;
+
+export type LockPost = UnderscoreObjToCamelCaseObj<
+  Omit<ClientLockPost, 'auth'>
+>;
+
+export type GetComment = UnderscoreObjToCamelCaseObj<
+  Pick<Comment, 'id' | 'post_id'>
+>;

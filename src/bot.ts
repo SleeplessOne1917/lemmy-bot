@@ -127,14 +127,14 @@ class LemmyBot {
   #listingType: ListingType;
   #currentlyProcessingCommentIds: number[] = [];
   #botActions: BotActions = {
-    replyToPost: (postId, content) =>
+    replyToPost: ({ postId, content }) =>
       this.#performLoggedInBotAction({
         action: () =>
           createComment({
             connection: this.#connection!,
             auth: this.#auth!,
             content,
-            postId: postId
+            postId
           }),
         description: 'post comment',
         logMessage: `Replying to post ID ${postId}`
@@ -149,7 +149,7 @@ class LemmyBot {
           }),
         description: 'create post'
       }),
-    reportPost: (postId, reason) =>
+    reportPost: ({ postId, reason }) =>
       this.#performLoggedInBotAction({
         logMessage: `Reporting to post ID ${postId} for ${reason}`,
         action: () =>
@@ -161,7 +161,7 @@ class LemmyBot {
           }),
         description: 'report post'
       }),
-    votePost: (postId, vote) => {
+    votePost: ({ postId, vote }) => {
       vote = correctVote(vote);
       const prefix =
         vote === Vote.Upvote ? 'Up' : vote === Vote.Downvote ? 'Down' : 'Un';
@@ -178,20 +178,20 @@ class LemmyBot {
         description: `${prefix.toLowerCase()}vote post`
       });
     },
-    replyToComment: ({ commentId, content, postId }) =>
+    replyToComment: ({ parentId, content, postId }) =>
       this.#performLoggedInBotAction({
-        logMessage: `Replying to comment ID ${commentId}`,
+        logMessage: `Replying to comment ID ${parentId}`,
         action: () =>
           createComment({
             connection: this.#connection!,
             auth: this.#auth!,
             content,
-            postId: postId,
-            parentId: commentId
+            postId,
+            parentId
           }),
         description: 'post comment'
       }),
-    reportComment: (commentId, reason) =>
+    reportComment: ({ commentId, reason }) =>
       this.#performLoggedInBotAction({
         action: () =>
           createCommentReport({
@@ -203,7 +203,7 @@ class LemmyBot {
         logMessage: `Reporting to comment ID ${commentId} for ${reason}`,
         description: 'report comment'
       }),
-    voteComment: (commentId, vote) => {
+    voteComment: ({ commentId, vote }) => {
       vote = correctVote(vote);
       const prefix =
         vote === Vote.Upvote ? 'Up' : vote === Vote.Downvote ? 'Down' : 'Un';
@@ -220,31 +220,32 @@ class LemmyBot {
         description: `${prefix.toLowerCase()}vote comment`
       });
     },
-    banFromCommunity: (options) =>
+    banFromCommunity: (form) =>
       this.#performLoggedInBotAction({
-        logMessage: `Banning user ID ${options.personId} from ${options.communityId}`,
+        logMessage: `Banning user ID ${form.personId} from ${form.communityId}`,
         action: () =>
           createBanFromCommunity({
-            ...options,
+            ...form,
             auth: this.#auth!,
             connection: this.#connection!
           }),
         description: 'ban user'
       }),
-    banFromSite: (options) =>
+    banFromSite: ({ personId, daysUntilExpires, reason, removeData }) =>
       this.#performLoggedInBotAction({
-        logMessage: `Banning user ID ${options.personId} from ${
-          this.#instance
-        }`,
+        logMessage: `Banning user ID ${personId} from ${this.#instance}`,
         action: () =>
           createBanFromSite({
-            ...options,
             auth: this.#auth!,
-            connection: this.#connection!
+            connection: this.#connection!,
+            personId,
+            daysUntilExpires,
+            reason,
+            removeData
           }),
         description: 'ban user'
       }),
-    sendPrivateMessage: (recipientId, content) =>
+    sendPrivateMessage: ({ recipientId, content }) =>
       this.#performLoggedInBotAction({
         logMessage: `Sending private message to user ID ${recipientId}`,
         action: () =>
@@ -256,14 +257,14 @@ class LemmyBot {
           }),
         description: 'send message'
       }),
-    reportPrivateMessage: (messageId, reason) =>
+    reportPrivateMessage: ({ privateMessageId, reason }) =>
       this.#performLoggedInBotAction({
-        logMessage: `Reporting private message ID ${messageId}. Reason: ${reason}`,
+        logMessage: `Reporting private message ID ${privateMessageId}. Reason: ${reason}`,
         action: () =>
           createPrivateMessageReport({
             auth: this.#auth!,
             connection: this.#connection!,
-            id: messageId,
+            id: privateMessageId,
             reason
           }),
         description: 'report message'
@@ -280,20 +281,20 @@ class LemmyBot {
           }),
         description: 'approve application'
       }),
-    rejectRegistrationApplication: (applicationId, denyReason) =>
+    rejectRegistrationApplication: ({ id, denyReason }) =>
       this.#performLoggedInBotAction({
-        logMessage: `Rejecting application ID ${applicationId}`,
+        logMessage: `Rejecting application ID ${id}`,
         action: () =>
           createApplicationApproval({
             auth: this.#auth!,
             connection: this.#connection!,
             approve: false,
-            id: applicationId,
+            id,
             denyReason
           }),
         description: 'reject application'
       }),
-    removePost: (postId, reason) =>
+    removePost: ({ postId, reason }) =>
       this.#performLoggedInBotAction({
         logMessage: `Removing post ID ${postId}`,
         action: () =>
@@ -306,7 +307,7 @@ class LemmyBot {
           }),
         description: 'remove post'
       }),
-    removeComment: (commentId, reason) =>
+    removeComment: ({ commentId, reason }) =>
       this.#performLoggedInBotAction({
         logMessage: `Removing comment ID ${commentId}`,
         action: () =>
@@ -365,7 +366,7 @@ class LemmyBot {
           }),
         description: 'feature post'
       }),
-    lockPost: (postId, locked) =>
+    lockPost: ({ postId, locked }) =>
       this.#performLoggedInBotAction({
         logMessage: `${locked ? 'L' : 'Unl'}ocking report ID ${postId}`,
         action: () =>
@@ -416,7 +417,7 @@ class LemmyBot {
           reject(`Could not get post ${postId}: connection closed`);
         }
       }),
-    getComment: (commentId, postId) =>
+    getComment: ({ id: commentId, postId }) =>
       new Promise((resolve, reject) => {
         if (this.#connection?.connected) {
           this.#commentIds.push(commentId);

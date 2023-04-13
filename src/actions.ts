@@ -1,6 +1,5 @@
 import {
   CommentSortType,
-  CreatePost,
   ListingType,
   ModlogActionType,
   PostFeatureType,
@@ -10,7 +9,7 @@ import {
 } from 'lemmy-js-client';
 import { connection as Connection } from 'websocket';
 import { futureDaysToUnixTime } from './helpers';
-import { Vote } from './types';
+import { Vote, CreatePost } from './types';
 
 const client = new LemmyWebsocket();
 
@@ -121,8 +120,15 @@ export const getPosts = ({
   connection.send(request);
 };
 
-export const createPost = (connection: Connection, form: CreatePost) => {
-  const request = client.createPost(form);
+export const createPost = (
+  connection: Connection,
+  { communityId, languageId, ...rest }: CreatePost & { auth: string }
+) => {
+  const request = client.createPost({
+    community_id: communityId,
+    language_id: languageId,
+    ...rest
+  });
 
   connection.send(request);
 };
