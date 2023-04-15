@@ -127,18 +127,6 @@ class LemmyBot {
   #listingType: ListingType;
   #currentlyProcessingCommentIds: number[] = [];
   #botActions: BotActions = {
-    replyToPost: ({ postId, content }) =>
-      this.#performLoggedInBotAction({
-        action: () =>
-          createComment({
-            connection: this.#connection!,
-            auth: this.#auth!,
-            content,
-            postId
-          }),
-        description: 'post comment',
-        logMessage: `Replying to post ID ${postId}`
-      }),
     createPost: (form) =>
       this.#performLoggedInBotAction({
         logMessage: 'Creating post',
@@ -178,16 +166,19 @@ class LemmyBot {
         description: `${prefix.toLowerCase()}vote post`
       });
     },
-    replyToComment: ({ parentId, content, postId }) =>
+    createComment: ({ parentId, content, postId, languageId }) =>
       this.#performLoggedInBotAction({
-        logMessage: `Replying to comment ID ${parentId}`,
+        logMessage: parentId
+          ? `Replying to comment ID ${parentId}`
+          : `Replying to post ID ${postId}`,
         action: () =>
           createComment({
             connection: this.#connection!,
             auth: this.#auth!,
             content,
             postId,
-            parentId
+            parentId,
+            languageId
           }),
         description: 'post comment'
       }),
@@ -378,9 +369,9 @@ class LemmyBot {
           }),
         description: `${locked ? '' : 'un'}lock post`
       }),
-    getCommunityId: (options) =>
-      this.#getId(options, SearchType.Communities, 'community'),
-    getUserId: (options) => this.#getId(options, SearchType.Users, 'user'),
+    getCommunityId: (form) =>
+      this.#getId(form, SearchType.Communities, 'community'),
+    getUserId: (form) => this.#getId(form, SearchType.Users, 'user'),
     uploadImage: (image) =>
       this.#httpClient.uploadImage({ image, auth: this.#auth }),
     getPost: (postId) =>
@@ -1490,7 +1481,7 @@ class LemmyBot {
   }
 
   #getId(
-    options: SearchOptions | string,
+    form: SearchOptions | string,
     type: SearchType.Communities | SearchType.Users,
     label: string
   ) {
@@ -1499,13 +1490,13 @@ class LemmyBot {
         const key = uuidv4();
         let localOptions: SearchOptions;
 
-        if (typeof options === 'string') {
+        if (typeof form === 'string') {
           localOptions = {
-            name: options,
+            name: form,
             instance: this.#instance
           };
         } else {
-          localOptions = options;
+          localOptions = form;
         }
 
         this.#unfinishedSearchMap.set(key, {

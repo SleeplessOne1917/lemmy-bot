@@ -23,7 +23,7 @@ import {
   SearchType,
   SortType,
   UploadImageResponse,
-  CreateComment,
+  CreateComment as CreateClientComment,
   CreatePostReport,
   CreateCommentReport,
   CreatePostLike,
@@ -76,9 +76,8 @@ export type BotOptions = {
 };
 
 export type BotActions = {
-  replyToComment: (form: ReplyToComment) => void;
   reportComment: (form: ReportComment) => void;
-  replyToPost: (form: ReplyToPost) => void;
+  createComment: (form: CreateComment) => void;
   reportPost: (form: ReportPort) => void;
   votePost: (form: VotePost) => void;
   createPost: (form: CreatePost) => void;
@@ -113,10 +112,10 @@ export type BotActions = {
    *
    * @returns The ID of the searched for user, or undefined if not found
    */
-  getUserId: (options: SearchOptions | string) => Promise<number | undefined>;
+  getUserId: (form: SearchOptions | string) => Promise<number | undefined>;
   uploadImage: (image: Buffer) => Promise<UploadImageResponse>;
   getPost: (postId: number) => Promise<PostView>;
-  getComment: (options: GetComment) => Promise<CommentView>;
+  getComment: (form: GetComment) => Promise<CommentView>;
 };
 
 export type InternalSearchOptions = {
@@ -320,16 +319,12 @@ export type CreatePost = UnderscoreObjToCamelCaseObj<
   Omit<CreateClientPost, 'auth'>
 >;
 
-export type ReplyToPost = UnderscoreObjToCamelCaseObj<
-  Omit<ReplyToComment, 'parent_id'>
+export type CreateComment = UnderscoreObjToCamelCaseObj<
+  Omit<CreateClientComment, 'auth' | 'form_id'>
 >;
 
 export type ReportPort = UnderscoreObjToCamelCaseObj<
   Omit<CreatePostReport, 'auth'>
->;
-
-export type ReplyToComment = UnderscoreObjToCamelCaseObj<
-  Omit<CreateComment, 'auth' | 'form_id' | 'language-id'>
 >;
 
 export type ReportComment = UnderscoreObjToCamelCaseObj<

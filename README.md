@@ -6,6 +6,7 @@
   <img src="https://img.shields.io/github/last-commit/SleeplessOne1917/lemmy-bot/main?style=plastic" alt="Last commit" />
   <img src="https://img.shields.io/github/issues/SleeplessOne1917/lemmy-bot?style=plastic" alt="Issues" />
   <img src="https://img.shields.io/github/issues-pr-raw/SleeplessOne1917/lemmy-bot?style=plastic" alt="Open pull requests" />
+  <img src="https://img.shields.io/npm/dm/lemmy-bot" alt="Downloads per month" />
 </div>
 <div align="center">
   <a href="https://github.com/LemmyNet/lemmy" rel="noopener">
@@ -184,16 +185,31 @@ The actions are as follows, grouped by access level in ascending order:
 - `getCommunityId(options: string | SearchOptions)`: Retrieves a community ID based on name; returns undefined if not found. If passed a string, the bot will look for the community name on the local instance. Can also be passed a `SearchOptions` object with the following propertied:
   - `instance`: Instance the community is on.
   - `name`: Name of the community.
-- `getUserId(options: string | SearchOptions)`: Retrieves a user ID based on name; returns undefined if not found. Like `getCommunityName`, accepts either a string to search for a user by name on the local instance, or a `SearchOptions` object to search on another instance.
+- `getUserId(options: string | SearchOptions)`: Retrieves a user ID based on name; returns undefined if not found. Like `getCommunityId`, accepts either a string to search for a user by name on the local instance, or a `SearchOptions` object to search on another instance, only the name refers to a user instead of a community.
+- `getPost(postId: number)`: Retrieve a post based on its ID.
+- `getComment(options: GetComment)`: Retrieve a comment. Accepts an object with the following properties:
+  - `id` number
+  - `postId` number
 
 #### Regular account
 
-- `replyToComment(commentId: number, postId: number, content: string)`: Create a comment replying to another comment.
-- `replyToPost(postId: number, content: string)`: Create a comment replying to a post.
-- `reportComment(commentId: number, reason: string)`: Report a comment.
-- `reportPost(postId: number, reason: string)`: Report a post.
-- `votePost(postId: number, vote: Vote)`: Vote on a post.
-- `voteComment(commentId: number, vote: Vote)`: Vote on a comment.
+- `createComment(form: CreateComment)`: Create a comment. Accepts an object with the following properties:
+  - `content` string
+  - `postId` number
+  - `parentId` _optional_ number
+  - `languageId` _optional_ number
+- `reportComment(form: ReportComment)`: Report a comment. Accepts an object with the following properties:
+  - `commentId` number
+  - `reason` string
+- `reportPost(form: ReportPost)`: Report a post. Accepts an object with the following properties:
+  - `postId` number
+  - `reason` string
+- `votePost(form: VotePost)`: Vote on a post. Accepts an object with the following properties:
+  - `postId` number
+  - `vote` Vote
+- `voteComment(form: VoteComment)`: Vote on a comment. Accepts an object with the following properties:
+  - `commentId` number
+  - `vote` Vote
 - `createPost(form: CreatePost)`: Create a post. `form` has the following properties:
   - `name` string
   - `url` _optional_ string
@@ -202,32 +218,42 @@ The actions are as follows, grouped by access level in ascending order:
   - `language_id` _optional_ number
   - `community_id` number
   - `honeypot` _optional_ string
-- `sendPrivateMessage(recipientId: number, content: string)`: Send a private message to a user.
-- `reportPrivateMessage(messageId: number, reason: string)`: Report a private message.
+- `sendPrivateMessage(form: SendPrivateMessage)`: Send a private message to a user. Accepts an object with the following properties:
+  - `recipientId` number
+  - `content` string
+- `reportPrivateMessage(form: ReportPrivateMessage)`: Report a private message. Accepts an object with the following properties:
+  - `privateMessageId` number
+  - `reason` string
 - `uploadImage(image: Buffer)`: Upload an image to pictrs. Returns a promise with an `UploadImageReponse`.
 
 #### Community moderator
 
-- `banFromCommunity(options)`: Ban a user from a community. The options argument has the following shape:
+- `banFromCommunity(form: BanFromCommunity)`: Ban a user from a community. Accepts an object with the following properties:
   - `communityId` number
   - `personId` number
   - `daysUntilExpires` _optional_ number
   - `reason` _optional_ string
   - `removeData` _optional_ boolean
-- `removePost(postId: number, reason?: string)`: Remove a post.
-- `removeComment(commentId: number, reason?: string)`: Remove a comment.
+- `removePost(form: RemovePost)`: Remove a post. Accepts an object with the following properties:
+  - `postId` number
+  - `reason` _optional_ string
+- `removeComment(form: RemoveComment)`: Remove a comment. Accepts an object with the following properties:
+  - `commentId` number
+  - `reason` _optional_ string
 - `resolveCommentReport(commentReportId: number)`: Resolve a comment report.
 - `resolvePostReport(postReportId: number)`: Resolve a post report.
 - `resolveMessageReport(privateMessageReportId: number)`: Resolve a private message report.
-- `featurePost(options)`: Feature a post. Options has the following shape:
+- `featurePost(form: FeaturePost)`: Feature a post. Accepts an object with the following properties:
   - `postId` number
   - `featureType`: PostFeatureType
   - `featured`: boolean
-- `lockPost(postId: number, locked: boolean)`: Lock/unlock a post.
+- `lockPost(postId: number, locked: boolean)`: Lock/unlock a post. Accepts an object with the following properties:
+  - `postId` number
+  - `locked` boolean
 
 #### Admin
 
-- `banFromSite(options)`: Ban a user from the instance. Options has the following shape:
+- `banFromSite(form: BanFromSite)`: Ban a user from the instance. Accepts an object with the following properties:
   - `personId` number
   - `daysUntilExpires` _optional_ number
   - `reason` _optional_ string

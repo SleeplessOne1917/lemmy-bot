@@ -183,19 +183,22 @@ export const createComment = ({
   auth,
   postId,
   parentId,
-  content
+  content,
+  languageId
 }: {
   connection: Connection;
   auth: string;
   postId: number;
   parentId?: number;
   content: string;
+  languageId?: number;
 }) => {
   const request = client.createComment({
     auth,
     content,
     post_id: postId,
-    parent_id: parentId
+    parent_id: parentId,
+    language_id: languageId
   });
 
   connection.send(request);
