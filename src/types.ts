@@ -116,7 +116,7 @@ export type BotActions = {
   getUserId: (options: SearchOptions | string) => Promise<number | undefined>;
   uploadImage: (image: Buffer) => Promise<UploadImageResponse>;
   getPost: (postId: number) => Promise<PostView>;
-  getComment: (form: GetComment) => Promise<CommentView>;
+  getComment: (options: GetComment) => Promise<CommentView>;
 };
 
 export type InternalSearchOptions = {
@@ -300,7 +300,7 @@ type UnderscoreToCamelCase<T extends string> = T extends `${infer U}_${infer R}`
   ? `${Lowercase<U>}${Capitalize<UnderscoreToCamelCase<R>>}`
   : T;
 
-type UnderscoreObjToCamelCaseObj<T extends Record<string, any>> = {
+type UnderscoreToCamelCaseMerge<T extends Record<string, any>> = {
   [K in keyof OptionalKeys<T> as K extends string
     ? UnderscoreToCamelCase<K>
     : K]?: T[K];
@@ -308,6 +308,10 @@ type UnderscoreObjToCamelCaseObj<T extends Record<string, any>> = {
   [K in keyof RequiredKeys<T> as K extends string
     ? UnderscoreToCamelCase<K>
     : K]: T[K];
+};
+
+type UnderscoreObjToCamelCaseObj<T extends Record<string, any>> = {
+  [K in keyof UnderscoreToCamelCaseMerge<T>]: UnderscoreToCamelCaseMerge<T>[K];
 };
 
 export type SearchOptions = Omit<InternalSearchOptions, 'type'>;
