@@ -21,7 +21,7 @@
 - Respond to different events that happen in lemmy, such as posts, comments, and modlog actions
 - Perform actions on a schedule
 - Supports most actions a regular Lemmy account can make, including moderator and admin actions
-- Polls over websocket to avoid rate limiting.
+- Polls over websocket to reduce load on the server.
 
 ## Installation
 
@@ -395,14 +395,15 @@ const bot = new LemmyBot({
           counts: { score },
           post: { id }
         },
-        botActions: { replyToPost },
+        botActions: { createComment },
         preventReprocess
       }) => {
         if (score > 25) {
-          replyToPost(
-            id,
-            'WOW, 25+ score!?!?! Das a lot of score-arinos!!!!! Congratulations fedizen! :)'
-          );
+          createComment({
+            postId: id,
+            content:
+              'WOW, 25+ score!?!?! Das a lot of score-arinos!!!!! Congratulations fedizen! :)'
+          });
           preventReprocess();
         }
       }
