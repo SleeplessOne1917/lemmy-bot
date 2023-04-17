@@ -263,6 +263,11 @@ The actions are as follows, grouped by access level in ascending order:
 
 ## Examples
 
+### Live Examples
+
+- [Translator bot](https://github.com/SleeplessOne1917/lemmy-translator-bot)
+- [OCR scanner bot](https://github.com/SleeplessOne1917/lemmy-ocr-bot)
+
 ### Like Me Bot
 
 This example bot will like users' posts and comments on request. Users can subscribe and unsubscribe to the liking by messaging the bot.
