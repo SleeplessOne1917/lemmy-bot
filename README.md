@@ -7,6 +7,7 @@
   <img src="https://img.shields.io/github/issues/SleeplessOne1917/lemmy-bot?style=plastic" alt="Issues" />
   <img src="https://img.shields.io/github/issues-pr-raw/SleeplessOne1917/lemmy-bot?style=plastic" alt="Open pull requests" />
   <img src="https://img.shields.io/npm/dm/lemmy-bot" alt="Downloads per month" />
+  <img src="https://img.shields.io/badge/-Typescript-white?logo=typescript&style=plastic" alt="Typescript">
 </div>
 <div align="center">
   <a href="https://github.com/LemmyNet/lemmy" rel="noopener">
@@ -190,6 +191,9 @@ The actions are as follows, grouped by access level in ascending order:
 - `getComment(options: GetComment)`: Retrieve a comment. Accepts an object with the following properties:
   - `id` number
   - `postId` number
+- `getParentOfComment(form: Comment)`: Retrieves the parent of a comment. Accepts a comment object, which is returned from handlers that deal with comments (e.g. comment handler, mention handler, reply handler, etc.). Returns an object with the following properties:
+  - `type` "post" or "comment"
+  - `data` PostView | CommentView
 
 #### Regular account
 

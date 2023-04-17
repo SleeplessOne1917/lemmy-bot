@@ -75,6 +75,13 @@ export type BotOptions = {
   dbFile?: string;
 };
 
+export type ParentType = 'post' | 'comment';
+
+export type ParentResponse = {
+  type: ParentType;
+  data: CommentView | PostView;
+};
+
 export type BotActions = {
   reportComment: (form: ReportComment) => void;
   createComment: (form: CreateComment) => void;
@@ -116,6 +123,7 @@ export type BotActions = {
   uploadImage: (image: Buffer) => Promise<UploadImageResponse>;
   getPost: (postId: number) => Promise<PostView>;
   getComment: (form: GetComment) => Promise<CommentView>;
+  getParentOfComment: (form: Comment) => Promise<ParentResponse>;
 };
 
 export type InternalSearchOptions = {

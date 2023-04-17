@@ -440,7 +440,27 @@ class LemmyBot {
         } else {
           reject(`Could not get comment ${commentId}: connection closed`);
         }
-      })
+      }),
+    getParentOfComment: async ({ path, post_id }) => {
+      const pathList = path.split('.').filter((i) => i !== '0');
+
+      if (pathList.length === 1) {
+        return {
+          type: 'post',
+          data: await this.#botActions.getPost(post_id)
+        };
+      } else {
+        const parentId = Number(pathList[pathList.length - 2]);
+
+        return {
+          type: 'comment',
+          data: await this.#botActions.getComment({
+            id: parentId,
+            postId: post_id
+          })
+        };
+      }
+    }
   };
 
   constructor({
