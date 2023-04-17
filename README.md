@@ -67,7 +67,7 @@ What your bot does is determined by the options passed to the constructor. They 
 
 #### `credentials`
 
-Log in credentials for the bot. Accepts an object with `username` and `password` properties. If not provided, the bot can still poll the instance for items like posts, comments, and modlog actions, but it will not be able to perform actions that require and account.
+Log in credentials for the bot. Accepts an object with `username` and `password` properties. If not provided, the bot can still poll the instance for items like posts, comments, and modlog actions, but it will not be able to perform actions that require an account.
 
 #### `instance` **REQUIRED**
 
