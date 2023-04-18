@@ -30,7 +30,8 @@ import {
   getSecureWebsocketUrl,
   parseHandlers,
   removeItem,
-  shouldProcess
+  shouldProcess,
+  stripPort
 } from './helpers';
 import {
   createApplicationApproval,
@@ -1198,7 +1199,7 @@ class LemmyBot {
                 ] of this.#unfinishedSearchMap.entries()) {
                   this.#unfinishedSearchMap.delete(key);
                   let id: number | null = null;
-                  const instanceWithoutPort = instance.replace(/:.*/, '');
+                  const instanceWithoutPort = stripPort(instance);
 
                   if (type === SearchType.Communities) {
                     for (const { community } of communities) {

@@ -65,7 +65,9 @@ export function removeItem<T>(items: T[], itemPredicate: (item: T) => boolean) {
   }
 }
 
-const escapeRegexString = (str: string) => str.replace(/\./g, '\\.');
+export const stripPort = (instance: string) => instance.replace(/:.*/, '');
+
+const escapeRegexString = (str: string) => stripPort(str.replace(/\./g, '\\.'));
 
 const formatActorId = (instance: string, community: string) =>
   `https?://${instance}/c/(${community})`;
