@@ -126,6 +126,7 @@ class LemmyBot {
   #commentIds: number[] = [];
   #commentMap: Map<number, CommentView> = new Map();
   #listingType: ListingType;
+  #currentlyProcessingPostIds: number[] = [];
   #currentlyProcessingCommentIds: number[] = [];
   #botActions: BotActions = {
     createPost: (form) =>
@@ -714,15 +715,31 @@ class LemmyBot {
                     'posts',
                     async ({ get, upsert }) => {
                       await Promise.all(
-                        posts.map((postView) =>
-                          this.#handleEntry({
-                            getStorageInfo: get,
-                            upsert,
-                            entry: { postView },
-                            id: postView.post.id,
-                            options: postOptions
+                        posts
+                          .filter(
+                            (p) =>
+                              !this.#currentlyProcessingPostIds.includes(
+                                p.post.id
+                              )
+                          )
+                          .map(async (postView) => {
+                            this.#currentlyProcessingPostIds.push(
+                              postView.post.id
+                            );
+
+                            await this.#handleEntry({
+                              getStorageInfo: get,
+                              upsert,
+                              entry: { postView },
+                              id: postView.post.id,
+                              options: postOptions
+                            });
+
+                            removeItem(
+                              this.#currentlyProcessingPostIds,
+                              (id) => id === postView.post.id
+                            );
                           })
-                        )
                       );
                     },
                     this.#dbFile
