@@ -122,7 +122,7 @@ export type BotActions = {
   getUserId: (form: SearchOptions | string) => Promise<number | undefined>;
   uploadImage: (image: Buffer) => Promise<UploadImageResponse>;
   getPost: (postId: number) => Promise<PostView>;
-  getComment: (form: GetComment) => Promise<CommentView>;
+  getComment: (commentId: number) => Promise<CommentView>;
   getParentOfComment: (form: Comment) => Promise<ParentResponse>;
 };
 
@@ -383,8 +383,4 @@ export type FeaturePost = UnderscoreObjToCamelCaseObj<
 
 export type LockPost = UnderscoreObjToCamelCaseObj<
   Omit<ClientLockPost, 'auth'>
->;
-
-export type GetComment = UnderscoreObjToCamelCaseObj<
-  Pick<Comment, 'id' | 'post_id'>
 >;

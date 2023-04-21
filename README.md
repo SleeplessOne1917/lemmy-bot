@@ -188,9 +188,7 @@ The actions are as follows, grouped by access level in ascending order:
   - `name`: Name of the community.
 - `getUserId(options: string | SearchOptions)`: Retrieves a user ID based on name; returns undefined if not found. Like `getCommunityId`, accepts either a string to search for a user by name on the local instance, or a `SearchOptions` object to search on another instance, only the name refers to a user instead of a community.
 - `getPost(postId: number)`: Retrieve a post based on its ID.
-- `getComment(options: GetComment)`: Retrieve a comment. Accepts an object with the following properties:
-  - `id` number
-  - `postId` number
+- `getComment(commentId: number)`: Retrieve a comment based on its ID.
 - `getParentOfComment(form: Comment)`: Retrieves the parent of a comment. Accepts a comment object, which is returned from handlers that deal with comments (e.g. comment handler, mention handler, reply handler, etc.). Returns an object with the following properties:
   - `type` "post" or "comment"
   - `data` PostView | CommentView

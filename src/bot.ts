@@ -19,7 +19,8 @@ import {
   SearchResponse,
   LemmyHttp,
   GetPostResponse,
-  ListingType
+  ListingType,
+  CommentResponse
 } from 'lemmy-js-client';
 import {
   correctVote,
@@ -55,6 +56,7 @@ import {
   getAddedAdmins,
   getBansFromCommunities,
   getBansFromSite,
+  getComment,
   getCommentReports,
   getComments,
   getFeaturedPosts,
@@ -121,10 +123,8 @@ class LemmyBot {
   #finishedSearchMap: Map<string, number | null> = new Map();
   #httpClient: LemmyHttp;
   #dbFile?: string;
-  #postIds: number[] = [];
   #postMap: Map<number, PostView[]> = new Map();
-  #commentIds: number[] = [];
-  #commentMap: Map<number, CommentView> = new Map();
+  #commentMap: Map<number, CommentView[]> = new Map();
   #listingType: ListingType;
   #currentlyProcessingPostIds: number[] = [];
   #currentlyProcessingCommentIds: number[] = [];
@@ -379,8 +379,6 @@ class LemmyBot {
     getPost: (postId) =>
       new Promise((resolve, reject) => {
         if (this.#connection?.connected) {
-          this.#postIds.push(postId);
-
           getPost({
             connection: this.#connection,
             auth: this.#auth,
@@ -400,7 +398,6 @@ class LemmyBot {
               ++tries;
               setTimeout(timeoutFunction, 1000);
             } else {
-              removeItem(this.#postIds, (id) => id === postId);
               reject(`Could not find post with ID ${postId}`);
             }
           };
@@ -410,30 +407,28 @@ class LemmyBot {
           reject(`Could not get post ${postId}: connection closed`);
         }
       }),
-    getComment: ({ id: commentId, postId }) =>
+    getComment: (commentId) =>
       new Promise((resolve, reject) => {
         if (this.#connection?.connected) {
-          this.#commentIds.push(commentId);
-
-          getComments({
+          getComment({
             connection: this.#connection,
-            listingType: this.#listingType,
             auth: this.#auth,
-            postId
+            id: commentId
           });
 
           let tries = 0;
 
           const timeoutFunction = () => {
-            const commentView = this.#commentMap.get(commentId);
+            const commentView = this.#commentMap.get(commentId)?.pop();
             if (commentView !== undefined) {
-              this.#commentMap.delete(commentId);
+              if (this.#commentMap.get(commentId)?.length === 0) {
+                this.#commentMap.delete(commentId);
+              }
               resolve(commentView);
             } else if (tries < 20) {
               ++tries;
               setTimeout(timeoutFunction, 1000);
             } else {
-              removeItem(this.#commentIds, (id) => id === commentId);
               reject(`Could not find comment with ID ${commentId}`);
             }
           };
@@ -456,10 +451,7 @@ class LemmyBot {
 
         return {
           type: 'comment',
-          data: await this.#botActions.getComment({
-            id: parentId,
-            postId: post_id
-          })
+          data: await this.#botActions.getComment(parentId)
         };
       }
     }
@@ -668,20 +660,6 @@ class LemmyBot {
                             commentView.comment.id
                           );
 
-                          if (
-                            this.#commentIds.includes(commentView.comment.id)
-                          ) {
-                            removeItem(
-                              this.#commentIds,
-                              (id) => id === commentView.comment.id
-                            );
-
-                            this.#commentMap.set(
-                              commentView.comment.id,
-                              commentView
-                            );
-                          }
-
                           if (commentOptions) {
                             await this.#handleEntry({
                               getStorageInfo: get,
@@ -792,12 +770,24 @@ class LemmyBot {
               case 'GetPost': {
                 const { post_view } = response.data as GetPostResponse;
 
-                removeItem(this.#postIds, (id) => id === post_view.post.id);
                 const posts = this.#postMap.get(post_view.post.id);
                 if (!posts) {
                   this.#postMap.set(post_view.post.id, [post_view]);
                 } else {
                   posts.push(post_view);
+                }
+
+                break;
+              }
+
+              case 'GetComment': {
+                const { comment_view } = response.data as CommentResponse;
+
+                const comments = this.#commentMap.get(comment_view.comment.id);
+                if (!comments) {
+                  this.#commentMap.set(comment_view.comment.id, [comment_view]);
+                } else {
+                  comments.push(comment_view);
                 }
 
                 break;

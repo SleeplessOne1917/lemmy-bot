@@ -153,6 +153,20 @@ export const createPostReport = ({
   connection.send(request);
 };
 
+export const getComment = ({
+  connection,
+  auth,
+  id
+}: {
+  connection: Connection;
+  auth?: string;
+  id: number;
+}) => {
+  const request = client.getComment({ id, auth });
+
+  connection.send(request);
+};
+
 export const getComments = ({
   connection,
   listingType,
