@@ -51,6 +51,8 @@ export const parseHandlers = (handlers?: BotHandlers) =>
 export const getListingType = (options: BotFederationOptions) => {
   if ((options.allowList?.length ?? 0) === 1) {
     return ListingType.Local;
+  } else if (options.allowList?.every((i) => typeof i !== 'string')) {
+    return ListingType.Subscribed;
   } else {
     return ListingType.All;
   }

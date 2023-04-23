@@ -53,6 +53,7 @@ import {
   createResolvePrivateMessageReport,
   createSearch,
   enableBotAccount,
+  followCommunity,
   getAddedAdmins,
   getBansFromCommunities,
   getBansFromSite,
@@ -636,6 +637,9 @@ class LemmyBot {
                 if (this.#auth) {
                   console.log('Marking account as bot account');
                   enableBotAccount({ connection, auth: this.#auth });
+
+                  console.log('Subscribing to communities');
+                  this.#subscibeToCommunities();
                 }
 
                 break;
@@ -1461,6 +1465,32 @@ class LemmyBot {
         username: this.#username,
         password: this.#password
       });
+    }
+  }
+
+  async #subscibeToCommunities() {
+    if (this.#auth && this.#connection?.connected) {
+      const communityIds = (
+        await Promise.all(
+          (
+            this.#federationOptions.allowList?.filter(
+              (i) => typeof i !== 'string'
+            ) as BotInstanceFederationOptions[]
+          ).flatMap(({ communities, instance }) =>
+            communities.map((name) =>
+              this.#botActions.getCommunityId({ instance, name })
+            )
+          ) ?? []
+        )
+      ).filter((id) => id !== undefined) as number[];
+
+      for (const communityId of communityIds) {
+        followCommunity({
+          auth: this.#auth,
+          communityId,
+          connection: this.#connection
+        });
+      }
     }
   }
 

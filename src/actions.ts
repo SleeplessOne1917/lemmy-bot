@@ -238,6 +238,24 @@ export const createCommentReport = ({
   connection.send(request);
 };
 
+export const followCommunity = ({
+  connection,
+  auth,
+  communityId
+}: {
+  connection: Connection;
+  auth: string;
+  communityId: number;
+}) => {
+  const request = client.followCommunity({
+    auth,
+    community_id: communityId,
+    follow: true
+  });
+
+  connection.send(request);
+};
+
 export const createBanFromCommunity = ({
   communityId,
   auth,
