@@ -37,5 +37,8 @@ export {
   ModTransferCommunityView,
   ModAddView,
   ModBanView,
-  UploadImageResponse
+  UploadImageResponse,
+  PostFeatureType,
+  SearchType,
+  ListingType
 } from 'lemmy-js-client';
