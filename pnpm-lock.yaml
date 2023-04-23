@@ -2,8 +2,8 @@ lockfileVersion: '6.0'
 
 dependencies:
   lemmy-js-client:
-    specifier: 0.17.2-rc.6
-    version: 0.17.2-rc.6
+    specifier: 0.17.2-rc.11
+    version: 0.17.2-rc.11
   node-cron:
     specifier: ^3.0.2
     version: 3.0.2
@@ -1138,8 +1138,8 @@ packages:
     resolution: {integrity: sha512-Bdboy+l7tA3OGW6FjyFHWkP5LuByj1Tk33Ljyq0axyzdk9//JSi2u3fP1QSmd1KNwq6VOKYGlAu87CisVir6Pw==}
     dev: true
 
-  /lemmy-js-client@0.17.2-rc.6:
-    resolution: {integrity: sha512-/EdzpLJpYOq3ypCQA1MyI7sX0DmHUIA1ZUIda2XTCUUP7a5pltF7WHTicFrQ9j6JwCiFMTVkw6S/L8LzfD6cGA==}
+  /lemmy-js-client@0.17.2-rc.11:
+    resolution: {integrity: sha512-Dn+ZPF3lw3PAEPv+F7Y5ymnXi1vRa/rjBjyP41QzjITPREU2HSZIQN5R6nQKiUU0DyKpzySvuLGCg6Q+iA68Kw==}
     dependencies:
       cross-fetch: 3.1.5
       form-data: 4.0.0
