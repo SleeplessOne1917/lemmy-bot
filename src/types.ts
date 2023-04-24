@@ -189,7 +189,7 @@ type Handler<T> = (
 
 export type BotHandlerOptions<
   THandledItem,
-  TOptions extends Record<string, any> = Record<string, never>
+  TOptions extends Record<string, any> = object
 > = {
   handle: Handler<THandledItem>;
   /**
@@ -214,7 +214,7 @@ export type BotHandlers = {
   [K in keyof InternalHandlers]?: InternalHandlers[K] extends
     | BotHandlerOptions<infer U, infer O>
     | undefined
-    ? (InternalHandlers[K] & O) | Handler<U>
+    ? BotHandlerOptions<U, O> | Handler<U>
     : undefined;
 };
 
