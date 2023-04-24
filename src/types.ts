@@ -267,11 +267,11 @@ export type BotTask = {
 
 export type BotConnectionOptions = {
   /**
-   * Time to wait until retrying connection if connection is lost.
+   * Time to wait until retrying connection if connection is lost. Pass false if you do not want the bot to retry the connection.
    *
    * @defaultValue 5
    */
-  minutesBeforeRetryConnection?: number;
+  minutesBeforeRetryConnection?: number | false;
   /**
    * Seconds between each fetch of data.
    * Can be overridden by {@link BotHandlerOptions.secondsBetweenPolls}

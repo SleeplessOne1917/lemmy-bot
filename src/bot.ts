@@ -565,6 +565,12 @@ class LemmyBot {
     this.#dbFile = dbFile;
     this.#listingType = getListingType(this.#federationOptions);
 
+    const sanitizedMinutesBeforeRetryConnection =
+      typeof minutesBeforeRetryConnection === 'number' &&
+      minutesBeforeRetryConnection < 0
+        ? 1
+        : minutesBeforeRetryConnection;
+
     const {
       comment: commentOptions,
       post: postOptions,
@@ -589,7 +595,17 @@ class LemmyBot {
 
     client.on('connectFailed', () => {
       if (!this.#isSecureConnection) {
-        console.log('Connection Failed!');
+        console.log(
+          `Connection Failed!${
+            sanitizedMinutesBeforeRetryConnection
+              ? ` Bot will attempt to reconnect in ${sanitizedMinutesBeforeRetryConnection} minutes`
+              : ''
+          }`
+        );
+
+        if (sanitizedMinutesBeforeRetryConnection) {
+          this.#retry(sanitizedMinutesBeforeRetryConnection);
+        }
 
         this.#isSecureConnection = true;
       } else {
@@ -609,7 +625,19 @@ class LemmyBot {
       });
 
       connection.on('close', () => {
-        console.log('Closing connection');
+        const shouldReconnect =
+          !this.#forcingClosed && sanitizedMinutesBeforeRetryConnection;
+        console.log(
+          `Closing connection.${
+            shouldReconnect
+              ? ` Bot will reconnect in ${sanitizedMinutesBeforeRetryConnection}`
+              : ''
+          }`
+        );
+
+        if (shouldReconnect) {
+          this.#retry(sanitizedMinutesBeforeRetryConnection);
+        }
       });
 
       connection.on('message', async (message) => {
@@ -1279,13 +1307,11 @@ class LemmyBot {
           }, 5000);
 
           this.#timeouts.push(timeout);
-        } else if (!this.#forcingClosed) {
-          const timeout = setTimeout(() => {
-            client.connect(getSecureWebsocketUrl(this.#instance));
-            this.#timeouts = this.#timeouts.filter((t) => t !== timeout);
-            // If bot can't connect, try again in the number of minutes provided
-          }, 1000 * 60 * minutesBeforeRetryConnection);
-          this.#timeouts.push(timeout);
+        } else if (
+          !this.#forcingClosed &&
+          sanitizedMinutesBeforeRetryConnection
+        ) {
+          this.#retry(sanitizedMinutesBeforeRetryConnection);
         } else {
           this.#forcingClosed = false;
 
@@ -1628,6 +1654,16 @@ class LemmyBot {
         } to ${description}`
       );
     }
+  }
+
+  #retry(minutesBeforeRetry: number) {
+    const timeout = setTimeout(() => {
+      client.connect(getSecureWebsocketUrl(this.#instance));
+      this.#timeouts = this.#timeouts.filter((t) => t !== timeout);
+      clearTimeout(timeout);
+      // If bot can't connect, try again in the number of minutes provided
+    }, 1000 * 60 * minutesBeforeRetry);
+    this.#timeouts.push(timeout);
   }
 }
 
