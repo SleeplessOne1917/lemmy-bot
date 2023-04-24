@@ -571,6 +571,8 @@ class LemmyBot {
         ? 1
         : minutesBeforeRetryConnection;
 
+    const handlerOptions = parseHandlers(handlers);
+
     const {
       comment: commentOptions,
       post: postOptions,
@@ -591,7 +593,7 @@ class LemmyBot {
       modTransferCommunity: modTransferCommunityOptions,
       modAddAdmin: modAddAdminOptions,
       modBanFromSite: modBanFromSiteOptions
-    } = parseHandlers(handlers);
+    } = handlerOptions;
 
     client.on('connectFailed', () => {
       if (!this.#isSecureConnection) {
@@ -1464,6 +1466,16 @@ class LemmyBot {
         }
       };
 
+      if (
+        defaultSecondsBetweenPolls > 10 &&
+        Object.values(handlerOptions).every(
+          ({ secondsBetweenPolls }) =>
+            !secondsBetweenPolls || secondsBetweenPolls > 10
+        )
+      ) {
+        this.#ping();
+      }
+
       await runBot();
     });
   }
@@ -1664,6 +1676,20 @@ class LemmyBot {
       // If bot can't connect, try again in the number of minutes provided
     }, 1000 * 60 * minutesBeforeRetry);
     this.#timeouts.push(timeout);
+  }
+
+  #ping() {
+    const pingTimeout = setTimeout(() => {
+      if (this.#connection?.connected) {
+        this.#connection.ping('Keep me alive!');
+        this.#ping();
+      }
+
+      this.#timeouts = this.#timeouts.filter((t) => t !== pingTimeout);
+      clearTimeout(pingTimeout);
+    }, 10000);
+
+    this.#timeouts.push(pingTimeout);
   }
 }
 
