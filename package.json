@@ -11,7 +11,7 @@
   "author": "SleeplessOne1917",
   "license": "AGPL-3.0",
   "devDependencies": {
-    "@types/node": "^18.15.13",
+    "@types/node": "^20.1.0",
     "@types/node-cron": "^3.0.7",
     "@types/uuid": "^9.0.1",
     "@types/websocket": "^1.0.5",
