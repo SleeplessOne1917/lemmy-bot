@@ -667,7 +667,7 @@ class LemmyBot {
                   enableBotAccount({ connection, auth: this.#auth });
 
                   console.log('Subscribing to communities');
-                  this.#subscibeToCommunities();
+                  this.#subscribeToCommunities();
                 }
 
                 break;
@@ -1494,15 +1494,15 @@ class LemmyBot {
     }
   }
 
-  async #subscibeToCommunities() {
+  async #subscribeToCommunities() {
     if (this.#auth && this.#connection?.connected) {
       const communityIds = (
         await Promise.all(
           (
             this.#federationOptions.allowList?.filter(
               (i) => typeof i !== 'string'
-            ) as BotInstanceFederationOptions[]
-          ).flatMap(({ communities, instance }) =>
+            ) as BotInstanceFederationOptions[] | undefined
+          )?.flatMap(({ communities, instance }) =>
             communities.map((name) =>
               this.#botActions.getCommunityId({ instance, name })
             )
