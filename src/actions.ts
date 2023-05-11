@@ -103,7 +103,7 @@ export const getPosts = ({
   connection,
   listingType,
   auth,
-  sort = SortType.New
+  sort = 'New'
 }: {
   connection: Connection;
   listingType: ListingType;
@@ -112,7 +112,7 @@ export const getPosts = ({
 }) => {
   const request = client.getPosts({
     sort,
-    limit: 50,
+    limit: BigInt(50),
     auth,
     type_: listingType
   });
@@ -171,7 +171,7 @@ export const getComments = ({
   connection,
   listingType,
   auth,
-  sort = CommentSortType.New,
+  sort = 'New',
   postId
 }: {
   connection: Connection;
@@ -182,7 +182,7 @@ export const getComments = ({
 }) => {
   const request = client.getComments({
     sort,
-    limit: 50,
+    limit: BigInt(50),
     auth,
     type_: listingType,
     post_id: postId,
@@ -273,12 +273,13 @@ export const createBanFromCommunity = ({
   reason?: string;
   removeData?: boolean;
 }) => {
+  const expires = futureDaysToUnixTime(daysUntilExpires);
   const request = client.banFromCommunity({
     auth,
     ban: true,
     community_id: communityId,
     person_id: personId,
-    expires: futureDaysToUnixTime(daysUntilExpires),
+    expires: expires ? BigInt(expires) : undefined,
     reason,
     remove_data: removeData
   });
@@ -301,11 +302,12 @@ export const createBanFromSite = ({
   reason?: string;
   removeData?: boolean;
 }) => {
+  const expires = futureDaysToUnixTime(daysUntilExpires);
   const request = client.banPerson({
     auth,
     ban: true,
     person_id: personId,
-    expires: futureDaysToUnixTime(daysUntilExpires),
+    expires: expires ? BigInt(expires) : undefined,
     reason,
     remove_data: removeData
   });
@@ -316,7 +318,7 @@ export const createBanFromSite = ({
 export const getPrivateMessages = (connection: Connection, auth?: string) => {
   const request = client.getPrivateMessages({
     auth: auth ?? '',
-    limit: 50,
+    limit: BigInt(50),
     unread_only: true
   });
 
@@ -387,7 +389,7 @@ export const getRegistrationApplications = (
 ) => {
   const request = client.listRegistrationApplications({
     unread_only: true,
-    limit: 50,
+    limit: BigInt(50),
     auth: auth ?? ''
   });
 
@@ -461,9 +463,9 @@ export const createRemoveComment = ({
 export const getMentions = (connection: Connection, auth?: string) => {
   const request = client.getPersonMentions({
     auth: auth ?? '',
-    limit: 50,
+    limit: BigInt(50),
     unread_only: true,
-    sort: CommentSortType.New
+    sort: 'New'
   });
 
   connection.send(request);
@@ -490,8 +492,8 @@ export const markMentionAsRead = ({
 export const getReplies = (connection: Connection, auth?: string) => {
   const request = client.getReplies({
     auth: auth ?? '',
-    limit: 50,
-    sort: CommentSortType.New,
+    limit: BigInt(50),
+    sort: 'New',
     unread_only: true
   });
 
@@ -520,7 +522,7 @@ export const getPostReports = (connection: Connection, auth?: string) => {
   const request = client.listPostReports({
     unresolved_only: true,
     auth: auth ?? '',
-    limit: 50
+    limit: BigInt(50)
   });
 
   connection.send(request);
@@ -530,7 +532,7 @@ export const getCommentReports = (connection: Connection, auth?: string) => {
   const request = client.listCommentReports({
     unresolved_only: true,
     auth: auth ?? '',
-    limit: 50
+    limit: BigInt(50)
   });
 
   connection.send(request);
@@ -542,7 +544,7 @@ export const getPrivateMessageReports = (
 ) => {
   const request = client.listPrivateMessageReports({
     auth: auth ?? '',
-    limit: 50,
+    limit: BigInt(50),
     unresolved_only: true
   });
 
@@ -638,12 +640,12 @@ export const createSearch = ({
   query: string;
 }) => {
   const request = client.search({
-    sort: SortType.TopAll,
+    sort: 'TopAll',
     q: query,
     auth,
-    limit: 50,
+    limit: BigInt(50),
     type_: type,
-    listing_type: ListingType.All
+    listing_type: 'All'
   });
 
   connection.send(request);
@@ -672,7 +674,7 @@ const getModlogItems = (
 ) => {
   const request = client.getModlog({
     type_: type,
-    limit: 50,
+    limit: BigInt(50),
     auth
   });
 
@@ -680,35 +682,35 @@ const getModlogItems = (
 };
 
 export const getRemovedPosts = (connection: Connection, auth?: string) =>
-  getModlogItems(connection, ModlogActionType.ModRemovePost, auth);
+  getModlogItems(connection, 'ModRemovePost', auth);
 
 export const getLockedPosts = (connection: Connection, auth?: string) =>
-  getModlogItems(connection, ModlogActionType.ModLockPost, auth);
+  getModlogItems(connection, 'ModLockPost', auth);
 
 export const getFeaturedPosts = (connection: Connection, auth?: string) =>
-  getModlogItems(connection, ModlogActionType.ModFeaturePost, auth);
+  getModlogItems(connection, 'ModFeaturePost', auth);
 
 export const getRemovedComments = (connection: Connection, auth?: string) =>
-  getModlogItems(connection, ModlogActionType.ModRemoveComment, auth);
+  getModlogItems(connection, 'ModRemoveComment', auth);
 
 export const getRemovedCommunities = (connection: Connection, auth?: string) =>
-  getModlogItems(connection, ModlogActionType.ModRemoveCommunity, auth);
+  getModlogItems(connection, 'ModRemoveCommunity', auth);
 
 export const getBansFromCommunities = (connection: Connection, auth?: string) =>
-  getModlogItems(connection, ModlogActionType.ModBanFromCommunity, auth);
+  getModlogItems(connection, 'ModBanFromCommunity', auth);
 
 export const getModsAddedToCommunities = (
   connection: Connection,
   auth?: string
-) => getModlogItems(connection, ModlogActionType.ModAddCommunity, auth);
+) => getModlogItems(connection, 'ModAddCommunity', auth);
 
 export const getModsTransferringCommunities = (
   connection: Connection,
   auth?: string
-) => getModlogItems(connection, ModlogActionType.ModTransferCommunity, auth);
+) => getModlogItems(connection, 'ModTransferCommunity', auth);
 
 export const getAddedAdmins = (connection: Connection, auth?: string) =>
-  getModlogItems(connection, ModlogActionType.ModAdd, auth);
+  getModlogItems(connection, 'ModAdd', auth);
 
 export const getBansFromSite = (connection: Connection, auth?: string) =>
-  getModlogItems(connection, ModlogActionType.ModBan, auth);
+  getModlogItems(connection, 'ModBan', auth);

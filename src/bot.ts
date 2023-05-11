@@ -15,7 +15,6 @@ import {
   GetModlogResponse,
   PostView,
   CommentView,
-  SearchType,
   SearchResponse,
   LemmyHttp,
   GetPostResponse,
@@ -372,9 +371,8 @@ class LemmyBot {
           }),
         description: `${locked ? '' : 'un'}lock post`
       }),
-    getCommunityId: (form) =>
-      this.#getId(form, SearchType.Communities, 'community'),
-    getUserId: (form) => this.#getId(form, SearchType.Users, 'user'),
+    getCommunityId: (form) => this.#getId(form, 'Communities', 'community'),
+    getUserId: (form) => this.#getId(form, 'Users', 'user'),
     uploadImage: (image) =>
       this.#httpClient.uploadImage({ image, auth: this.#auth }),
     getPost: (postId) =>
@@ -1240,7 +1238,7 @@ class LemmyBot {
                   let id: number | null = null;
                   const instanceWithoutPort = stripPort(instance);
 
-                  if (type === SearchType.Communities) {
+                  if (type === 'Communities') {
                     for (const { community } of communities) {
                       if (
                         (community.name === name || community.title === name) &&
@@ -1582,7 +1580,7 @@ class LemmyBot {
 
   #getId(
     form: SearchOptions | string,
-    type: SearchType.Communities | SearchType.Users,
+    type: 'Users' | 'Communities',
     label: string
   ) {
     return new Promise<number | undefined>((resolve, reject) => {

@@ -20,7 +20,6 @@ import {
   PrivateMessageReportView,
   PrivateMessageView,
   RegistrationApplicationView,
-  SearchType,
   SortType,
   UploadImageResponse,
   CreateComment as CreateClientComment,
@@ -129,7 +128,7 @@ export type BotActions = {
 export type InternalSearchOptions = {
   name: string;
   instance: string;
-  type: SearchType.Communities | SearchType.Users;
+  type: 'Communities' | 'Users';
 };
 
 export type InternalHandlers = {
