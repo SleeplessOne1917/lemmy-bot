@@ -112,7 +112,7 @@ export const getPosts = ({
 }) => {
   const request = client.getPosts({
     sort,
-    limit: BigInt(50),
+    limit: 50,
     auth,
     type_: listingType
   });
@@ -182,7 +182,7 @@ export const getComments = ({
 }) => {
   const request = client.getComments({
     sort,
-    limit: BigInt(50),
+    limit: 50,
     auth,
     type_: listingType,
     post_id: postId,
@@ -279,7 +279,7 @@ export const createBanFromCommunity = ({
     ban: true,
     community_id: communityId,
     person_id: personId,
-    expires: expires ? BigInt(expires) : undefined,
+    expires,
     reason,
     remove_data: removeData
   });
@@ -307,7 +307,7 @@ export const createBanFromSite = ({
     auth,
     ban: true,
     person_id: personId,
-    expires: expires ? BigInt(expires) : undefined,
+    expires,
     reason,
     remove_data: removeData
   });
@@ -318,7 +318,7 @@ export const createBanFromSite = ({
 export const getPrivateMessages = (connection: Connection, auth?: string) => {
   const request = client.getPrivateMessages({
     auth: auth ?? '',
-    limit: BigInt(50),
+    limit: 50,
     unread_only: true
   });
 
@@ -389,7 +389,7 @@ export const getRegistrationApplications = (
 ) => {
   const request = client.listRegistrationApplications({
     unread_only: true,
-    limit: BigInt(50),
+    limit: 50,
     auth: auth ?? ''
   });
 
@@ -463,7 +463,7 @@ export const createRemoveComment = ({
 export const getMentions = (connection: Connection, auth?: string) => {
   const request = client.getPersonMentions({
     auth: auth ?? '',
-    limit: BigInt(50),
+    limit: 50,
     unread_only: true,
     sort: 'New'
   });
@@ -492,7 +492,7 @@ export const markMentionAsRead = ({
 export const getReplies = (connection: Connection, auth?: string) => {
   const request = client.getReplies({
     auth: auth ?? '',
-    limit: BigInt(50),
+    limit: 50,
     sort: 'New',
     unread_only: true
   });
@@ -522,7 +522,7 @@ export const getPostReports = (connection: Connection, auth?: string) => {
   const request = client.listPostReports({
     unresolved_only: true,
     auth: auth ?? '',
-    limit: BigInt(50)
+    limit: 50
   });
 
   connection.send(request);
@@ -532,7 +532,7 @@ export const getCommentReports = (connection: Connection, auth?: string) => {
   const request = client.listCommentReports({
     unresolved_only: true,
     auth: auth ?? '',
-    limit: BigInt(50)
+    limit: 50
   });
 
   connection.send(request);
@@ -544,7 +544,7 @@ export const getPrivateMessageReports = (
 ) => {
   const request = client.listPrivateMessageReports({
     auth: auth ?? '',
-    limit: BigInt(50),
+    limit: 50,
     unresolved_only: true
   });
 
@@ -643,7 +643,7 @@ export const createSearch = ({
     sort: 'TopAll',
     q: query,
     auth,
-    limit: BigInt(50),
+    limit: 50,
     type_: type,
     listing_type: 'All'
   });
@@ -674,7 +674,7 @@ const getModlogItems = (
 ) => {
   const request = client.getModlog({
     type_: type,
-    limit: BigInt(50),
+    limit: 50,
     auth
   });
 
