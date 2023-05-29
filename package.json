@@ -24,7 +24,7 @@
     "typescript": "^5.0.4"
   },
   "dependencies": {
-    "lemmy-js-client": "0.17.2-rc.17",
+    "lemmy-js-client": "0.17.2-rc.20",
     "node-cron": "^3.0.2",
     "sqlite3": "^5.1.6",
     "uuid": "^9.0.0",
