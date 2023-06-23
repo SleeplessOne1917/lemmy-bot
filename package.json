@@ -6,7 +6,8 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "lint": "npx eslint .",
-    "build": "tsc"
+    "build": "tsc",
+    "prepare": "npm run build"
   },
   "author": "SleeplessOne1917",
   "license": "AGPL-3.0",
