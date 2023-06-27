@@ -82,25 +82,29 @@ export type ParentResponse = {
 };
 
 export type BotActions = {
-  reportComment: (form: ReportComment) => void;
-  createComment: (form: CreateComment) => void;
-  reportPost: (form: ReportPort) => void;
-  votePost: (form: VotePost) => void;
-  createPost: (form: CreatePost) => void;
-  voteComment: (form: VoteComment) => void;
-  banFromCommunity: (form: BanFromCommunity) => void;
-  banFromSite: (form: BanFromSite) => void;
-  sendPrivateMessage: (form: SendPrivateMessage) => void;
-  reportPrivateMessage: (form: ReportPrivateMessage) => void;
-  approveRegistrationApplication: (applicationId: number) => void;
-  rejectRegistrationApplication: (form: RejectApplicationApplication) => void;
-  removePost: (form: RemovePost) => void;
-  removeComment: (form: RemoveComment) => void;
-  resolvePostReport: (postReportId: number) => void;
-  resolveCommentReport: (commentReportId: number) => void;
-  resolvePrivateMessageReport: (privateMessageReportId: number) => void;
-  featurePost: (form: FeaturePost) => void;
-  lockPost: (form: LockPost) => void;
+  reportComment: (form: ReportComment) => Promise<void>;
+  createComment: (form: CreateComment) => Promise<void>;
+  reportPost: (form: ReportPort) => Promise<void>;
+  votePost: (form: VotePost) => Promise<void>;
+  createPost: (form: CreatePost) => Promise<void>;
+  voteComment: (form: VoteComment) => Promise<void>;
+  banFromCommunity: (form: BanFromCommunity) => Promise<void>;
+  banFromSite: (form: BanFromSite) => Promise<void>;
+  sendPrivateMessage: (form: SendPrivateMessage) => Promise<void>;
+  reportPrivateMessage: (form: ReportPrivateMessage) => Promise<void>;
+  approveRegistrationApplication: (applicationId: number) => Promise<void>;
+  rejectRegistrationApplication: (
+    form: RejectApplicationApplication
+  ) => Promise<void>;
+  removePost: (form: RemovePost) => Promise<void>;
+  removeComment: (form: RemoveComment) => Promise<void>;
+  resolvePostReport: (postReportId: number) => Promise<void>;
+  resolveCommentReport: (commentReportId: number) => Promise<void>;
+  resolvePrivateMessageReport: (
+    privateMessageReportId: number
+  ) => Promise<void>;
+  featurePost: (form: FeaturePost) => Promise<void>;
+  lockPost: (form: LockPost) => Promise<void>;
   /**
    * Gets a community ID by name.
    *
@@ -123,12 +127,6 @@ export type BotActions = {
   getPost: (postId: number) => Promise<PostView>;
   getComment: (commentId: number) => Promise<CommentView>;
   getParentOfComment: (form: Comment) => Promise<ParentResponse>;
-};
-
-export type InternalSearchOptions = {
-  name: string;
-  instance: string;
-  type: 'Communities' | 'Users';
 };
 
 export type InternalHandlers = {
@@ -266,16 +264,10 @@ export type BotTask = {
 
 export type BotConnectionOptions = {
   /**
-   * Time to wait until retrying connection if connection is lost. Pass false if you do not want the bot to retry the connection.
-   *
-   * @defaultValue 5
-   */
-  minutesBeforeRetryConnection?: number | false;
-  /**
-   * Seconds between each fetch of data.
+   * Seconds between each fetch of data. Cannot be lower than 30.
    * Can be overridden by {@link BotHandlerOptions.secondsBetweenPolls}
    *
-   * @defaultValue 10
+   * @defaultValue 30
    */
   secondsBetweenPolls?: number;
   /**
@@ -294,92 +286,47 @@ export type BotCredentials = {
   password: string;
 };
 
-type OptionalKeys<T extends Record<string, any>> = {
-  [K in keyof T]?: Exclude<T, NonNullable<T>> extends never ? never : T[K];
+export type SearchOptions = {
+  name: string;
+  instance: string;
 };
 
-type RequiredKeys<T> = {
-  [K in keyof T]: Exclude<T, NonNullable<T>> extends never ? T[K] : never;
+export type CreatePost = Omit<CreateClientPost, 'auth'>;
+
+export type CreateComment = Omit<CreateClientComment, 'auth' | 'form_id'>;
+
+export type ReportPort = Omit<CreatePostReport, 'auth'>;
+
+export type ReportComment = Omit<CreateCommentReport, 'auth'>;
+
+export type VotePost = Omit<CreatePostLike, 'auth' | 'score'> & { vote: Vote };
+
+export type VoteComment = Omit<CreateCommentLike, 'auth' | 'score'> & {
+  vote: Vote;
 };
 
-type UnderscoreToCamelCase<T extends string> = T extends `${infer U}_${infer R}`
-  ? `${Lowercase<U>}${Capitalize<UnderscoreToCamelCase<R>>}`
-  : T;
+export type BanFromCommunity = Omit<
+  ClientBanFromCommunity,
+  'auth' | 'ban' | 'expires'
+> & { days_until_expires?: number };
 
-type UnderscoreToCamelCaseMerge<T extends Record<string, any>> = {
-  [K in keyof OptionalKeys<T> as K extends string
-    ? UnderscoreToCamelCase<K>
-    : K]?: T[K];
-} & {
-  [K in keyof RequiredKeys<T> as K extends string
-    ? UnderscoreToCamelCase<K>
-    : K]: T[K];
+export type BanFromSite = Omit<BanPerson, 'auth' | 'ban' | 'expires'> & {
+  days_until_expires?: number;
 };
 
-type UnderscoreObjToCamelCaseObj<T extends Record<string, any>> = {
-  [K in keyof UnderscoreToCamelCaseMerge<T>]: UnderscoreToCamelCaseMerge<T>[K];
-};
+export type SendPrivateMessage = Omit<CreatePrivateMessage, 'auth'>;
 
-export type SearchOptions = Omit<InternalSearchOptions, 'type'>;
+export type ReportPrivateMessage = Omit<CreatePrivateMessageReport, 'auth'>;
 
-export type CreatePost = UnderscoreObjToCamelCaseObj<
-  Omit<CreateClientPost, 'auth'>
+export type RejectApplicationApplication = Omit<
+  ApproveRegistrationApplication,
+  'approve' | 'auth'
 >;
 
-export type CreateComment = UnderscoreObjToCamelCaseObj<
-  Omit<CreateClientComment, 'auth' | 'form_id'>
->;
+export type RemovePost = Omit<ClientRemovePost, 'auth' | 'removed'>;
 
-export type ReportPort = UnderscoreObjToCamelCaseObj<
-  Omit<CreatePostReport, 'auth'>
->;
+export type RemoveComment = Omit<ClientRemoveComment, 'auth' | 'removed'>;
 
-export type ReportComment = UnderscoreObjToCamelCaseObj<
-  Omit<CreateCommentReport, 'auth'>
->;
+export type FeaturePost = Omit<ClientFeaturePost, 'auth'>;
 
-export type VotePost = UnderscoreObjToCamelCaseObj<
-  Omit<CreatePostLike, 'auth' | 'score'>
-> & { vote: Vote };
-
-export type VoteComment = UnderscoreObjToCamelCaseObj<
-  Omit<CreateCommentLike, 'auth' | 'score'>
-> & { vote: Vote };
-
-export type BanFromCommunity = UnderscoreObjToCamelCaseObj<
-  Omit<ClientBanFromCommunity, 'auth' | 'ban' | 'expires'>
-> & { daysUntilExpires?: number };
-
-export type BanFromSite = UnderscoreObjToCamelCaseObj<
-  Omit<BanPerson, 'auth' | 'ban' | 'expires'>
-> & {
-  daysUntilExpires?: number;
-};
-
-export type SendPrivateMessage = UnderscoreObjToCamelCaseObj<
-  Omit<CreatePrivateMessage, 'auth'>
->;
-
-export type ReportPrivateMessage = UnderscoreObjToCamelCaseObj<
-  Omit<CreatePrivateMessageReport, 'auth'>
->;
-
-export type RejectApplicationApplication = UnderscoreObjToCamelCaseObj<
-  Omit<ApproveRegistrationApplication, 'approve' | 'auth'>
->;
-
-export type RemovePost = UnderscoreObjToCamelCaseObj<
-  Omit<ClientRemovePost, 'auth' | 'removed'>
->;
-
-export type RemoveComment = UnderscoreObjToCamelCaseObj<
-  Omit<ClientRemoveComment, 'auth' | 'removed'>
->;
-
-export type FeaturePost = UnderscoreObjToCamelCaseObj<
-  Omit<ClientFeaturePost, 'auth'>
->;
-
-export type LockPost = UnderscoreObjToCamelCaseObj<
-  Omit<ClientLockPost, 'auth'>
->;
+export type LockPost = Omit<ClientLockPost, 'auth'>;

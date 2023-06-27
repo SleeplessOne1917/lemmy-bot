@@ -9,12 +9,6 @@ import {
   InternalHandlers
 } from './types';
 
-export const getSecureWebsocketUrl = (instanceDomain: string) =>
-  `wss://${instanceDomain}/api/v3/ws`;
-
-export const getInsecureWebsocketUrl = (instanceDomain: string) =>
-  `ws://${instanceDomain}/api/v3/ws`;
-
 export const correctVote = (vote: number): Vote => {
   if (vote < -1) {
     vote = Vote.Downvote;
@@ -57,15 +51,6 @@ export const getListingType = (options: BotFederationOptions): ListingType => {
     return 'All';
   }
 };
-
-export function removeItem<T>(items: T[], itemPredicate: (item: T) => boolean) {
-  for (let i = 0; i < items.length; ++i) {
-    if (itemPredicate(items[i])) {
-      items.splice(i, 1);
-      break;
-    }
-  }
-}
 
 export const stripPort = (instance: string) => instance.replace(/:.*/, '');
 
