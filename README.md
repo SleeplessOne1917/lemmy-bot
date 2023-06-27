@@ -22,7 +22,6 @@
 - Respond to different events that happen in lemmy, such as posts, comments, and modlog actions
 - Perform actions on a schedule
 - Supports most actions a regular Lemmy account can make, including moderator and admin actions
-- Polls over websocket to reduce load on the server.
 
 ## Installation
 
@@ -197,20 +196,20 @@ The actions are as follows, grouped by access level in ascending order:
 
 - `createComment(form: CreateComment)`: Create a comment. Accepts an object with the following properties:
   - `content` string
-  - `postId` number
-  - `parentId` _optional_ number
-  - `languageId` _optional_ number
+  - `post_id` number
+  - `parent_id` _optional_ number
+  - `language_id` _optional_ number
 - `reportComment(form: ReportComment)`: Report a comment. Accepts an object with the following properties:
-  - `commentId` number
+  - `comment_id` number
   - `reason` string
 - `reportPost(form: ReportPost)`: Report a post. Accepts an object with the following properties:
-  - `postId` number
+  - `post_id` number
   - `reason` string
 - `votePost(form: VotePost)`: Vote on a post. Accepts an object with the following properties:
-  - `postId` number
+  - `post_id` number
   - `vote` Vote
 - `voteComment(form: VoteComment)`: Vote on a comment. Accepts an object with the following properties:
-  - `commentId` number
+  - `comment_id` number
   - `vote` Vote
 - `createPost(form: CreatePost)`: Create a post. `form` has the following properties:
   - `name` string
@@ -221,45 +220,45 @@ The actions are as follows, grouped by access level in ascending order:
   - `community_id` number
   - `honeypot` _optional_ string
 - `sendPrivateMessage(form: SendPrivateMessage)`: Send a private message to a user. Accepts an object with the following properties:
-  - `recipientId` number
+  - `recipient_id` number
   - `content` string
 - `reportPrivateMessage(form: ReportPrivateMessage)`: Report a private message. Accepts an object with the following properties:
-  - `privateMessageId` number
+  - `privateMessage_id` number
   - `reason` string
 - `uploadImage(image: Buffer)`: Upload an image to pictrs. Returns a promise with an `UploadImageReponse`.
 
 #### Community moderator
 
 - `banFromCommunity(form: BanFromCommunity)`: Ban a user from a community. Accepts an object with the following properties:
-  - `communityId` number
+  - `community_id` number
   - `personId` number
-  - `daysUntilExpires` _optional_ number
+  - `days_until_expires` _optional_ number
   - `reason` _optional_ string
-  - `removeData` _optional_ boolean
+  - `remove_data` _optional_ boolean
 - `removePost(form: RemovePost)`: Remove a post. Accepts an object with the following properties:
-  - `postId` number
+  - `post_id` number
   - `reason` _optional_ string
 - `removeComment(form: RemoveComment)`: Remove a comment. Accepts an object with the following properties:
-  - `commentId` number
+  - `comment_id` number
   - `reason` _optional_ string
 - `resolveCommentReport(commentReportId: number)`: Resolve a comment report.
 - `resolvePostReport(postReportId: number)`: Resolve a post report.
 - `resolveMessageReport(privateMessageReportId: number)`: Resolve a private message report.
 - `featurePost(form: FeaturePost)`: Feature a post. Accepts an object with the following properties:
-  - `postId` number
-  - `featureType`: PostFeatureType
+  - `post_id` number
+  - `feature_type`: PostFeatureType
   - `featured`: boolean
 - `lockPost(postId: number, locked: boolean)`: Lock/unlock a post. Accepts an object with the following properties:
-  - `postId` number
+  - `pst_id` number
   - `locked` boolean
 
 #### Admin
 
 - `banFromSite(form: BanFromSite)`: Ban a user from the instance. Accepts an object with the following properties:
-  - `personId` number
-  - `daysUntilExpires` _optional_ number
+  - `person_id` number
+  - `days_until_expires` _optional_ number
   - `reason` _optional_ string
-  - `removeData` _optional_ boolean
+  - `remove_data` _optional_ boolean
 - `approveRegistrationApplication(applicationId: number)`: Approve the creation of an account.
 - `rejectRegistrationApplication(applicationId: number, denyReason?: string)`: Deny a request to create an account on the instance.
 
@@ -403,7 +402,7 @@ const bot = new LemmyBot({
       }) => {
         if (score > 25) {
           createComment({
-            postId: id,
+            post_id: id,
             content:
               'WOW, 25+ score!?!?! Das a lot of score-arinos!!!!! Congratulations fedizen! :)'
           });
