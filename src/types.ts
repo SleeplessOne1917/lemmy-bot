@@ -294,92 +294,44 @@ export type BotCredentials = {
   password: string;
 };
 
-type OptionalKeys<T extends Record<string, any>> = {
-  [K in keyof T]?: Exclude<T, NonNullable<T>> extends never ? never : T[K];
-};
-
-type RequiredKeys<T> = {
-  [K in keyof T]: Exclude<T, NonNullable<T>> extends never ? T[K] : never;
-};
-
-type UnderscoreToCamelCase<T extends string> = T extends `${infer U}_${infer R}`
-  ? `${Lowercase<U>}${Capitalize<UnderscoreToCamelCase<R>>}`
-  : T;
-
-type UnderscoreToCamelCaseMerge<T extends Record<string, any>> = {
-  [K in keyof OptionalKeys<T> as K extends string
-    ? UnderscoreToCamelCase<K>
-    : K]?: T[K];
-} & {
-  [K in keyof RequiredKeys<T> as K extends string
-    ? UnderscoreToCamelCase<K>
-    : K]: T[K];
-};
-
-type UnderscoreObjToCamelCaseObj<T extends Record<string, any>> = {
-  [K in keyof UnderscoreToCamelCaseMerge<T>]: UnderscoreToCamelCaseMerge<T>[K];
-};
-
 export type SearchOptions = Omit<InternalSearchOptions, 'type'>;
 
-export type CreatePost = UnderscoreObjToCamelCaseObj<
-  Omit<CreateClientPost, 'auth'>
->;
+export type CreatePost = Omit<CreateClientPost, 'auth'>;
 
-export type CreateComment = UnderscoreObjToCamelCaseObj<
-  Omit<CreateClientComment, 'auth' | 'form_id'>
->;
+export type CreateComment = Omit<CreateClientComment, 'auth' | 'form_id'>;
 
-export type ReportPort = UnderscoreObjToCamelCaseObj<
-  Omit<CreatePostReport, 'auth'>
->;
+export type ReportPort = Omit<CreatePostReport, 'auth'>;
 
-export type ReportComment = UnderscoreObjToCamelCaseObj<
-  Omit<CreateCommentReport, 'auth'>
->;
+export type ReportComment = Omit<CreateCommentReport, 'auth'>;
 
-export type VotePost = UnderscoreObjToCamelCaseObj<
-  Omit<CreatePostLike, 'auth' | 'score'>
-> & { vote: Vote };
+export type VotePost = Omit<CreatePostLike, 'auth' | 'score'> & { vote: Vote };
 
-export type VoteComment = UnderscoreObjToCamelCaseObj<
-  Omit<CreateCommentLike, 'auth' | 'score'>
-> & { vote: Vote };
-
-export type BanFromCommunity = UnderscoreObjToCamelCaseObj<
-  Omit<ClientBanFromCommunity, 'auth' | 'ban' | 'expires'>
-> & { daysUntilExpires?: number };
-
-export type BanFromSite = UnderscoreObjToCamelCaseObj<
-  Omit<BanPerson, 'auth' | 'ban' | 'expires'>
-> & {
-  daysUntilExpires?: number;
+export type VoteComment = Omit<CreateCommentLike, 'auth' | 'score'> & {
+  vote: Vote;
 };
 
-export type SendPrivateMessage = UnderscoreObjToCamelCaseObj<
-  Omit<CreatePrivateMessage, 'auth'>
+export type BanFromCommunity = Omit<
+  ClientBanFromCommunity,
+  'auth' | 'ban' | 'expires'
+> & { days_until_expires?: number };
+
+export type BanFromSite = Omit<BanPerson, 'auth' | 'ban' | 'expires'> & {
+  days_until_expires?: number;
+};
+
+export type SendPrivateMessage = Omit<CreatePrivateMessage, 'auth'>;
+
+export type ReportPrivateMessage = Omit<CreatePrivateMessageReport, 'auth'>;
+
+export type RejectApplicationApplication = Omit<
+  ApproveRegistrationApplication,
+  'approve' | 'auth'
 >;
 
-export type ReportPrivateMessage = UnderscoreObjToCamelCaseObj<
-  Omit<CreatePrivateMessageReport, 'auth'>
->;
+export type RemovePost = Omit<ClientRemovePost, 'auth' | 'removed'>;
 
-export type RejectApplicationApplication = UnderscoreObjToCamelCaseObj<
-  Omit<ApproveRegistrationApplication, 'approve' | 'auth'>
->;
+export type RemoveComment = Omit<ClientRemoveComment, 'auth' | 'removed'>;
 
-export type RemovePost = UnderscoreObjToCamelCaseObj<
-  Omit<ClientRemovePost, 'auth' | 'removed'>
->;
+export type FeaturePost = Omit<ClientFeaturePost, 'auth'>;
 
-export type RemoveComment = UnderscoreObjToCamelCaseObj<
-  Omit<ClientRemoveComment, 'auth' | 'removed'>
->;
-
-export type FeaturePost = UnderscoreObjToCamelCaseObj<
-  Omit<ClientFeaturePost, 'auth'>
->;
-
-export type LockPost = UnderscoreObjToCamelCaseObj<
-  Omit<ClientLockPost, 'auth'>
->;
+export type LockPost = Omit<ClientLockPost, 'auth'>;

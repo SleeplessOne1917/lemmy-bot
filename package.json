@@ -26,9 +26,7 @@
   "dependencies": {
     "lemmy-js-client": "0.18.1-rc.2",
     "node-cron": "^3.0.2",
-    "sqlite3": "^5.1.6",
-    "uuid": "^9.0.0",
-    "websocket": "^1.0.34"
+    "sqlite3": "^5.1.6"
   },
   "files": [
     "/dist"

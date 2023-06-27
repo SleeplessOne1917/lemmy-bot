@@ -1,86 +1,19 @@
-import { connection as Connection, client as WebsocketClient } from 'websocket';
-import { v4 as uuidv4 } from 'uuid';
-
 import {
-  GetPostsResponse,
-  LoginResponse,
-  PrivateMessagesResponse,
-  GetCommentsResponse,
-  ListRegistrationApplicationsResponse,
-  GetPersonMentionsResponse,
-  GetRepliesResponse,
-  ListCommentReportsResponse,
-  ListPostReportsResponse,
-  ListPrivateMessageReportsResponse,
-  GetModlogResponse,
   PostView,
   CommentView,
-  SearchResponse,
   LemmyHttp,
-  GetPostResponse,
   ListingType,
-  CommentResponse
+  ModlogActionType
 } from 'lemmy-js-client';
 import {
   correctVote,
   extractInstanceFromActorId,
-  getInsecureWebsocketUrl,
   getInstanceRegex,
   getListingType,
-  getSecureWebsocketUrl,
   parseHandlers,
-  removeItem,
   shouldProcess,
   stripPort
 } from './helpers';
-import {
-  createApplicationApproval,
-  createBanFromCommunity,
-  createBanFromSite,
-  createComment,
-  createCommentReport,
-  createFeaturePost,
-  createLockPost,
-  createPost,
-  createPostReport,
-  createPrivateMessage,
-  createPrivateMessageReport,
-  createRemoveComment,
-  createRemovePost,
-  createResolveCommentReport,
-  createResolvePostReport,
-  createResolvePrivateMessageReport,
-  createSearch,
-  enableBotAccount,
-  followCommunity,
-  getAddedAdmins,
-  getBansFromCommunities,
-  getBansFromSite,
-  getComment,
-  getCommentReports,
-  getComments,
-  getFeaturedPosts,
-  getLockedPosts,
-  getMentions,
-  getModsAddedToCommunities,
-  getModsTransferringCommunities,
-  getPost,
-  getPostReports,
-  getPosts,
-  getPrivateMessageReports,
-  getPrivateMessages,
-  getRegistrationApplications,
-  getRemovedComments,
-  getRemovedCommunities,
-  getRemovedPosts,
-  getReplies,
-  logIn,
-  markMentionAsRead,
-  markPrivateMessageAsRead,
-  markReplyAsRead,
-  voteDBComment,
-  voteDBPost
-} from './actions';
 import {
   RowUpserter,
   setupDB,
@@ -97,167 +30,151 @@ import {
   BotOptions,
   SearchOptions,
   Vote,
-  InternalSearchOptions
+  BotCredentials,
+  InternalHandlers
 } from './types';
 
 const DEFAULT_SECONDS_BETWEEN_POLLS = 10;
 const DEFAULT_MINUTES_BEFORE_RETRY_CONNECTION = 5;
 const DEFAULT_MINUTES_UNTIL_REPROCESS: number | undefined = undefined;
 
-const client = new WebsocketClient();
-
 class LemmyBot {
+  #isRunning: boolean;
   #instance: string;
   #username?: string;
   #password?: string;
-  #connection?: Connection = undefined;
-  #forcingClosed = false;
   #timeouts: NodeJS.Timeout[] = [];
   #auth?: string;
-  #isSecureConnection = true;
   #defaultMinutesUntilReprocess?: number;
   #federationOptions: BotFederationOptions;
   #tasks: ScheduledTask[] = [];
   #delayedTasks: (() => Promise<void>)[] = [];
-  #unfinishedSearchMap: Map<string, InternalSearchOptions> = new Map();
-  #finishedSearchMap: Map<string, number | null> = new Map();
   #httpClient: LemmyHttp;
   #dbFile?: string;
-  #postMap: Map<number, PostView[]> = new Map();
-  #commentMap: Map<number, CommentView[]> = new Map();
   #listingType: ListingType;
-  #currentlyProcessingPostIds: number[] = [];
-  #currentlyProcessingCommentIds: number[] = [];
+  #credentials?: BotCredentials;
+  #defaultSecondsBetweenPolls = DEFAULT_SECONDS_BETWEEN_POLLS;
+  #handlers: InternalHandlers;
   #botActions: BotActions = {
     createPost: (form) =>
       this.#performLoggedInBotAction({
         logMessage: 'Creating post',
         action: () =>
-          createPost(this.#connection!, {
-            ...form,
-            auth: this.#auth!
-          }),
+          this.#httpClient.createPost({ ...form, auth: this.#auth ?? '' }),
         description: 'create post'
       }),
-    reportPost: ({ postId, reason }) =>
+    reportPost: ({ post_id, reason }) =>
       this.#performLoggedInBotAction({
-        logMessage: `Reporting to post ID ${postId} for ${reason}`,
+        logMessage: `Reporting to post ID ${post_id} for ${reason}`,
         action: () =>
-          createPostReport({
+          this.#httpClient.createPostReport({
             auth: this.#auth!,
-            connection: this.#connection!,
-            id: postId,
+            post_id,
             reason
           }),
         description: 'report post'
       }),
-    votePost: ({ postId, vote }) => {
-      vote = correctVote(vote);
+    votePost: ({ post_id, vote }) => {
+      const score = correctVote(vote);
       const prefix =
         vote === Vote.Upvote ? 'Up' : vote === Vote.Downvote ? 'Down' : 'Un';
 
       this.#performLoggedInBotAction({
-        logMessage: `${prefix}voting post ID ${postId}`,
+        logMessage: `${prefix}voting post ID ${post_id}`,
         action: () =>
-          voteDBPost({
-            connection: this.#connection!,
+          this.#httpClient.likePost({
             auth: this.#auth!,
-            id: postId,
-            vote
+            post_id,
+            score
           }),
         description: `${prefix.toLowerCase()}vote post`
       });
     },
-    createComment: ({ parentId, content, postId, languageId }) =>
+    createComment: ({ parent_id, content, post_id, language_id }) =>
       this.#performLoggedInBotAction({
-        logMessage: parentId
-          ? `Replying to comment ID ${parentId}`
-          : `Replying to post ID ${postId}`,
+        logMessage: parent_id
+          ? `Replying to comment ID ${parent_id}`
+          : `Replying to post ID ${post_id}`,
         action: () =>
-          createComment({
-            connection: this.#connection!,
+          this.#httpClient.createComment({
             auth: this.#auth!,
             content,
-            postId,
-            parentId,
-            languageId
+            post_id,
+            parent_id,
+            language_id
           }),
         description: 'post comment'
       }),
-    reportComment: ({ commentId, reason }) =>
+    reportComment: ({ comment_id, reason }) =>
       this.#performLoggedInBotAction({
         action: () =>
-          createCommentReport({
+          this.#httpClient.createCommentReport({
             auth: this.#auth!,
-            connection: this.#connection!,
-            id: commentId,
+            comment_id,
             reason
           }),
-        logMessage: `Reporting to comment ID ${commentId} for ${reason}`,
+        logMessage: `Reporting to comment ID ${comment_id} for ${reason}`,
         description: 'report comment'
       }),
-    voteComment: ({ commentId, vote }) => {
-      vote = correctVote(vote);
+    voteComment: ({ comment_id, vote }) => {
+      const score = correctVote(vote);
       const prefix =
-        vote === Vote.Upvote ? 'Up' : vote === Vote.Downvote ? 'Down' : 'Un';
+        score === Vote.Upvote ? 'Up' : score === Vote.Downvote ? 'Down' : 'Un';
 
       this.#performLoggedInBotAction({
-        logMessage: `${prefix}voting comment ID ${commentId}`,
+        logMessage: `${prefix}voting comment ID ${comment_id}`,
         action: () =>
-          voteDBComment({
-            connection: this.#connection!,
+          this.#httpClient.likeComment({
             auth: this.#auth!,
-            id: commentId,
-            vote
+            comment_id,
+            score
           }),
         description: `${prefix.toLowerCase()}vote comment`
       });
     },
     banFromCommunity: (form) =>
       this.#performLoggedInBotAction({
-        logMessage: `Banning user ID ${form.personId} from ${form.communityId}`,
+        logMessage: `Banning user ID ${form.person_id} from ${form.community_id}`,
         action: () =>
-          createBanFromCommunity({
+          this.#httpClient.banFromCommunity({
             ...form,
             auth: this.#auth!,
-            connection: this.#connection!
+            ban: true
           }),
         description: 'ban user'
       }),
-    banFromSite: ({ personId, daysUntilExpires, reason, removeData }) =>
+    banFromSite: ({ person_id, days_until_expires, reason, remove_data }) =>
       this.#performLoggedInBotAction({
-        logMessage: `Banning user ID ${personId} from ${this.#instance}`,
+        logMessage: `Banning user ID ${person_id} from ${this.#instance}`,
         action: () =>
-          createBanFromSite({
+          this.#httpClient.banPerson({
             auth: this.#auth!,
-            connection: this.#connection!,
-            personId,
-            daysUntilExpires,
+            person_id,
+            expires: days_until_expires,
             reason,
-            removeData
+            remove_data,
+            ban: true
           }),
         description: 'ban user'
       }),
-    sendPrivateMessage: ({ recipientId, content }) =>
+    sendPrivateMessage: ({ recipient_id, content }) =>
       this.#performLoggedInBotAction({
-        logMessage: `Sending private message to user ID ${recipientId}`,
+        logMessage: `Sending private message to user ID ${recipient_id}`,
         action: () =>
-          createPrivateMessage({
+          this.#httpClient.createPrivateMessage({
             auth: this.#auth!,
-            connection: this.#connection!,
             content,
-            recipientId
+            recipient_id
           }),
         description: 'send message'
       }),
-    reportPrivateMessage: ({ privateMessageId, reason }) =>
+    reportPrivateMessage: ({ private_message_id, reason }) =>
       this.#performLoggedInBotAction({
-        logMessage: `Reporting private message ID ${privateMessageId}. Reason: ${reason}`,
+        logMessage: `Reporting private message ID ${private_message_id}. Reason: ${reason}`,
         action: () =>
-          createPrivateMessageReport({
+          this.#httpClient.createPrivateMessageReport({
             auth: this.#auth!,
-            connection: this.#connection!,
-            id: privateMessageId,
+            private_message_id,
             reason
           }),
         description: 'report message'
@@ -266,177 +183,119 @@ class LemmyBot {
       this.#performLoggedInBotAction({
         logMessage: `Approving application ID ${applicationId}`,
         action: () =>
-          createApplicationApproval({
+          this.#httpClient.approveRegistrationApplication({
             auth: this.#auth!,
-            connection: this.#connection!,
             approve: true,
             id: applicationId
           }),
         description: 'approve application'
       }),
-    rejectRegistrationApplication: ({ id, denyReason }) =>
+    rejectRegistrationApplication: ({ id, deny_reason }) =>
       this.#performLoggedInBotAction({
         logMessage: `Rejecting application ID ${id}`,
         action: () =>
-          createApplicationApproval({
+          this.#httpClient.approveRegistrationApplication({
             auth: this.#auth!,
-            connection: this.#connection!,
             approve: false,
             id,
-            denyReason
+            deny_reason
           }),
         description: 'reject application'
       }),
-    removePost: ({ postId, reason }) =>
+    removePost: ({ post_id, reason }) =>
       this.#performLoggedInBotAction({
-        logMessage: `Removing post ID ${postId}`,
+        logMessage: `Removing post ID ${post_id}`,
         action: () =>
-          createRemovePost({
+          this.#httpClient.removePost({
             auth: this.#auth!,
-            connection: this.#connection!,
-            id: postId,
+            post_id,
             removed: true,
             reason
           }),
         description: 'remove post'
       }),
-    removeComment: ({ commentId, reason }) =>
+    removeComment: ({ comment_id, reason }) =>
       this.#performLoggedInBotAction({
-        logMessage: `Removing comment ID ${commentId}`,
+        logMessage: `Removing comment ID ${comment_id}`,
         action: () =>
-          createRemoveComment({
+          this.#httpClient.removeComment({
             auth: this.#auth!,
-            connection: this.#connection!,
-            id: commentId,
+            comment_id,
             removed: true,
             reason
           }),
         description: 'remove comment'
       }),
-    resolvePostReport: (postReportId) =>
+    resolvePostReport: (report_id) =>
       this.#performLoggedInBotAction({
-        logMessage: `Resolving post report ID ${postReportId}`,
+        logMessage: `Resolving post report ID ${report_id}`,
         action: () =>
-          createResolvePostReport({
+          this.#httpClient.resolveCommentReport({
             auth: this.#auth!,
-            connection: this.#connection!,
-            id: postReportId
+            report_id,
+            resolved: true
           }),
         description: 'resolve post report'
       }),
-    resolveCommentReport: (commentReportId) =>
+    resolveCommentReport: (report_id) =>
       this.#performLoggedInBotAction({
-        logMessage: `Resolving comment report ID ${commentReportId}`,
+        logMessage: `Resolving comment report ID ${report_id}`,
         action: () =>
-          createResolveCommentReport({
+          this.#httpClient.resolveCommentReport({
             auth: this.#auth!,
-            connection: this.#connection!,
-            id: commentReportId
+            report_id,
+            resolved: true
           }),
         description: 'resolve comment report'
       }),
-    resolvePrivateMessageReport: (privateMessageReportId) =>
+    resolvePrivateMessageReport: (report_id) =>
       this.#performLoggedInBotAction({
-        logMessage: `Resolving private message report ID ${privateMessageReportId}`,
+        logMessage: `Resolving private message report ID ${report_id}`,
         action: () =>
-          createResolvePrivateMessageReport({
+          this.#httpClient.resolvePrivateMessageReport({
             auth: this.#auth!,
-            connection: this.#connection!,
-            id: privateMessageReportId
+            report_id,
+            resolved: true
           }),
         description: 'resolve message report'
       }),
-    featurePost: ({ featureType, featured, postId }) =>
+    featurePost: ({ feature_type, featured, post_id }) =>
       this.#performLoggedInBotAction({
-        logMessage: `${featured ? 'F' : 'Unf'}eaturing report ID ${postId}`,
+        logMessage: `${featured ? 'F' : 'Unf'}eaturing report ID ${post_id}`,
         action: () =>
-          createFeaturePost({
+          this.#httpClient.featurePost({
             auth: this.#auth!,
-            connection: this.#connection!,
-            id: postId,
+            post_id,
             featured,
-            featureType
+            feature_type
           }),
         description: 'feature post'
       }),
-    lockPost: ({ postId, locked }) =>
+    lockPost: ({ post_id, locked }) =>
       this.#performLoggedInBotAction({
-        logMessage: `${locked ? 'L' : 'Unl'}ocking report ID ${postId}`,
+        logMessage: `${locked ? 'L' : 'Unl'}ocking report ID ${post_id}`,
         action: () =>
-          createLockPost({
+          this.#httpClient.lockPost({
             auth: this.#auth!,
-            connection: this.#connection!,
-            id: postId,
+            post_id,
             locked
           }),
         description: `${locked ? '' : 'un'}lock post`
       }),
-    getCommunityId: (form) => this.#getId(form, 'Communities', 'community'),
-    getUserId: (form) => this.#getId(form, 'Users', 'user'),
+    getCommunityId: (form) => this.#getId(form, 'Communities'),
+    getUserId: (form) => this.#getId(form, 'Users'),
     uploadImage: (image) =>
       this.#httpClient.uploadImage({ image, auth: this.#auth }),
-    getPost: (postId) =>
-      new Promise((resolve, reject) => {
-        if (this.#connection?.connected) {
-          getPost({
-            connection: this.#connection,
-            auth: this.#auth,
-            id: postId
-          });
+    getPost: async (postId) => {
+      const { post_view } = await this.#httpClient.getPost({
+        auth: this.#auth,
+        id: postId
+      });
 
-          let tries = 0;
-
-          const timeoutFunction = () => {
-            const postView = this.#postMap.get(postId)?.pop();
-            if (postView !== undefined) {
-              if (this.#postMap.get(postId)?.length === 0) {
-                this.#postMap.delete(postId);
-              }
-              resolve(postView);
-            } else if (tries < 20) {
-              ++tries;
-              setTimeout(timeoutFunction, 1000);
-            } else {
-              reject(`Could not find post with ID ${postId}`);
-            }
-          };
-
-          setTimeout(timeoutFunction, 1000);
-        } else {
-          reject(`Could not get post ${postId}: connection closed`);
-        }
-      }),
-    getComment: (commentId) =>
-      new Promise((resolve, reject) => {
-        if (this.#connection?.connected) {
-          getComment({
-            connection: this.#connection,
-            auth: this.#auth,
-            id: commentId
-          });
-
-          let tries = 0;
-
-          const timeoutFunction = () => {
-            const commentView = this.#commentMap.get(commentId)?.pop();
-            if (commentView !== undefined) {
-              if (this.#commentMap.get(commentId)?.length === 0) {
-                this.#commentMap.delete(commentId);
-              }
-              resolve(commentView);
-            } else if (tries < 20) {
-              ++tries;
-              setTimeout(timeoutFunction, 1000);
-            } else {
-              reject(`Could not find comment with ID ${commentId}`);
-            }
-          };
-
-          setTimeout(timeoutFunction, 1000);
-        } else {
-          reject(`Could not get comment ${commentId}: connection closed`);
-        }
-      }),
+      return post_view;
+    },
+    getComment: async (commentId) =>
+      (await this.#httpClient.getComment({ id: commentId })).comment_view,
     getParentOfComment: async ({ path, post_id }) => {
       const pathList = path.split('.').filter((i) => i !== '0');
 
@@ -461,7 +320,6 @@ class LemmyBot {
     credentials,
     handlers,
     connection: {
-      minutesBeforeRetryConnection = DEFAULT_MINUTES_BEFORE_RETRY_CONNECTION,
       minutesUntilReprocess:
         defaultMinutesUntilReprocess = DEFAULT_MINUTES_UNTIL_REPROCESS,
       secondsBetweenPolls:
@@ -533,16 +391,7 @@ class LemmyBot {
         this.#tasks.push(
           cron.schedule(
             task.cronExpression,
-            async () => {
-              if (this.#connection?.connected) {
-                await task.doTask(this.#botActions);
-              } else {
-                this.#delayedTasks.push(
-                  async () => await task.doTask(this.#botActions)
-                );
-                client.connect(getSecureWebsocketUrl(instance));
-              }
-            },
+            () => task.doTask(this.#botActions),
             task.timezone || task.runAtStart
               ? {
                   ...(task.timezone ? { timezone: task.timezone } : {}),
@@ -555,6 +404,8 @@ class LemmyBot {
     }
 
     const { password, username } = credentials ?? {};
+    this.#defaultSecondsBetweenPolls = defaultSecondsBetweenPolls;
+    this.#isRunning = false;
     this.#instance = instance;
     this.#username = username;
     this.#password = password;
@@ -563,12 +414,40 @@ class LemmyBot {
     this.#dbFile = dbFile;
     this.#listingType = getListingType(this.#federationOptions);
 
-    const sanitizedMinutesBeforeRetryConnection =
-      typeof minutesBeforeRetryConnection === 'number' &&
-      minutesBeforeRetryConnection < 0
-        ? 1
-        : minutesBeforeRetryConnection;
+    this.#handlers = parseHandlers(handlers);
+  }
 
+  async #runChecker(
+    checker: (auth?: string) => void,
+    secondsBetweenPolls: number = this.#defaultSecondsBetweenPolls
+  ) {
+    if (this.#isRunning) {
+      if (this.#auth || !this.#credentials) {
+        checker(this.#auth);
+        const timeout = setTimeout(() => {
+          this.#runChecker(checker, secondsBetweenPolls);
+          this.#timeouts = this.#timeouts.filter((t) => t !== timeout);
+        }, 1000 * secondsBetweenPolls);
+
+        this.#timeouts.push(timeout);
+      } else if (this.#credentials && !this.#auth) {
+        this.#login();
+
+        const timeout = setTimeout(() => {
+          this.#runChecker(checker, secondsBetweenPolls);
+          this.#timeouts = this.#timeouts.filter((t) => t !== timeout);
+        }, 5000);
+
+        this.#timeouts.push(timeout);
+      }
+    } else {
+      while (this.#timeouts.length > 0) {
+        clearTimeout(this.#timeouts.pop());
+      }
+    }
+  }
+
+  async #runBot() {
     const {
       comment: commentOptions,
       post: postOptions,
@@ -589,911 +468,615 @@ class LemmyBot {
       modTransferCommunity: modTransferCommunityOptions,
       modAddAdmin: modAddAdminOptions,
       modBanFromSite: modBanFromSiteOptions
-    } = parseHandlers(handlers);
+    } = this.#handlers;
 
-    client.on('connectFailed', () => {
-      if (!this.#isSecureConnection) {
-        console.log(
-          `Connection Failed!${
-            sanitizedMinutesBeforeRetryConnection
-              ? ` Bot will attempt to reconnect in ${sanitizedMinutesBeforeRetryConnection} minutes`
-              : ''
-          }`
+    await setupDB(this.#dbFile);
+
+    if (this.#credentials) {
+      this.#login();
+    }
+
+    if (this.#delayedTasks.length > 0) {
+      await Promise.all(this.#delayedTasks);
+    }
+
+    for (const task of this.#tasks) {
+      task.start();
+    }
+
+    if (postOptions) {
+      this.#runChecker(async (auth) => {
+        const response = await this.#httpClient.getPosts({
+          type_: this.#listingType,
+          auth,
+          sort: postOptions.sort
+        });
+
+        const posts = this.#filterInstancesFromResponse(response.posts);
+
+        await useDatabaseFunctions(
+          'posts',
+          async ({ get, upsert }) => {
+            await Promise.all(
+              posts.map((postView) =>
+                this.#handleEntry({
+                  getStorageInfo: get,
+                  upsert,
+                  entry: { postView },
+                  id: postView.post.id,
+                  options: postOptions
+                })
+              )
+            );
+          },
+          this.#dbFile
         );
+      }, postOptions.secondsBetweenPolls);
+    }
 
-        if (sanitizedMinutesBeforeRetryConnection) {
-          this.#retry(sanitizedMinutesBeforeRetryConnection);
-        }
+    if (commentOptions) {
+      this.#runChecker(async (auth) => {
+        const response = await this.#httpClient.getComments({
+          auth,
+          type_: this.#listingType,
+          sort: commentOptions.sort
+        });
 
-        this.#isSecureConnection = true;
-      } else {
-        this.#isSecureConnection = false;
-        client.connect(getInsecureWebsocketUrl(this.#instance));
-        this.#httpClient = new LemmyHttp(`http://${this.#instance}`);
-      }
-    });
+        const comments = this.#filterInstancesFromResponse(response.comments);
 
-    client.on('connect', async (connection) => {
-      console.log('Connected to Lemmy Instance');
-      this.#connection = connection;
-
-      connection.on('error', (error) => {
-        console.log('Connection error');
-        console.log(`Error was: ${error.message}`);
-      });
-
-      connection.on('close', () => {
-        const shouldReconnect =
-          !this.#forcingClosed && sanitizedMinutesBeforeRetryConnection;
-        console.log(
-          `Closing connection.${
-            shouldReconnect
-              ? ` Bot will reconnect in ${sanitizedMinutesBeforeRetryConnection}`
-              : ''
-          }`
+        await useDatabaseFunctions(
+          'comments',
+          async ({ get, upsert }) => {
+            await Promise.all(
+              comments.map((commentView) =>
+                this.#handleEntry({
+                  getStorageInfo: get,
+                  upsert,
+                  options: commentOptions,
+                  entry: { commentView },
+                  id: commentView.comment.id
+                })
+              )
+            );
+          },
+          this.#dbFile
         );
+      }, commentOptions.secondsBetweenPolls);
+    }
 
-        if (shouldReconnect) {
-          this.#retry(sanitizedMinutesBeforeRetryConnection);
-        }
-      });
+    if (privateMessageOptions && this.#credentials) {
+      this.#runChecker(async (auth) => {
+        const { private_messages } = await this.#httpClient.getPrivateMessages({
+          auth: auth ?? '',
+          limit: 50,
+          unread_only: true
+        });
 
-      connection.on('message', async (message) => {
-        if (message.type === 'utf8') {
-          const response = JSON.parse(message.utf8Data);
+        await useDatabaseFunctions(
+          'messages',
+          async ({ get, upsert }) => {
+            await Promise.all(
+              private_messages.map(async (messageView) => {
+                const promise = this.#handleEntry({
+                  getStorageInfo: get,
+                  options: privateMessageOptions,
+                  entry: { messageView },
+                  id: messageView.private_message.id,
+                  upsert
+                });
 
-          if (response.error && response.error === 'not_logged_in') {
-            console.log('Not Logged in');
-            this.#login();
-          } else if (
-            response.error &&
-            (response.error === 'couldnt_find_that_username_or_email' ||
-              response.error === 'password_incorrect')
-          ) {
-            console.log('Could not log on');
-
-            connection.close();
-
-            process.exit(1);
-          } else {
-            switch (response.op) {
-              case 'Login': {
-                console.log('Logging in');
-                this.#auth = (response.data as LoginResponse).jwt;
                 if (this.#auth) {
-                  console.log('Marking account as bot account');
-                  enableBotAccount({ connection, auth: this.#auth });
+                  await this.#httpClient.markPrivateMessageAsRead({
+                    auth: this.#auth,
+                    private_message_id: messageView.private_message.id,
+                    read: true
+                  });
 
-                  console.log('Subscribing to communities');
-                  this.#subscribeToCommunities();
-                }
-
-                break;
-              }
-
-              case 'GetComments': {
-                const comments = this.#filterInstancesFromResponse(
-                  (response.data as GetCommentsResponse).comments
-                );
-
-                await useDatabaseFunctions(
-                  'comments',
-                  async ({ get, upsert }) => {
-                    await Promise.all(
-                      comments
-                        .filter(
-                          ({ comment: { id } }) =>
-                            !this.#currentlyProcessingCommentIds.includes(id)
-                        )
-                        .map(async (commentView) => {
-                          this.#currentlyProcessingCommentIds.push(
-                            commentView.comment.id
-                          );
-
-                          if (commentOptions) {
-                            await this.#handleEntry({
-                              getStorageInfo: get,
-                              upsert,
-                              options: commentOptions,
-                              entry: { commentView },
-                              id: commentView.comment.id
-                            });
-                          }
-
-                          removeItem(
-                            this.#currentlyProcessingCommentIds,
-                            (id) => id === commentView.comment.id
-                          );
-                        })
-                    );
-                  },
-                  this.#dbFile
-                );
-
-                break;
-              }
-
-              case 'GetPosts': {
-                const posts = this.#filterInstancesFromResponse(
-                  (response.data as GetPostsResponse).posts
-                );
-
-                if (postOptions) {
-                  await useDatabaseFunctions(
-                    'posts',
-                    async ({ get, upsert }) => {
-                      await Promise.all(
-                        posts
-                          .filter(
-                            (p) =>
-                              !this.#currentlyProcessingPostIds.includes(
-                                p.post.id
-                              )
-                          )
-                          .map(async (postView) => {
-                            this.#currentlyProcessingPostIds.push(
-                              postView.post.id
-                            );
-
-                            await this.#handleEntry({
-                              getStorageInfo: get,
-                              upsert,
-                              entry: { postView },
-                              id: postView.post.id,
-                              options: postOptions
-                            });
-
-                            removeItem(
-                              this.#currentlyProcessingPostIds,
-                              (id) => id === postView.post.id
-                            );
-                          })
-                      );
-                    },
-                    this.#dbFile
+                  console.log(
+                    `Marked private message ID ${messageView.private_message.id} from ${messageView.creator.id} as read`
                   );
+
+                  return promise;
+                }
+              })
+            );
+          },
+          this.#dbFile
+        );
+      }, privateMessageOptions.secondsBetweenPolls);
+    }
+
+    if (registrationApplicationOptions && this.#credentials) {
+      this.#runChecker(async (auth) => {
+        const { registration_applications } =
+          await this.#httpClient.listRegistrationApplications({
+            unread_only: true,
+            limit: 50,
+            auth: auth ?? ''
+          });
+
+        await useDatabaseFunctions(
+          'registrations',
+          async ({ get, upsert }) => {
+            await Promise.all(
+              registration_applications.map((applicationView) =>
+                this.#handleEntry({
+                  getStorageInfo: get,
+                  upsert,
+                  entry: { applicationView },
+                  id: applicationView.registration_application.id,
+                  options: registrationApplicationOptions
+                })
+              )
+            );
+          },
+          this.#dbFile
+        );
+      }, registrationApplicationOptions.secondsBetweenPolls);
+    }
+
+    if (mentionOptions && this.#credentials) {
+      this.#runChecker(async (auth) => {
+        const { mentions } = await this.#httpClient.getPersonMentions({
+          auth: auth ?? '',
+          limit: 50,
+          unread_only: true,
+          sort: 'New'
+        });
+
+        await useDatabaseFunctions(
+          'mentions',
+          async ({ get, upsert }) => {
+            await Promise.all(
+              mentions.map(async (mentionView) => {
+                const promise = this.#handleEntry({
+                  entry: { mentionView },
+                  options: mentionOptions,
+                  getStorageInfo: get,
+                  id: mentionView.person_mention.id,
+                  upsert
+                });
+
+                if (this.#auth) {
+                  await this.#httpClient.markPersonMentionAsRead({
+                    auth: this.#auth,
+                    person_mention_id: mentionView.person_mention.id,
+                    read: true
+                  });
                 }
 
-                break;
-              }
+                return promise;
+              })
+            );
+          },
+          this.#dbFile
+        );
+      }, mentionOptions.secondsBetweenPolls);
+    }
 
-              case 'GetPrivateMessages': {
-                const { private_messages } =
-                  response.data as PrivateMessagesResponse;
-                if (privateMessageOptions) {
-                  await useDatabaseFunctions(
-                    'messages',
-                    async ({ get, upsert }) => {
-                      await Promise.all(
-                        private_messages.map((messageView) => {
-                          const promise = this.#handleEntry({
-                            getStorageInfo: get,
-                            options: privateMessageOptions,
-                            entry: { messageView },
-                            id: messageView.private_message.id,
-                            upsert
-                          });
+    if (replyOptions && this.#credentials) {
+      this.#runChecker(async (auth) => {
+        const { replies } = await this.#httpClient.getReplies({
+          auth: auth ?? '',
+          limit: 50,
+          sort: 'New',
+          unread_only: true
+        });
 
-                          if (this.#connection && this.#auth) {
-                            markPrivateMessageAsRead({
-                              auth: this.#auth,
-                              connection: this.#connection,
-                              id: messageView.private_message.id
-                            });
+        await useDatabaseFunctions(
+          'replies',
+          async ({ get, upsert }) => {
+            await Promise.all(
+              replies.map(async (replyView) => {
+                const promise = this.#handleEntry({
+                  entry: { replyView },
+                  options: replyOptions,
+                  getStorageInfo: get,
+                  id: replyView.comment_reply.id,
+                  upsert
+                });
 
-                            console.log(
-                              `Marked private message ID ${messageView.private_message.id} from ${messageView.creator.id} as read`
-                            );
-
-                            return promise;
-                          }
-                        })
-                      );
-                    },
-                    this.#dbFile
-                  );
+                if (this.#auth) {
+                  await this.#httpClient.markPersonMentionAsRead({
+                    auth: this.#auth,
+                    person_mention_id: replyView.comment_reply.id,
+                    read: true
+                  });
                 }
 
-                break;
-              }
+                return promise;
+              })
+            );
+          },
+          this.#dbFile
+        );
+      }, replyOptions.secondsBetweenPolls);
+    }
 
-              case 'GetPost': {
-                const { post_view } = response.data as GetPostResponse;
+    if (commentReportOptions && this.#credentials) {
+      this.#runChecker(async (auth) => {
+        const { comment_reports } = await this.#httpClient.listCommentReports({
+          unresolved_only: true,
+          auth: auth ?? '',
+          limit: 50
+        });
 
-                const posts = this.#postMap.get(post_view.post.id);
-                if (!posts) {
-                  this.#postMap.set(post_view.post.id, [post_view]);
-                } else {
-                  posts.push(post_view);
-                }
+        await useDatabaseFunctions(
+          'commentReports',
+          async ({ get, upsert }) => {
+            await Promise.all(
+              comment_reports.map((reportView) =>
+                this.#handleEntry({
+                  entry: { reportView },
+                  options: commentReportOptions,
+                  getStorageInfo: get,
+                  id: reportView.comment_report.id,
+                  upsert
+                })
+              )
+            );
+          },
+          this.#dbFile
+        );
+      }, commentReportOptions.secondsBetweenPolls);
+    }
 
-                break;
-              }
+    if (postReportOptions && this.#credentials) {
+      this.#runChecker(async (auth) => {
+        const { post_reports } = await this.#httpClient.listPostReports({
+          unresolved_only: true,
+          auth: auth ?? '',
+          limit: 50
+        });
 
-              case 'GetComment': {
-                const { comment_view } = response.data as CommentResponse;
+        await useDatabaseFunctions(
+          'postReports',
+          async ({ get, upsert }) => {
+            await Promise.all(
+              post_reports.map((reportView) =>
+                this.#handleEntry({
+                  entry: { reportView },
+                  options: postReportOptions,
+                  getStorageInfo: get,
+                  id: reportView.post_report.id,
+                  upsert
+                })
+              )
+            );
+          },
+          this.#dbFile
+        );
+      }, postReportOptions.secondsBetweenPolls);
+    }
 
-                const comments = this.#commentMap.get(comment_view.comment.id);
-                if (!comments) {
-                  this.#commentMap.set(comment_view.comment.id, [comment_view]);
-                } else {
-                  comments.push(comment_view);
-                }
+    if (privateMessageReportOptions && this.#credentials) {
+      this.#runChecker(async (auth) => {
+        const { private_message_reports } =
+          await this.#httpClient.listPrivateMessageReports({
+            auth: auth ?? '',
+            limit: 50,
+            unresolved_only: true
+          });
 
-                break;
-              }
-
-              case 'ListRegistrationApplications': {
-                const { registration_applications } =
-                  response.data as ListRegistrationApplicationsResponse;
-                if (registrationApplicationOptions) {
-                  await useDatabaseFunctions(
-                    'registrations',
-                    async ({ get, upsert }) => {
-                      await Promise.all(
-                        registration_applications.map((applicationView) =>
-                          this.#handleEntry({
-                            getStorageInfo: get,
-                            upsert,
-                            entry: { applicationView },
-                            id: applicationView.registration_application.id,
-                            options: registrationApplicationOptions
-                          })
-                        )
-                      );
-                    },
-                    this.#dbFile
-                  );
-                }
-
-                break;
-              }
-
-              case 'GetPersonMentions': {
-                const { mentions } = response.data as GetPersonMentionsResponse;
-                if (mentionOptions) {
-                  await useDatabaseFunctions(
-                    'mentions',
-                    async ({ get, upsert }) => {
-                      await Promise.all(
-                        mentions.map((mentionView) => {
-                          const promise = this.#handleEntry({
-                            entry: { mentionView },
-                            options: mentionOptions,
-                            getStorageInfo: get,
-                            id: mentionView.person_mention.id,
-                            upsert
-                          });
-
-                          if (this.#connection && this.#auth) {
-                            markMentionAsRead({
-                              connection: this.#connection,
-                              auth: this.#auth,
-                              id: mentionView.person_mention.id
-                            });
-                          }
-
-                          return promise;
-                        })
-                      );
-                    },
-                    this.#dbFile
-                  );
-                }
-
-                break;
-              }
-
-              case 'GetReplies': {
-                const { replies } = response.data as GetRepliesResponse;
-                if (replyOptions) {
-                  await useDatabaseFunctions(
-                    'replies',
-                    async ({ get, upsert }) => {
-                      await Promise.all(
-                        replies.map((replyView) => {
-                          const promise = this.#handleEntry({
-                            entry: { replyView },
-                            options: replyOptions,
-                            getStorageInfo: get,
-                            id: replyView.comment_reply.id,
-                            upsert
-                          });
-
-                          if (this.#connection && this.#auth) {
-                            markReplyAsRead({
-                              connection: this.#connection,
-                              auth: this.#auth,
-                              id: replyView.comment_reply.id
-                            });
-                          }
-
-                          return promise;
-                        })
-                      );
-                    },
-                    this.#dbFile
-                  );
-                }
-
-                break;
-              }
-
-              case 'ListCommentReports': {
-                const { comment_reports } =
-                  response.data as ListCommentReportsResponse;
-                if (commentReportOptions) {
-                  await useDatabaseFunctions(
-                    'commentReports',
-                    async ({ get, upsert }) => {
-                      await Promise.all(
-                        comment_reports.map((reportView) =>
-                          this.#handleEntry({
-                            entry: { reportView },
-                            options: commentReportOptions,
-                            getStorageInfo: get,
-                            id: reportView.comment_report.id,
-                            upsert
-                          })
-                        )
-                      );
-                    },
-                    this.#dbFile
-                  );
-                }
-
-                break;
-              }
-
-              case 'ListPostReports': {
-                const { post_reports } =
-                  response.data as ListPostReportsResponse;
-                if (postReportOptions) {
-                  await useDatabaseFunctions(
-                    'postReports',
-                    async ({ get, upsert }) => {
-                      await Promise.all(
-                        post_reports.map((reportView) =>
-                          this.#handleEntry({
-                            entry: { reportView },
-                            options: postReportOptions,
-                            getStorageInfo: get,
-                            id: reportView.post_report.id,
-                            upsert
-                          })
-                        )
-                      );
-                    },
-                    this.#dbFile
-                  );
-                }
-
-                break;
-              }
-
-              case 'ListPrivateMessageReports': {
-                const { private_message_reports } =
-                  response.data as ListPrivateMessageReportsResponse;
-                if (privateMessageReportOptions) {
-                  await useDatabaseFunctions(
-                    'messageReports',
-                    async ({ get, upsert }) => {
-                      await Promise.all(
-                        private_message_reports.map((reportView) =>
-                          this.#handleEntry({
-                            entry: { reportView },
-                            options: privateMessageReportOptions,
-                            getStorageInfo: get,
-                            id: reportView.private_message_report.id,
-                            upsert
-                          })
-                        )
-                      );
-                    },
-                    this.#dbFile
-                  );
-                }
-
-                break;
-              }
-
-              case 'GetModlog': {
-                const {
-                  removed_posts,
-                  locked_posts,
-                  featured_posts,
-                  removed_comments,
-                  removed_communities,
-                  banned_from_community,
-                  added_to_community,
-                  transferred_to_community,
-                  added,
-                  banned
-                } = response.data as GetModlogResponse;
-
-                if (modRemovePostOptions && removed_posts.length > 0) {
-                  await useDatabaseFunctions(
-                    'removedPosts',
-                    async ({ get, upsert }) => {
-                      await Promise.all(
-                        removed_posts.map((removedPostView) =>
-                          this.#handleEntry({
-                            entry: { removedPostView },
-                            options: modRemovePostOptions,
-                            getStorageInfo: get,
-                            id: removedPostView.mod_remove_post.id,
-                            upsert
-                          })
-                        )
-                      );
-                    },
-                    this.#dbFile
-                  );
-                }
-
-                if (modLockPostOptions && locked_posts.length > 0) {
-                  await useDatabaseFunctions(
-                    'lockedPosts',
-                    async ({ get, upsert }) => {
-                      await Promise.all(
-                        locked_posts.map((lockedPostView) =>
-                          this.#handleEntry({
-                            entry: { lockedPostView },
-                            options: modLockPostOptions,
-                            getStorageInfo: get,
-                            id: lockedPostView.mod_lock_post.id,
-                            upsert
-                          })
-                        )
-                      );
-                    },
-                    this.#dbFile
-                  );
-                }
-
-                if (modFeaturePostOptions && featured_posts.length > 0) {
-                  await useDatabaseFunctions(
-                    'featuredPosts',
-                    async ({ get, upsert }) => {
-                      await Promise.all(
-                        featured_posts.map((featuredPostView) =>
-                          this.#handleEntry({
-                            entry: { featuredPostView },
-                            options: modFeaturePostOptions,
-                            getStorageInfo: get,
-                            id: featuredPostView.mod_feature_post.id,
-                            upsert
-                          })
-                        )
-                      );
-                    },
-                    this.#dbFile
-                  );
-                }
-
-                if (modRemoveCommentOptions && removed_comments.length > 0) {
-                  await useDatabaseFunctions(
-                    'removedComments',
-                    async ({ get, upsert }) => {
-                      await Promise.all(
-                        removed_comments.map((removedCommentView) =>
-                          this.#handleEntry({
-                            entry: { removedCommentView },
-                            options: modRemoveCommentOptions,
-                            getStorageInfo: get,
-                            id: removedCommentView.mod_remove_comment.id,
-                            upsert
-                          })
-                        )
-                      );
-                    },
-                    this.#dbFile
-                  );
-                }
-
-                if (
-                  modRemoveCommunityOptions &&
-                  removed_communities.length > 0
-                ) {
-                  await useDatabaseFunctions(
-                    'removedCommunities',
-                    async ({ get, upsert }) => {
-                      await Promise.all(
-                        removed_communities.map((removedCommunityView) =>
-                          this.#handleEntry({
-                            entry: { removedCommunityView },
-                            options: modRemoveCommunityOptions,
-                            getStorageInfo: get,
-                            id: removedCommunityView.mod_remove_community.id,
-                            upsert
-                          })
-                        )
-                      );
-                    },
-                    this.#dbFile
-                  );
-                }
-
-                if (
-                  modBanFromCommunityOptions &&
-                  banned_from_community.length > 0
-                ) {
-                  await useDatabaseFunctions(
-                    'communityBans',
-                    async ({ get, upsert }) => {
-                      await Promise.all(
-                        banned_from_community.map((banView) =>
-                          this.#handleEntry({
-                            entry: { banView },
-                            options: modBanFromCommunityOptions,
-                            getStorageInfo: get,
-                            id: banView.mod_ban_from_community.id,
-                            upsert
-                          })
-                        )
-                      );
-                    },
-                    this.#dbFile
-                  );
-                }
-
-                if (
-                  modAddModToCommunityOptions &&
-                  added_to_community.length > 0
-                ) {
-                  await useDatabaseFunctions(
-                    'modsAddedToCommunities',
-                    async ({ get, upsert }) => {
-                      await Promise.all(
-                        added_to_community.map((modAddedToCommunityView) =>
-                          this.#handleEntry({
-                            entry: { modAddedToCommunityView },
-                            options: modAddModToCommunityOptions,
-                            getStorageInfo: get,
-                            id: modAddedToCommunityView.mod_add_community.id,
-                            upsert
-                          })
-                        )
-                      );
-                    },
-                    this.#dbFile
-                  );
-                }
-
-                if (
-                  modTransferCommunityOptions &&
-                  transferred_to_community.length > 0
-                ) {
-                  await useDatabaseFunctions(
-                    'modsTransferredToCommunities',
-                    async ({ get, upsert }) => {
-                      await Promise.all(
-                        transferred_to_community.map(
-                          (modTransferredToCommunityView) =>
-                            this.#handleEntry({
-                              entry: { modTransferredToCommunityView },
-                              options: modTransferCommunityOptions,
-                              getStorageInfo: get,
-                              id: modTransferredToCommunityView
-                                .mod_transfer_community.id,
-                              upsert
-                            })
-                        )
-                      );
-                    },
-                    this.#dbFile
-                  );
-                }
-
-                if (modBanFromSiteOptions && banned.length > 0) {
-                  await useDatabaseFunctions(
-                    'siteBans',
-                    async ({ get, upsert }) => {
-                      await Promise.all(
-                        banned.map((banView) =>
-                          this.#handleEntry({
-                            entry: { banView },
-                            options: modBanFromSiteOptions,
-                            getStorageInfo: get,
-                            id: banView.mod_ban.id,
-                            upsert
-                          })
-                        )
-                      );
-                    },
-                    this.#dbFile
-                  );
-                }
-
-                if (modAddAdminOptions && added.length > 0) {
-                  await useDatabaseFunctions(
-                    'adminsAdded',
-                    async ({ get, upsert }) => {
-                      await Promise.all(
-                        added.map((addedAdminView) =>
-                          this.#handleEntry({
-                            entry: { addedAdminView },
-                            options: modAddAdminOptions,
-                            getStorageInfo: get,
-                            upsert,
-                            id: addedAdminView.mod_add.id
-                          })
-                        )
-                      );
-                    },
-                    this.#dbFile
-                  );
-                }
-
-                break;
-              }
-
-              case 'Search': {
-                const { communities, users } = response.data as SearchResponse;
-                for (const [
-                  key,
-                  { instance, name, type }
-                ] of this.#unfinishedSearchMap.entries()) {
-                  this.#unfinishedSearchMap.delete(key);
-                  let id: number | null = null;
-                  const instanceWithoutPort = stripPort(instance);
-
-                  if (type === 'Communities') {
-                    for (const { community } of communities) {
-                      if (
-                        (community.name === name || community.title === name) &&
-                        extractInstanceFromActorId(community.actor_id) ===
-                          instanceWithoutPort
-                      ) {
-                        id = community.id;
-                        break;
-                      }
-                    }
-                  } else {
-                    for (const { person } of users) {
-                      if (
-                        (person.name === name ||
-                          person.display_name === name) &&
-                        extractInstanceFromActorId(person.actor_id) ===
-                          instanceWithoutPort
-                      ) {
-                        id = person.id;
-                        break;
-                      }
-                    }
-                  }
-
-                  this.#finishedSearchMap.set(key, id);
-                }
-
-                break;
-              }
-
-              default: {
-                if (
-                  response.error &&
-                  response.error !== 'user_already_exists'
-                ) {
-                  console.log(`Got error: ${response.error}`);
-                }
-
-                break;
-              }
-            }
-          }
-        }
-      });
-
-      const runChecker = (
-        checker: (conn: Connection, auth?: string) => void,
-        secondsBetweenPolls: number = defaultSecondsBetweenPolls
-      ) => {
-        if (this.#connection?.connected && (this.#auth || !credentials)) {
-          checker(this.#connection, this.#auth);
-          const timeout = setTimeout(() => {
-            runChecker(checker, secondsBetweenPolls);
-            this.#timeouts = this.#timeouts.filter((t) => t !== timeout);
-          }, 1000 * secondsBetweenPolls);
-
-          this.#timeouts.push(timeout);
-        } else if (this.#connection?.connected && credentials && !this.#auth) {
-          this.#login();
-
-          const timeout = setTimeout(() => {
-            runChecker(checker, secondsBetweenPolls);
-            this.#timeouts = this.#timeouts.filter((t) => t !== timeout);
-          }, 5000);
-
-          this.#timeouts.push(timeout);
-        } else if (
-          !this.#forcingClosed &&
-          sanitizedMinutesBeforeRetryConnection
-        ) {
-          this.#retry(sanitizedMinutesBeforeRetryConnection);
-        } else {
-          this.#forcingClosed = false;
-
-          while (this.#timeouts.length > 0) {
-            clearTimeout(this.#timeouts.pop());
-          }
-        }
-      };
-
-      const runBot = async () => {
-        await setupDB(this.#dbFile);
-
-        if (credentials) {
-          this.#login();
-        }
-
-        if (this.#delayedTasks.length > 0) {
-          await Promise.all(this.#delayedTasks);
-        }
-
-        for (const task of this.#tasks) {
-          task.start();
-        }
-
-        if (postOptions) {
-          runChecker(
-            (conn, auth) =>
-              getPosts({
-                connection: conn,
-                listingType: this.#listingType,
-                auth,
-                sort: postOptions.sort
-              }),
-            postOptions.secondsBetweenPolls
+        if (privateMessageReportOptions) {
+          await useDatabaseFunctions(
+            'messageReports',
+            async ({ get, upsert }) => {
+              await Promise.all(
+                private_message_reports.map((reportView) =>
+                  this.#handleEntry({
+                    entry: { reportView },
+                    options: privateMessageReportOptions,
+                    getStorageInfo: get,
+                    id: reportView.private_message_report.id,
+                    upsert
+                  })
+                )
+              );
+            },
+            this.#dbFile
           );
         }
+      }, privateMessageReportOptions.secondsBetweenPolls);
+    }
 
-        if (commentOptions) {
-          runChecker(
-            (conn, auth) =>
-              getComments({
-                connection: conn,
-                auth,
-                listingType: this.#listingType,
-                sort: commentOptions.sort
-              }),
-            commentOptions.secondsBetweenPolls
-          );
-        }
+    if (modRemovePostOptions) {
+      this.#runChecker(async (auth) => {
+        const { removed_posts } = await this.#getModlogItems(
+          'ModRemovePost',
+          auth
+        );
 
-        if (privateMessageOptions && credentials) {
-          runChecker(
-            getPrivateMessages,
-            privateMessageOptions.secondsBetweenPolls
-          );
-        }
+        await useDatabaseFunctions(
+          'removedPosts',
+          async ({ get, upsert }) => {
+            await Promise.all(
+              removed_posts.map((removedPostView) =>
+                this.#handleEntry({
+                  entry: { removedPostView },
+                  options: modRemovePostOptions,
+                  getStorageInfo: get,
+                  id: removedPostView.mod_remove_post.id,
+                  upsert
+                })
+              )
+            );
+          },
+          this.#dbFile
+        );
+      }, modRemovePostOptions.secondsBetweenPolls);
+    }
 
-        if (registrationApplicationOptions && credentials) {
-          runChecker(
-            getRegistrationApplications,
-            registrationApplicationOptions.secondsBetweenPolls
-          );
-        }
+    if (modLockPostOptions) {
+      this.#runChecker(async (auth) => {
+        const { locked_posts } = await this.#getModlogItems(
+          'ModLockPost',
+          auth
+        );
 
-        if (mentionOptions && credentials) {
-          runChecker(getMentions, mentionOptions.secondsBetweenPolls);
-        }
+        await useDatabaseFunctions(
+          'lockedPosts',
+          async ({ get, upsert }) => {
+            await Promise.all(
+              locked_posts.map((lockedPostView) =>
+                this.#handleEntry({
+                  entry: { lockedPostView },
+                  options: modLockPostOptions,
+                  getStorageInfo: get,
+                  id: lockedPostView.mod_lock_post.id,
+                  upsert
+                })
+              )
+            );
+          },
+          this.#dbFile
+        );
+      }, modLockPostOptions.secondsBetweenPolls);
+    }
 
-        if (replyOptions && credentials) {
-          runChecker(getReplies, replyOptions.secondsBetweenPolls);
-        }
+    if (modFeaturePostOptions) {
+      this.#runChecker(async (auth) => {
+        const { featured_posts } = await this.#getModlogItems(
+          'ModFeaturePost',
+          auth
+        );
 
-        if (commentReportOptions && credentials) {
-          runChecker(
-            getCommentReports,
-            commentReportOptions.secondsBetweenPolls
-          );
-        }
+        await useDatabaseFunctions(
+          'featuredPosts',
+          async ({ get, upsert }) => {
+            await Promise.all(
+              featured_posts.map((featuredPostView) =>
+                this.#handleEntry({
+                  entry: { featuredPostView },
+                  options: modFeaturePostOptions,
+                  getStorageInfo: get,
+                  id: featuredPostView.mod_feature_post.id,
+                  upsert
+                })
+              )
+            );
+          },
+          this.#dbFile
+        );
+      }, modFeaturePostOptions.secondsBetweenPolls);
+    }
 
-        if (postReportOptions && credentials) {
-          runChecker(getPostReports, postReportOptions.secondsBetweenPolls);
-        }
+    if (modRemoveCommentOptions) {
+      this.#runChecker(async (auth) => {
+        const { removed_comments } = await this.#getModlogItems(
+          'ModRemoveComment',
+          auth
+        );
 
-        if (privateMessageReportOptions && credentials) {
-          runChecker(
-            getPrivateMessageReports,
-            privateMessageReportOptions.secondsBetweenPolls
-          );
-        }
+        await useDatabaseFunctions(
+          'removedComments',
+          async ({ get, upsert }) => {
+            await Promise.all(
+              removed_comments.map((removedCommentView) =>
+                this.#handleEntry({
+                  entry: { removedCommentView },
+                  options: modRemoveCommentOptions,
+                  getStorageInfo: get,
+                  id: removedCommentView.mod_remove_comment.id,
+                  upsert
+                })
+              )
+            );
+          },
+          this.#dbFile
+        );
+      }, modRemoveCommentOptions.secondsBetweenPolls);
+    }
 
-        if (modRemovePostOptions) {
-          runChecker(getRemovedPosts, modRemovePostOptions.secondsBetweenPolls);
-        }
+    if (modRemoveCommunityOptions) {
+      this.#runChecker(async (auth) => {
+        const { removed_communities } = await this.#getModlogItems(
+          'ModRemoveCommunity',
+          auth
+        );
 
-        if (modLockPostOptions) {
-          runChecker(getLockedPosts, modLockPostOptions.secondsBetweenPolls);
-        }
+        await useDatabaseFunctions(
+          'removedCommunities',
+          async ({ get, upsert }) => {
+            await Promise.all(
+              removed_communities.map((removedCommunityView) =>
+                this.#handleEntry({
+                  entry: { removedCommunityView },
+                  options: modRemoveCommunityOptions,
+                  getStorageInfo: get,
+                  id: removedCommunityView.mod_remove_community.id,
+                  upsert
+                })
+              )
+            );
+          },
+          this.#dbFile
+        );
+      }, modRemoveCommunityOptions.secondsBetweenPolls);
+    }
 
-        if (modFeaturePostOptions) {
-          runChecker(
-            getFeaturedPosts,
-            modFeaturePostOptions.secondsBetweenPolls
-          );
-        }
+    if (modBanFromCommunityOptions) {
+      this.#runChecker(async (auth) => {
+        const { banned_from_community } = await this.#getModlogItems(
+          'ModBanFromCommunity',
+          auth
+        );
 
-        if (modRemoveCommentOptions) {
-          runChecker(
-            getRemovedComments,
-            modRemoveCommentOptions.secondsBetweenPolls
-          );
-        }
+        await useDatabaseFunctions(
+          'communityBans',
+          async ({ get, upsert }) => {
+            await Promise.all(
+              banned_from_community.map((banView) =>
+                this.#handleEntry({
+                  entry: { banView },
+                  options: modBanFromCommunityOptions,
+                  getStorageInfo: get,
+                  id: banView.mod_ban_from_community.id,
+                  upsert
+                })
+              )
+            );
+          },
+          this.#dbFile
+        );
+      }, modBanFromCommunityOptions.secondsBetweenPolls);
+    }
 
-        if (modRemoveCommunityOptions) {
-          runChecker(
-            getRemovedCommunities,
-            modRemoveCommunityOptions.secondsBetweenPolls
-          );
-        }
+    if (modAddModToCommunityOptions) {
+      this.#runChecker(async (auth) => {
+        const { added_to_community } = await this.#getModlogItems(
+          'ModAddCommunity',
+          auth
+        );
+        await useDatabaseFunctions(
+          'modsAddedToCommunities',
+          async ({ get, upsert }) => {
+            await Promise.all(
+              added_to_community.map((modAddedToCommunityView) =>
+                this.#handleEntry({
+                  entry: { modAddedToCommunityView },
+                  options: modAddModToCommunityOptions,
+                  getStorageInfo: get,
+                  id: modAddedToCommunityView.mod_add_community.id,
+                  upsert
+                })
+              )
+            );
+          },
+          this.#dbFile
+        );
+      }, modAddModToCommunityOptions.secondsBetweenPolls);
+    }
 
-        if (modBanFromCommunityOptions) {
-          runChecker(
-            getBansFromCommunities,
-            modBanFromCommunityOptions.secondsBetweenPolls
-          );
-        }
+    if (modTransferCommunityOptions) {
+      this.#runChecker(async (auth) => {
+        const { transferred_to_community } = await this.#getModlogItems(
+          'ModTransferCommunity',
+          auth
+        );
 
-        if (modAddModToCommunityOptions) {
-          runChecker(
-            getModsAddedToCommunities,
-            modAddModToCommunityOptions.secondsBetweenPolls
-          );
-        }
+        await useDatabaseFunctions(
+          'modsTransferredToCommunities',
+          async ({ get, upsert }) => {
+            await Promise.all(
+              transferred_to_community.map((modTransferredToCommunityView) =>
+                this.#handleEntry({
+                  entry: { modTransferredToCommunityView },
+                  options: modTransferCommunityOptions,
+                  getStorageInfo: get,
+                  id: modTransferredToCommunityView.mod_transfer_community.id,
+                  upsert
+                })
+              )
+            );
+          },
+          this.#dbFile
+        );
+      }, modTransferCommunityOptions.secondsBetweenPolls);
+    }
 
-        if (modTransferCommunityOptions) {
-          runChecker(
-            getModsTransferringCommunities,
-            modTransferCommunityOptions.secondsBetweenPolls
-          );
-        }
+    if (modAddAdminOptions) {
+      this.#runChecker(async (auth) => {
+        const { added } = await this.#getModlogItems('ModAdd', auth);
 
-        if (modAddAdminOptions) {
-          runChecker(getAddedAdmins, modAddAdminOptions.secondsBetweenPolls);
-        }
+        await useDatabaseFunctions(
+          'adminsAdded',
+          async ({ get, upsert }) => {
+            await Promise.all(
+              added.map((addedAdminView) =>
+                this.#handleEntry({
+                  entry: { addedAdminView },
+                  options: modAddAdminOptions,
+                  getStorageInfo: get,
+                  upsert,
+                  id: addedAdminView.mod_add.id
+                })
+              )
+            );
+          },
+          this.#dbFile
+        );
+      }, modAddAdminOptions.secondsBetweenPolls);
+    }
 
-        if (modBanFromSiteOptions) {
-          runChecker(
-            getBansFromSite,
-            modBanFromSiteOptions.secondsBetweenPolls
-          );
-        }
-      };
+    if (modBanFromSiteOptions) {
+      this.#runChecker(async (auth) => {
+        const { banned } = await this.#getModlogItems('ModBan', auth);
 
-      await runBot();
-    });
+        await useDatabaseFunctions(
+          'siteBans',
+          async ({ get, upsert }) => {
+            await Promise.all(
+              banned.map((banView) =>
+                this.#handleEntry({
+                  entry: { banView },
+                  options: modBanFromSiteOptions,
+                  getStorageInfo: get,
+                  id: banView.mod_ban.id,
+                  upsert
+                })
+              )
+            );
+          },
+          this.#dbFile
+        );
+      }, modBanFromSiteOptions.secondsBetweenPolls);
+    }
   }
 
   start() {
-    if (!this.#connection) {
-      client.connect(getSecureWebsocketUrl(this.#instance));
-    }
+    console.log('Connected to Lemmy Instance');
+    this.#isRunning = true;
+    this.#runBot();
   }
 
   stop() {
-    if (this.#connection) {
-      this.#forcingClosed = true;
-      for (const task of this.#tasks) {
-        task.stop();
-      }
-      this.#connection.close();
-    }
+    this.#isRunning = false;
   }
 
-  #login() {
-    if (this.#connection && this.#username && this.#password) {
-      logIn({
-        connection: this.#connection,
-        username: this.#username,
-        password: this.#password
+  async #login() {
+    if (this.#username && this.#password) {
+      const loginRes = await this.#httpClient.login({
+        password: this.#password,
+        username_or_email: this.#username
       });
+      this.#auth = loginRes.jwt;
+      if (this.#auth) {
+        console.log('Marking account as bot account');
+
+        await this.#httpClient.saveUserSettings({
+          auth: this.#auth,
+          bot_account: true
+        });
+
+        console.log('Subscribing to communities');
+        this.#subscribeToCommunities();
+      }
     }
   }
 
   async #subscribeToCommunities() {
-    if (this.#auth && this.#connection?.connected) {
+    if (this.#auth) {
       const communityIds = (
         await Promise.all(
           (
@@ -1508,13 +1091,15 @@ class LemmyBot {
         )
       ).filter((id) => id !== undefined) as number[];
 
-      for (const communityId of communityIds) {
-        followCommunity({
-          auth: this.#auth,
-          communityId,
-          connection: this.#connection
-        });
-      }
+      await Promise.all(
+        communityIds.map((communityId) =>
+          this.#httpClient.followCommunity({
+            auth: this.#auth!,
+            community_id: communityId,
+            follow: true
+          })
+        )
+      );
     }
   }
 
@@ -1578,60 +1163,49 @@ class LemmyBot {
     return data;
   }
 
-  #getId(
-    form: SearchOptions | string,
-    type: 'Users' | 'Communities',
-    label: string
-  ) {
-    return new Promise<number | undefined>((resolve, reject) => {
-      if (this.#connection?.connected) {
-        const key = uuidv4();
-        let localOptions: SearchOptions;
+  async #getId(form: SearchOptions | string, type: 'Users' | 'Communities') {
+    let localOptions: SearchOptions;
+    if (typeof form === 'string') {
+      localOptions = {
+        name: form,
+        instance: this.#instance
+      };
+    } else {
+      localOptions = form;
+    }
+    const instanceWithoutPort = stripPort(localOptions.instance);
 
-        if (typeof form === 'string') {
-          localOptions = {
-            name: form,
-            instance: this.#instance
-          };
-        } else {
-          localOptions = form;
-        }
-
-        this.#unfinishedSearchMap.set(key, {
-          ...localOptions,
-          type
-        });
-
-        createSearch({
-          connection: this.#connection,
-          auth: this.#auth,
-          query: localOptions.name,
-          type
-        });
-
-        let tries = 0;
-
-        const timeoutFunction = () => {
-          const result = this.#finishedSearchMap.get(key);
-          if (result !== undefined) {
-            this.#finishedSearchMap.delete(key);
-
-            resolve(result ?? undefined);
-          } else if (tries < 20) {
-            ++tries;
-            setTimeout(timeoutFunction, 1000);
-          } else {
-            this.#unfinishedSearchMap.delete(key);
-            reject(`Could not find ${label} ID`);
-          }
-        };
-
-        setTimeout(timeoutFunction, 1000);
-      } else {
-        reject(`Could not get ${label} ID: connection closed`);
-      }
+    const { communities, users } = await this.#httpClient.search({
+      auth: this.#auth,
+      q: localOptions.name,
+      type_: type
     });
+
+    if (type === 'Communities') {
+      return communities.find(
+        (community) =>
+          (community.community.name === localOptions.name ||
+            community.community.title === localOptions.name) &&
+          extractInstanceFromActorId(community.community.actor_id) ===
+            instanceWithoutPort
+      )?.community.id;
+    } else {
+      return users.find(
+        (user) =>
+          (user.person.name === localOptions.name ||
+            user.person.display_name === localOptions.name) &&
+          extractInstanceFromActorId(user.person.actor_id) ===
+            instanceWithoutPort
+      )?.person.id;
+    }
   }
+
+  #getModlogItems = (type: ModlogActionType, auth?: string) =>
+    this.#httpClient.getModlog({
+      type_: type,
+      limit: 50,
+      auth
+    });
 
   #performLoggedInBotAction({
     logMessage,
@@ -1642,26 +1216,10 @@ class LemmyBot {
     action: () => void;
     description: string;
   }) {
-    if (this.#connection && this.#auth) {
+    if (this.#auth) {
       console.log(logMessage);
       action();
-    } else {
-      console.log(
-        `Must be ${
-          !this.#connection ? 'connected' : 'logged in'
-        } to ${description}`
-      );
     }
-  }
-
-  #retry(minutesBeforeRetry: number) {
-    const timeout = setTimeout(() => {
-      client.connect(getSecureWebsocketUrl(this.#instance));
-      this.#timeouts = this.#timeouts.filter((t) => t !== timeout);
-      clearTimeout(timeout);
-      // If bot can't connect, try again in the number of minutes provided
-    }, 1000 * 60 * minutesBeforeRetry);
-    this.#timeouts.push(timeout);
   }
 }
 
