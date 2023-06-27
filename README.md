@@ -43,6 +43,11 @@ or
 pnpm install lemmy-bot
 ```
 
+## Lemmy Versions
+
+For lemmy versions 0.17.x, use lemmy-bot 0.3.9 and lower.
+For lemmy versions 0.18.x, use lemmy-bot 0.4.0 and up
+
 ## Documentation
 
 ### LemmyBot
