@@ -52,15 +52,6 @@ export const getListingType = (options: BotFederationOptions): ListingType => {
   }
 };
 
-export function removeItem<T>(items: T[], itemPredicate: (item: T) => boolean) {
-  for (let i = 0; i < items.length; ++i) {
-    if (itemPredicate(items[i])) {
-      items.splice(i, 1);
-      break;
-    }
-  }
-}
-
 export const stripPort = (instance: string) => instance.replace(/:.*/, '');
 
 const escapeRegexString = (str: string) => stripPort(str.replace(/\./g, '\\.'));

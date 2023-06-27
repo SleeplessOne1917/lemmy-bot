@@ -82,25 +82,29 @@ export type ParentResponse = {
 };
 
 export type BotActions = {
-  reportComment: (form: ReportComment) => void;
-  createComment: (form: CreateComment) => void;
-  reportPost: (form: ReportPort) => void;
-  votePost: (form: VotePost) => void;
-  createPost: (form: CreatePost) => void;
-  voteComment: (form: VoteComment) => void;
-  banFromCommunity: (form: BanFromCommunity) => void;
-  banFromSite: (form: BanFromSite) => void;
-  sendPrivateMessage: (form: SendPrivateMessage) => void;
-  reportPrivateMessage: (form: ReportPrivateMessage) => void;
-  approveRegistrationApplication: (applicationId: number) => void;
-  rejectRegistrationApplication: (form: RejectApplicationApplication) => void;
-  removePost: (form: RemovePost) => void;
-  removeComment: (form: RemoveComment) => void;
-  resolvePostReport: (postReportId: number) => void;
-  resolveCommentReport: (commentReportId: number) => void;
-  resolvePrivateMessageReport: (privateMessageReportId: number) => void;
-  featurePost: (form: FeaturePost) => void;
-  lockPost: (form: LockPost) => void;
+  reportComment: (form: ReportComment) => Promise<void>;
+  createComment: (form: CreateComment) => Promise<void>;
+  reportPost: (form: ReportPort) => Promise<void>;
+  votePost: (form: VotePost) => Promise<void>;
+  createPost: (form: CreatePost) => Promise<void>;
+  voteComment: (form: VoteComment) => Promise<void>;
+  banFromCommunity: (form: BanFromCommunity) => Promise<void>;
+  banFromSite: (form: BanFromSite) => Promise<void>;
+  sendPrivateMessage: (form: SendPrivateMessage) => Promise<void>;
+  reportPrivateMessage: (form: ReportPrivateMessage) => Promise<void>;
+  approveRegistrationApplication: (applicationId: number) => Promise<void>;
+  rejectRegistrationApplication: (
+    form: RejectApplicationApplication
+  ) => Promise<void>;
+  removePost: (form: RemovePost) => Promise<void>;
+  removeComment: (form: RemoveComment) => Promise<void>;
+  resolvePostReport: (postReportId: number) => Promise<void>;
+  resolveCommentReport: (commentReportId: number) => Promise<void>;
+  resolvePrivateMessageReport: (
+    privateMessageReportId: number
+  ) => Promise<void>;
+  featurePost: (form: FeaturePost) => Promise<void>;
+  lockPost: (form: LockPost) => Promise<void>;
   /**
    * Gets a community ID by name.
    *
@@ -123,12 +127,6 @@ export type BotActions = {
   getPost: (postId: number) => Promise<PostView>;
   getComment: (commentId: number) => Promise<CommentView>;
   getParentOfComment: (form: Comment) => Promise<ParentResponse>;
-};
-
-export type InternalSearchOptions = {
-  name: string;
-  instance: string;
-  type: 'Communities' | 'Users';
 };
 
 export type InternalHandlers = {
@@ -266,16 +264,10 @@ export type BotTask = {
 
 export type BotConnectionOptions = {
   /**
-   * Time to wait until retrying connection if connection is lost. Pass false if you do not want the bot to retry the connection.
-   *
-   * @defaultValue 5
-   */
-  minutesBeforeRetryConnection?: number | false;
-  /**
-   * Seconds between each fetch of data.
+   * Seconds between each fetch of data. Cannot be lower than 30.
    * Can be overridden by {@link BotHandlerOptions.secondsBetweenPolls}
    *
-   * @defaultValue 10
+   * @defaultValue 30
    */
   secondsBetweenPolls?: number;
   /**
@@ -294,7 +286,10 @@ export type BotCredentials = {
   password: string;
 };
 
-export type SearchOptions = Omit<InternalSearchOptions, 'type'>;
+export type SearchOptions = {
+  name: string;
+  instance: string;
+};
 
 export type CreatePost = Omit<CreateClientPost, 'auth'>;
 

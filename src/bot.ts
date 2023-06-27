@@ -34,15 +34,12 @@ import {
   InternalHandlers
 } from './types';
 
-const DEFAULT_SECONDS_BETWEEN_POLLS = 10;
-const DEFAULT_MINUTES_BEFORE_RETRY_CONNECTION = 5;
+const DEFAULT_SECONDS_BETWEEN_POLLS = 30;
 const DEFAULT_MINUTES_UNTIL_REPROCESS: number | undefined = undefined;
 
 class LemmyBot {
   #isRunning: boolean;
   #instance: string;
-  #username?: string;
-  #password?: string;
   #timeouts: NodeJS.Timeout[] = [];
   #auth?: string;
   #defaultMinutesUntilReprocess?: number;
@@ -60,8 +57,7 @@ class LemmyBot {
       this.#performLoggedInBotAction({
         logMessage: 'Creating post',
         action: () =>
-          this.#httpClient.createPost({ ...form, auth: this.#auth ?? '' }),
-        description: 'create post'
+          this.#httpClient.createPost({ ...form, auth: this.#auth ?? '' })
       }),
     reportPost: ({ post_id, reason }) =>
       this.#performLoggedInBotAction({
@@ -71,23 +67,21 @@ class LemmyBot {
             auth: this.#auth!,
             post_id,
             reason
-          }),
-        description: 'report post'
+          })
       }),
-    votePost: ({ post_id, vote }) => {
+    votePost: async ({ post_id, vote }) => {
       const score = correctVote(vote);
       const prefix =
         vote === Vote.Upvote ? 'Up' : vote === Vote.Downvote ? 'Down' : 'Un';
 
-      this.#performLoggedInBotAction({
+      await this.#performLoggedInBotAction({
         logMessage: `${prefix}voting post ID ${post_id}`,
         action: () =>
           this.#httpClient.likePost({
             auth: this.#auth!,
             post_id,
             score
-          }),
-        description: `${prefix.toLowerCase()}vote post`
+          })
       });
     },
     createComment: ({ parent_id, content, post_id, language_id }) =>
@@ -102,8 +96,7 @@ class LemmyBot {
             post_id,
             parent_id,
             language_id
-          }),
-        description: 'post comment'
+          })
       }),
     reportComment: ({ comment_id, reason }) =>
       this.#performLoggedInBotAction({
@@ -113,23 +106,21 @@ class LemmyBot {
             comment_id,
             reason
           }),
-        logMessage: `Reporting to comment ID ${comment_id} for ${reason}`,
-        description: 'report comment'
+        logMessage: `Reporting to comment ID ${comment_id} for ${reason}`
       }),
-    voteComment: ({ comment_id, vote }) => {
+    voteComment: async ({ comment_id, vote }) => {
       const score = correctVote(vote);
       const prefix =
         score === Vote.Upvote ? 'Up' : score === Vote.Downvote ? 'Down' : 'Un';
 
-      this.#performLoggedInBotAction({
+      await this.#performLoggedInBotAction({
         logMessage: `${prefix}voting comment ID ${comment_id}`,
         action: () =>
           this.#httpClient.likeComment({
             auth: this.#auth!,
             comment_id,
             score
-          }),
-        description: `${prefix.toLowerCase()}vote comment`
+          })
       });
     },
     banFromCommunity: (form) =>
@@ -140,8 +131,7 @@ class LemmyBot {
             ...form,
             auth: this.#auth!,
             ban: true
-          }),
-        description: 'ban user'
+          })
       }),
     banFromSite: ({ person_id, days_until_expires, reason, remove_data }) =>
       this.#performLoggedInBotAction({
@@ -154,8 +144,7 @@ class LemmyBot {
             reason,
             remove_data,
             ban: true
-          }),
-        description: 'ban user'
+          })
       }),
     sendPrivateMessage: ({ recipient_id, content }) =>
       this.#performLoggedInBotAction({
@@ -165,8 +154,7 @@ class LemmyBot {
             auth: this.#auth!,
             content,
             recipient_id
-          }),
-        description: 'send message'
+          })
       }),
     reportPrivateMessage: ({ private_message_id, reason }) =>
       this.#performLoggedInBotAction({
@@ -176,8 +164,7 @@ class LemmyBot {
             auth: this.#auth!,
             private_message_id,
             reason
-          }),
-        description: 'report message'
+          })
       }),
     approveRegistrationApplication: (applicationId) =>
       this.#performLoggedInBotAction({
@@ -187,8 +174,7 @@ class LemmyBot {
             auth: this.#auth!,
             approve: true,
             id: applicationId
-          }),
-        description: 'approve application'
+          })
       }),
     rejectRegistrationApplication: ({ id, deny_reason }) =>
       this.#performLoggedInBotAction({
@@ -199,8 +185,7 @@ class LemmyBot {
             approve: false,
             id,
             deny_reason
-          }),
-        description: 'reject application'
+          })
       }),
     removePost: ({ post_id, reason }) =>
       this.#performLoggedInBotAction({
@@ -211,8 +196,7 @@ class LemmyBot {
             post_id,
             removed: true,
             reason
-          }),
-        description: 'remove post'
+          })
       }),
     removeComment: ({ comment_id, reason }) =>
       this.#performLoggedInBotAction({
@@ -223,8 +207,7 @@ class LemmyBot {
             comment_id,
             removed: true,
             reason
-          }),
-        description: 'remove comment'
+          })
       }),
     resolvePostReport: (report_id) =>
       this.#performLoggedInBotAction({
@@ -234,8 +217,7 @@ class LemmyBot {
             auth: this.#auth!,
             report_id,
             resolved: true
-          }),
-        description: 'resolve post report'
+          })
       }),
     resolveCommentReport: (report_id) =>
       this.#performLoggedInBotAction({
@@ -245,8 +227,7 @@ class LemmyBot {
             auth: this.#auth!,
             report_id,
             resolved: true
-          }),
-        description: 'resolve comment report'
+          })
       }),
     resolvePrivateMessageReport: (report_id) =>
       this.#performLoggedInBotAction({
@@ -256,8 +237,7 @@ class LemmyBot {
             auth: this.#auth!,
             report_id,
             resolved: true
-          }),
-        description: 'resolve message report'
+          })
       }),
     featurePost: ({ feature_type, featured, post_id }) =>
       this.#performLoggedInBotAction({
@@ -268,8 +248,7 @@ class LemmyBot {
             post_id,
             featured,
             feature_type
-          }),
-        description: 'feature post'
+          })
       }),
     lockPost: ({ post_id, locked }) =>
       this.#performLoggedInBotAction({
@@ -279,8 +258,7 @@ class LemmyBot {
             auth: this.#auth!,
             post_id,
             locked
-          }),
-        description: `${locked ? '' : 'un'}lock post`
+          })
       }),
     getCommunityId: (form) => this.#getId(form, 'Communities'),
     getUserId: (form) => this.#getId(form, 'Users'),
@@ -326,7 +304,6 @@ class LemmyBot {
         defaultSecondsBetweenPolls = DEFAULT_SECONDS_BETWEEN_POLLS
     } = {
       secondsBetweenPolls: DEFAULT_SECONDS_BETWEEN_POLLS,
-      minutesBeforeRetryConnection: DEFAULT_MINUTES_BEFORE_RETRY_CONNECTION,
       minutesUntilReprocess: DEFAULT_MINUTES_UNTIL_REPROCESS
     },
     dbFile,
@@ -403,14 +380,16 @@ class LemmyBot {
       }
     }
 
-    const { password, username } = credentials ?? {};
+    this.#credentials = credentials;
     this.#defaultSecondsBetweenPolls = defaultSecondsBetweenPolls;
     this.#isRunning = false;
     this.#instance = instance;
-    this.#username = username;
-    this.#password = password;
     this.#defaultMinutesUntilReprocess = defaultMinutesUntilReprocess;
-    this.#httpClient = new LemmyHttp(`https://${this.#instance}`);
+    this.#httpClient = new LemmyHttp(
+      `http${this.#instance.includes('localhost') ? '' : 's'}://${
+        this.#instance
+      }`
+    );
     this.#dbFile = dbFile;
     this.#listingType = getListingType(this.#federationOptions);
 
@@ -427,11 +406,11 @@ class LemmyBot {
         const timeout = setTimeout(() => {
           this.#runChecker(checker, secondsBetweenPolls);
           this.#timeouts = this.#timeouts.filter((t) => t !== timeout);
-        }, 1000 * secondsBetweenPolls);
+        }, 1000 * (secondsBetweenPolls < DEFAULT_SECONDS_BETWEEN_POLLS ? DEFAULT_SECONDS_BETWEEN_POLLS : secondsBetweenPolls));
 
         this.#timeouts.push(timeout);
       } else if (this.#credentials && !this.#auth) {
-        this.#login();
+        await this.#login();
 
         const timeout = setTimeout(() => {
           this.#runChecker(checker, secondsBetweenPolls);
@@ -473,7 +452,7 @@ class LemmyBot {
     await setupDB(this.#dbFile);
 
     if (this.#credentials) {
-      this.#login();
+      await this.#login();
     }
 
     if (this.#delayedTasks.length > 0) {
@@ -1045,32 +1024,38 @@ class LemmyBot {
   }
 
   start() {
-    console.log('Connected to Lemmy Instance');
+    console.log('Starting bot');
     this.#isRunning = true;
     this.#runBot();
   }
 
   stop() {
+    console.log('stopping bot');
     this.#isRunning = false;
   }
 
   async #login() {
-    if (this.#username && this.#password) {
+    if (this.#credentials) {
+      console.log('logging in');
       const loginRes = await this.#httpClient.login({
-        password: this.#password,
-        username_or_email: this.#username
+        password: this.#credentials.password,
+        username_or_email: this.#credentials.username
       });
+      console.log(loginRes.jwt);
       this.#auth = loginRes.jwt;
       if (this.#auth) {
+        console.log('logged in');
         console.log('Marking account as bot account');
 
-        await this.#httpClient.saveUserSettings({
-          auth: this.#auth,
-          bot_account: true
-        });
+        await this.#httpClient
+          .saveUserSettings({
+            auth: this.#auth,
+            bot_account: true
+          })
+          .catch((err) => console.error(err));
 
         console.log('Subscribing to communities');
-        this.#subscribeToCommunities();
+        await this.#subscribeToCommunities();
       }
     }
   }
@@ -1207,18 +1192,16 @@ class LemmyBot {
       auth
     });
 
-  #performLoggedInBotAction({
+  async #performLoggedInBotAction<T>({
     logMessage,
-    action,
-    description
+    action
   }: {
     logMessage: string;
-    action: () => void;
-    description: string;
+    action: () => Promise<T>;
   }) {
     if (this.#auth) {
       console.log(logMessage);
-      action();
+      await action();
     }
   }
 }
