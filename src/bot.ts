@@ -294,6 +294,13 @@ class LemmyBot {
           data: await this.#botActions.getComment(parentId)
         };
       }
+    },
+    isCommunityMod: async ({ community_id, person_id }) => {
+      const { moderators } = await this.#httpClient.getCommunity({
+        id: community_id
+      });
+
+      return moderators.some((mod) => mod.moderator.id === person_id);
     }
   };
 

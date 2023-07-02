@@ -127,6 +127,10 @@ export type BotActions = {
   getPost: (postId: number) => Promise<PostView>;
   getComment: (commentId: number) => Promise<CommentView>;
   getParentOfComment: (form: Comment) => Promise<ParentResponse>;
+  isCommunityMod: (form: {
+    person_id: number;
+    community_id: number;
+  }) => Promise<boolean>;
 };
 
 export type InternalHandlers = {
