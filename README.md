@@ -301,7 +301,10 @@ const bot = new LemmyBot({
         botActions: { votePost }
       }) => {
         if (usersToLike.includes(creator_id)) {
-          votePost(id, Vote.Upvote);
+          votePost({
+            post_id: id,
+            vote: Vote.Upvote
+          });
         }
       }
     },
@@ -312,7 +315,10 @@ const bot = new LemmyBot({
       botActions: { voteComment }
     }) => {
       if (usersToLike.includes(creator_id)) {
-        voteComment(creator_id, Vote.Upvote);
+        voteComment({
+          comment_id: id,
+          vote: Vote.Upvote
+        });
       }
     },
     privateMessage: ({
@@ -324,23 +330,24 @@ const bot = new LemmyBot({
       const lcContent = content.toLowerCase();
       if (lcContent.includes('like me')) {
         if (usersToLike.includes(creator_id)) {
-          sendPrivateMessage(
-            creator_id,
-            'I am already liking your posts. Message "Stop" to unsubscribe.'
-          );
+          sendPrivateMessage({
+            recipient_id: creator_id,
+            content:
+              'I am already liking your posts. Message "Stop" to unsubscribe.'
+          });
         } else {
           usersToLike.push(creator_id);
-          sendPrivateMessage(
-            creator_id,
-            'You are now subscribed! I will like anything you post'
-          );
+          sendPrivateMessage({
+            recipient_id: creator_id,
+            content: 'You are now subscribed! I will like anything you post'
+          });
         }
       } else if (lcContent.includes('stop')) {
         if (!usersToLike.includes(creator_id)) {
-          sendPrivateMessage(
-            creator_id,
-            'You are already unsubscribed from my likes'
-          );
+          sendPrivateMessage({
+            recipient_id: creator_id,
+            content: 'You are already unsubscribed from my likes'
+          });
         } else {
           for (let i = 0; i < usersToLike.length; ++i) {
             if (usersToLike[i] === creator_id) {
@@ -350,10 +357,11 @@ const bot = new LemmyBot({
           }
         }
       } else {
-        sendPrivateMessage(
-          creator_id,
-          'Command not recognized. Send a message to me that says "Like me" if you want me to like your posts. If you don\'t want me to like your posts anymore, message me "Stop"'
-        );
+        sendPrivateMessage({
+          recipient_id: creator_id,
+          content:
+            'Command not recognized. Send a message to me that says "Like me" if you want me to like your posts. If you don\'t want me to like your posts anymore, message me "Stop"'
+        });
       }
     }
   }
@@ -369,7 +377,7 @@ Posts are valid to be handled after 10 minutes, but if a post ist congratulated 
 (due to `preventReprocess` being called). Posts that it's polling will be sorted by hot, and the bot will only be able to check posts in the shrek or tv communities on instance.xyz or the fediverse, cringe, and cooking communities on fediplace.ml.
 
 ```typescript
-import LemmyBot, { SortType } from 'lemmy-bot';
+import LemmyBot from 'lemmy-bot';
 
 const bot = new LemmyBot({
   instance: 'instance.xyz',
@@ -396,7 +404,7 @@ const bot = new LemmyBot({
   },
   handlers: {
     post: {
-      sort: SortType.Hot,
+      sort: 'Hot',
       handle: ({
         postView: {
           counts: { score },
@@ -445,7 +453,10 @@ const bot = new LemmyBot({
       botActions: { rejectRegistrationApplication }
     }) => {
       if (cringeNameRegex.test(name)) {
-        rejectRegistrationApplication(id, 'No cringy usernames allowed');
+        rejectRegistrationApplication({
+          id,
+          deny_reason: 'No cringy usernames allowed'
+        });
       }
     }
   }
