@@ -8,7 +8,6 @@ import {
 import {
   correctVote,
   extractInstanceFromActorId,
-  getInstanceRegex,
   getListingType,
   parseHandlers,
   shouldProcess,
@@ -31,7 +30,8 @@ import {
   SearchOptions,
   Vote,
   BotCredentials,
-  InternalHandlers
+  InternalHandlers,
+  BotInstanceList
 } from './types';
 
 const DEFAULT_SECONDS_BETWEEN_POLLS = 30;
@@ -52,6 +52,10 @@ class LemmyBot {
   #credentials?: BotCredentials;
   #defaultSecondsBetweenPolls = DEFAULT_SECONDS_BETWEEN_POLLS;
   #handlers: InternalHandlers;
+  #federationOptionMaps = {
+    allowMap: new Map<string, Set<number> | true>(),
+    blockMap: new Map<string, Set<number> | true>()
+  };
   #botActions: BotActions = {
     createPost: (form) =>
       this.#performLoggedInBotAction({
@@ -314,7 +318,7 @@ class LemmyBot {
       case undefined:
       case 'local': {
         this.#federationOptions = {
-          allowList: [instance]
+          allowList: [stripPort(instance)]
         };
 
         break;
@@ -347,11 +351,12 @@ class LemmyBot {
             this.#federationOptions.allowList &&
             !this.#federationOptions.allowList.some(
               (i) =>
-                i === instance ||
-                (i as BotInstanceFederationOptions).instance === instance
+                i === stripPort(instance) ||
+                (i as BotInstanceFederationOptions).instance ===
+                  stripPort(instance)
             )
           ) {
-            this.#federationOptions.allowList.push(instance);
+            this.#federationOptions.allowList.push(stripPort(instance));
           }
         }
       }
@@ -463,6 +468,8 @@ class LemmyBot {
       task.start();
     }
 
+    await this.#getCommunityIdsForAllowList();
+
     if (postOptions) {
       this.#runChecker(async (auth) => {
         const response = await this.#httpClient.getPosts({
@@ -471,7 +478,7 @@ class LemmyBot {
           sort: postOptions.sort
         });
 
-        const posts = this.#filterInstancesFromResponse(response.posts);
+        const posts = this.#filterFromResponse(response.posts);
 
         await useDatabaseFunctions(
           'posts',
@@ -501,7 +508,7 @@ class LemmyBot {
           sort: commentOptions.sort
         });
 
-        const comments = this.#filterInstancesFromResponse(response.comments);
+        const comments = this.#filterFromResponse(response.comments);
 
         await useDatabaseFunctions(
           'comments',
@@ -1041,7 +1048,6 @@ class LemmyBot {
         password: this.#credentials.password,
         username_or_email: this.#credentials.username
       });
-      console.log(loginRes.jwt);
       this.#auth = loginRes.jwt;
       if (this.#auth) {
         console.log('logged in');
@@ -1053,39 +1059,73 @@ class LemmyBot {
             bot_account: true
           })
           .catch((err) => console.error(err));
-
-        console.log('Subscribing to communities');
-        await this.#subscribeToCommunities();
       }
     }
   }
 
-  async #subscribeToCommunities() {
+  async #getCommunityIdsForAllowList() {
     if (this.#auth) {
-      const communityIds = (
-        await Promise.all(
-          (
-            this.#federationOptions.allowList?.filter(
-              (i) => typeof i !== 'string'
-            ) as BotInstanceFederationOptions[] | undefined
-          )?.flatMap(({ communities, instance }) =>
-            communities.map((name) =>
-              this.#botActions.getCommunityId({ instance, name })
-            )
-          ) ?? []
-        )
-      ).filter((id) => id !== undefined) as number[];
-
       await Promise.all(
-        communityIds.map((communityId) =>
-          this.#httpClient.followCommunity({
-            auth: this.#auth!,
-            community_id: communityId,
-            follow: true
-          })
+        this.#assignOptionsToMaps(
+          this.#federationOptions.allowList,
+          'allowMap'
+        ).concat(
+          this.#assignOptionsToMaps(
+            this.#federationOptions.blockList,
+            'blockMap'
+          )
         )
       );
     }
+  }
+
+  #assignOptionsToMaps(
+    list: BotInstanceList | undefined,
+    map: 'allowMap' | 'blockMap'
+  ) {
+    return (
+      list?.map(async (instanceOptions) => {
+        if (
+          typeof instanceOptions === 'string' &&
+          !this.#federationOptionMaps[map].get(instanceOptions)
+        ) {
+          this.#federationOptionMaps[map].set(instanceOptions, true);
+        } else if (
+          !this.#federationOptionMaps[map].get(
+            (instanceOptions as BotInstanceFederationOptions).instance
+          )
+        ) {
+          this.#federationOptionMaps[map].set(
+            stripPort(
+              (instanceOptions as BotInstanceFederationOptions).instance
+            ),
+            new Set(
+              await Promise.all(
+                (instanceOptions as BotInstanceFederationOptions).communities
+                  .map((c) =>
+                    this.#botActions
+                      .getCommunityId({
+                        instance: (
+                          instanceOptions as BotInstanceFederationOptions
+                        ).instance,
+                        name: c
+                      })
+                      .catch(() =>
+                        console.log(
+                          `Could not get !${c}@${
+                            (instanceOptions as BotInstanceFederationOptions)
+                              .instance
+                          }`
+                        )
+                      )
+                  )
+                  .filter((c) => c) as Promise<number>[]
+              )
+            )
+          );
+        }
+      }) ?? []
+    );
   }
 
   async #handleEntry<
@@ -1121,31 +1161,35 @@ class LemmyBot {
     }
   }
 
-  #filterInstancesFromResponse<T extends PostView | CommentView>(
-    response: T[]
-  ) {
-    let data = response;
+  #filterFromResponse<T extends PostView | CommentView>(response: T[]) {
+    if ((this.#federationOptions.allowList?.length ?? 0) > 0) {
+      return response.filter((d) => {
+        const instance = extractInstanceFromActorId(d.community.actor_id);
 
-    if (
-      (this.#federationOptions.allowList?.length ?? 0) > 0 &&
-      !this.#federationOptions.allowList?.includes(this.#instance)
-    ) {
-      const instanceRegex = getInstanceRegex(
-        this.#federationOptions.allowList!
-      );
-
-      data = data.filter((d) => instanceRegex.test(d.community.actor_id));
+        return (
+          this.#federationOptionMaps.allowMap.get(instance) === true ||
+          (
+            this.#federationOptionMaps.allowMap.get(instance) as
+              | Set<number>
+              | undefined
+          )?.has(d.community.id)
+        );
+      });
+    } else if ((this.#federationOptions.blockList?.length ?? 0) > 0) {
+      return response.filter((d) => {
+        const instance = extractInstanceFromActorId(d.community.actor_id);
+        return !(
+          this.#federationOptionMaps.blockMap.get(instance) === true ||
+          (
+            this.#federationOptionMaps.blockMap.get(instance) as
+              | Set<number>
+              | undefined
+          )?.has(d.community.id)
+        );
+      });
+    } else {
+      return response;
     }
-
-    if ((this.#federationOptions.blockList?.length ?? 0) > 0) {
-      const instanceRegex = getInstanceRegex(
-        this.#federationOptions.blockList!
-      );
-
-      data = data.filter((d) => !instanceRegex.test(d.community.actor_id));
-    }
-
-    return data;
   }
 
   async #getId(form: SearchOptions | string, type: 'Users' | 'Communities') {
