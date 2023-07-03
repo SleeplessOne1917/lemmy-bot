@@ -131,12 +131,12 @@ const useDatabase = async (
   }
 };
 
-export const useDatabaseFunctions = async (
+export const useDatabaseFunctions = (
   table: TableType,
   doStuff: (funcs: DatabaseFunctions) => Promise<void>,
   dbPath?: string
-) => {
-  await useDatabase(async (db) => {
+) =>
+  useDatabase(async (db) => {
     const { get, upsert } = tableFuncMap.get(table)!;
 
     await doStuff({
@@ -145,7 +145,6 @@ export const useDatabaseFunctions = async (
         upsert(db, id, minutesUntilReprocess)
     });
   }, dbPath);
-};
 
 const createTable = (db: Database, table: string) => {
   db.run(
