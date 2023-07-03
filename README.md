@@ -196,7 +196,7 @@ The actions are as follows, grouped by access level in ascending order:
 - `getParentOfComment(form: Comment)`: Retrieves the parent of a comment. Accepts a comment object, which is returned from handlers that deal with comments (e.g. comment handler, mention handler, reply handler, etc.). Returns an object with the following properties:
   - `type` "post" or "comment"
   - `data` PostView | CommentView
-- isCommunityMod(form: {community_id: number, person_id: number}): Returns whether or not a person is a moderator of a given community.
+- `isCommunityMod(form: {community_id: number, person_id: number})`: Returns whether or not a person is a moderator of a given community.
 
 #### Regular account
 

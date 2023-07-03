@@ -467,6 +467,40 @@ class LemmyBot {
       await this.#login();
     }
 
+    const subList = this.#federationOptions.allowList?.filter(
+      (option) => typeof option !== 'string'
+    ) as BotInstanceFederationOptions[] | undefined;
+
+    if (
+      subList &&
+      subList.length === this.#federationOptions.allowList?.length
+    ) {
+      this.#listingType = 'Subscribed';
+      await Promise.all(
+        subList.flatMap(({ communities, instance }) =>
+          communities.map((name) =>
+            this.#botActions
+              .getCommunityId({
+                instance,
+                name
+              })
+              .then((community_id) => {
+                if (community_id) {
+                  return this.#httpClient.followCommunity({
+                    auth: this.#auth ?? '',
+                    community_id,
+                    follow: true
+                  });
+                }
+              })
+              .catch(() =>
+                console.log(`Could not subscribe to !${name}@${instance}`)
+              )
+          )
+        )
+      );
+    }
+
     if (this.#delayedTasks.length > 0) {
       await Promise.all(this.#delayedTasks);
     }
