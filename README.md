@@ -282,6 +282,7 @@ The actions are as follows, grouped by access level in ascending order:
 - [Translator bot](https://github.com/SleeplessOne1917/lemmy-translator-bot)
 - [OCR scanner bot](https://github.com/SleeplessOne1917/lemmy-ocr-bot)
 - [AI art bot](https://github.com/SleeplessOne1917/lemmy-stable-diffusion-bot)
+- [Piped link bot](https://github.com/TeamPiped/lemmy-piped-link-bot)
 
 ### Like Me Bot
 
