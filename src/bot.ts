@@ -42,6 +42,7 @@ class LemmyBot {
   #instance: string;
   #timeouts: NodeJS.Timeout[] = [];
   #auth?: string;
+  #markAsBot: boolean;
   #defaultMinutesUntilReprocess?: number;
   #federationOptions: BotFederationOptions;
   #tasks: ScheduledTask[] = [];
@@ -319,7 +320,8 @@ class LemmyBot {
     },
     dbFile,
     federation,
-    schedule
+    schedule,
+    markAsBot = true
   }: BotOptions) {
     switch (federation) {
       case undefined:
@@ -395,6 +397,7 @@ class LemmyBot {
     this.#credentials = credentials;
     this.#defaultSecondsBetweenPolls = defaultSecondsBetweenPolls;
     this.#isRunning = false;
+    this.#markAsBot = markAsBot;
     this.#instance = instance;
     this.#defaultMinutesUntilReprocess = defaultMinutesUntilReprocess;
     this.#httpClient = new LemmyHttp(
@@ -1092,14 +1095,17 @@ class LemmyBot {
       this.#auth = loginRes.jwt;
       if (this.#auth) {
         console.log('logged in');
-        console.log('Marking account as bot account');
 
-        await this.#httpClient
-          .saveUserSettings({
-            auth: this.#auth,
-            bot_account: true
-          })
-          .catch((err) => console.error(err));
+        if (this.#markAsBot) {
+          console.log('Marking account as bot account');
+
+          await this.#httpClient
+            .saveUserSettings({
+              auth: this.#auth,
+              bot_account: true
+            })
+            .catch((err) => console.error(err));
+        }
       }
     }
   }

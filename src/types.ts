@@ -72,6 +72,13 @@ export type BotOptions = {
    * File to use for SQLite DB. If not provided, will store DB in memory.
    */
   dbFile?: string;
+  /**
+   * If true, the bot will automatically mark it's account as a bot on sign in.
+   * If set to false, make sure not to forget to manually mark the account as a bot.
+   *
+   * @default true
+   */
+  markAsBot?: boolean;
 };
 
 export type ParentType = 'post' | 'comment';
