@@ -36,7 +36,8 @@ import {
   RemovePost as ClientRemovePost,
   FeaturePost as ClientFeaturePost,
   LockPost as ClientLockPost,
-  Comment
+  Comment,
+  ResolveObjectResponse
 } from 'lemmy-js-client';
 
 export type BotOptions = {
@@ -142,6 +143,10 @@ export type BotActions = {
     person_id: number;
     community_id: number;
   }) => Promise<boolean>;
+  /**
+   * Resolves an object from a query string.
+   */
+  resolveObject: (form: { q: string }) => Promise<ResolveObjectResponse>;
 };
 
 export type InternalHandlers = {

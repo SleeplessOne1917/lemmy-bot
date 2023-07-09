@@ -312,7 +312,9 @@ class LemmyBot {
       });
 
       return moderators.some((mod) => mod.moderator.id === person_id);
-    }
+    },
+    resolveObject: ({ q }) =>
+      this.#httpClient.resolveObject({ auth: this.#auth!, q })
   };
 
   constructor({
