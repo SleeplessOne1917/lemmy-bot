@@ -83,7 +83,7 @@ The Lemmy instance your bot will connect to. Only pass the domain name of the in
 Options for the bot's connection. It is an object with the following properties:
 
 - `minutesBeforeRetryConnection`: If the bot's connection closes, the bot will wait this many minutes before opening another connection and trying again. Default value is 5. If you don't want the bot to attempt to reconnect, pass in `false`.
-- `secondsBetweenPolls`: Number of seconds between websocket requests the bot will make to check for items to handle. Default value is 10.
+- `secondsBetweenPolls`: Number of seconds between HTTP requests the bot will make to check for items to handle. Default value is 30.
 - `minutesUntilReprocess`: If the bot can to potentially handle the same item more than once (e.g. polling posts by top day every minute and replying to any with more than 25 points), `minutesUntilReprocess` specifies how many minutes must pass until an item is valid for reprocessing. If this value is undefined, items will not be reprocessed at all. Default value is undefined.
   **NOTE**: It is possible that an item that is valid for reprocessing will not be handled again. Taking the example from before and polling every day instead of every minute, a post from the day before that is valid for reprocessing might not show up in the current day's top posts.
 
