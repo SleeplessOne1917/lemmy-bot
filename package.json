@@ -8,7 +8,7 @@
   "scripts": {
     "lint": "npx eslint .",
     "build": "tsc",
-    "prepare": "npm run build"
+    "prepare": "pnpm run build"
   },
   "author": "SleeplessOne1917",
   "license": "AGPL-3.0",
