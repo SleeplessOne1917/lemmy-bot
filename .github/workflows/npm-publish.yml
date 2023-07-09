@@ -18,11 +18,11 @@ jobs:
         with:
           node-version: 18.x
           registry-url: https://registry.npmjs.org/
-          cache: pnpm
       - uses: pnpm/action-setup@v2
         with:
           version: 8.6.x
-          run_install: "[ --frozen-lockfile ]"
+          run_install: |
+            - args: [ --frozen-lockfile ]
       - run: pnpm build
       - run: pnpm publish
         env:
