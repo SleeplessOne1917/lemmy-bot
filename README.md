@@ -240,6 +240,7 @@ The actions are as follows, grouped by access level in ascending order:
   - `reason` string
 - `uploadImage(image: Buffer)`: Upload an image to pictrs. Returns a promise with an `UploadImageResponse`.
 - `resolveObject(form: string | { community: string, instance: string })`: Resolves an object on a remote interest. Use this to federate with communities that aren't showing up on your instance yet. **Note**: If passing in a string, make sure it is in the format "!'community name'@'instance domain'".
+- `followCommunity(community_id: number)`: Make your bot subscribe to a community.
 
 #### Community moderator
 

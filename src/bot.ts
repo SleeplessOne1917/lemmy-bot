@@ -266,7 +266,7 @@ class LemmyBot {
           })
       }),
     getCommunityId: (form) => this.#getId(form, 'Communities'),
-    followCommunity: ({ community_id }) =>
+    followCommunity: (community_id) =>
       this.#performLoggedInBotAction({
         logMessage: `Following community ID ${community_id}`,
         action: () =>

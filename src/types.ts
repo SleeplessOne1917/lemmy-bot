@@ -126,7 +126,7 @@ export type BotActions = {
   /**
    * Follows a community by its ID.
    */
-  followCommunity: (form: { community_id: number }) => Promise<void>;
+  followCommunity: (community_id: number) => Promise<void>;
   /**
    * Gets user ID by name.
    *
