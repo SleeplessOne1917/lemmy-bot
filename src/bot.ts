@@ -312,6 +312,18 @@ class LemmyBot {
       });
 
       return moderators.some((mod) => mod.moderator.id === person_id);
+    },
+    resolveObject: (form) => {
+      if (typeof form === 'string') {
+        return this.#httpClient.resolveObject({ auth: this.#auth!, q: form });
+      } else {
+        const { communityName, instance } = form;
+
+        return this.#httpClient.resolveObject({
+          auth: this.#auth!,
+          q: `!${communityName}@${instance}`
+        });
+      }
     }
   };
 

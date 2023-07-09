@@ -238,7 +238,8 @@ The actions are as follows, grouped by access level in ascending order:
 - `reportPrivateMessage(form: ReportPrivateMessage)`: Report a private message. Accepts an object with the following properties:
   - `privateMessage_id` number
   - `reason` string
-- `uploadImage(image: Buffer)`: Upload an image to pictrs. Returns a promise with an `UploadImageReponse`.
+- `uploadImage(image: Buffer)`: Upload an image to pictrs. Returns a promise with an `UploadImageResponse`.
+- `resolveObject(form: string | { community: string, instance: string })`: Resolves an object on a remote interest. Use this to federate with communities that aren't showing up on your instance yet. **Note**: If passing in a string, make sure it is in the format "!'community name'@'instance domain'".
 
 #### Community moderator
 
