@@ -123,6 +123,10 @@ export type BotActions = {
     options: SearchOptions | string
   ) => Promise<number | undefined>;
   /**
+   * Follows a community by its ID.
+   */
+  followCommunity: (form: { community_id: number }) => Promise<void>;
+  /**
    * Gets user ID by name.
    *
    * @param options - If just a string, will search for the user on the bot's local instance. Pass a {@link SearchOptions} object to search for a user on another instance

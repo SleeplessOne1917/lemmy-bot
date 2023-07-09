@@ -266,6 +266,16 @@ class LemmyBot {
           })
       }),
     getCommunityId: (form) => this.#getId(form, 'Communities'),
+    followCommunity: ({ community_id }) =>
+      this.#performLoggedInBotAction({
+        logMessage: `Following community ID ${community_id}`,
+        action: () =>
+          this.#httpClient.followCommunity({
+            auth: this.#auth!,
+            community_id,
+            follow: true
+          })
+      }),
     getUserId: (form) => this.#getId(form, 'Users'),
     uploadImage: (image) =>
       this.#httpClient.uploadImage({ image, auth: this.#auth }),
