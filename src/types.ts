@@ -37,7 +37,9 @@ import {
   FeaturePost as ClientFeaturePost,
   LockPost as ClientLockPost,
   Comment,
-  ResolveObjectResponse
+  ResolveObjectResponse,
+  EditComment as ClientEditComment,
+  EditPost as ClientEditPost
 } from 'lemmy-js-client';
 
 export type BotOptions = {
@@ -92,9 +94,11 @@ export type ParentResponse = {
 export type BotActions = {
   reportComment: (form: ReportComment) => Promise<void>;
   createComment: (form: CreateComment) => Promise<void>;
+  editComment: (form: EditComment) => Promise<void>;
   reportPost: (form: ReportPort) => Promise<void>;
   votePost: (form: VotePost) => Promise<void>;
   createPost: (form: CreatePost) => Promise<void>;
+  editPost: (form: EditPost) => Promise<void>;
   voteComment: (form: VoteComment) => Promise<void>;
   banFromCommunity: (form: BanFromCommunity) => Promise<void>;
   removeBanFromCommunity: (form: RemoveBanFromCommunity) => Promise<void>;
@@ -315,6 +319,16 @@ export type SearchOptions = {
 export type CreatePost = Omit<CreateClientPost, 'auth'>;
 
 export type CreateComment = Omit<CreateClientComment, 'auth' | 'form_id'>;
+
+export type EditPost = Omit<
+  ClientEditPost,
+  'auth' 
+>
+
+export type EditComment = Omit<
+  ClientEditComment,
+  'auth' | 'form_id'
+>
 
 export type ReportPort = Omit<CreatePostReport, 'auth'>;
 

@@ -64,6 +64,15 @@ class LemmyBot {
         action: () =>
           this.#httpClient.createPost({ ...form, auth: this.#auth ?? '' })
       }),
+    editPost: (form) =>
+      this.#performLoggedInBotAction({
+        logMessage: `Editing post ID ${form.post_id}`,
+        action: () =>
+          this.#httpClient.editPost({
+            ...form,
+            auth: this.#auth!
+          })
+      }),
     reportPost: ({ post_id, reason }) =>
       this.#performLoggedInBotAction({
         logMessage: `Reporting to post ID ${post_id} for ${reason}`,
@@ -103,6 +112,15 @@ class LemmyBot {
             language_id
           })
       }),
+    editComment: (form) =>
+      this.#performLoggedInBotAction({
+        logMessage: `Editing comment ID ${form.comment_id}`,
+        action: () =>
+          this.#httpClient.editComment({
+            ...form,
+            auth: this.#auth!
+          })
+      }),
     reportComment: ({ comment_id, reason }) =>
       this.#performLoggedInBotAction({
         action: () =>
@@ -140,7 +158,7 @@ class LemmyBot {
       }),
     removeBanFromCommunity: (form) =>
       this.#performLoggedInBotAction({
-        logMessage: `Banning user ID ${form.person_id} from ${form.community_id}`,
+        logMessage: `Removing community ban from user ID ${form.person_id} from ${form.community_id}`,
         action: () =>
           this.#httpClient.banFromCommunity({
             ...form,
@@ -168,7 +186,7 @@ class LemmyBot {
       remove_data
     }) =>
       this.#performLoggedInBotAction({
-        logMessage: `Banning user ID ${person_id} from ${this.#instance}`,
+        logMessage: `Removing site ban from user ID ${person_id} from ${this.#instance}`,
         action: () =>
           this.#httpClient.banPerson({
             auth: this.#auth!,
