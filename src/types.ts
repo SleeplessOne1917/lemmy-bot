@@ -97,7 +97,9 @@ export type BotActions = {
   createPost: (form: CreatePost) => Promise<void>;
   voteComment: (form: VoteComment) => Promise<void>;
   banFromCommunity: (form: BanFromCommunity) => Promise<void>;
+  removeBanFromCommunity: (form: RemoveBanFromCommunity) => Promise<void>;
   banFromSite: (form: BanFromSite) => Promise<void>;
+  removeBanFromSite: (form: RemoveBanFromCommunity) => Promise<void>;
   sendPrivateMessage: (form: SendPrivateMessage) => Promise<void>;
   reportPrivateMessage: (form: ReportPrivateMessage) => Promise<void>;
   approveRegistrationApplication: (applicationId: number) => Promise<void>;
@@ -329,9 +331,13 @@ export type BanFromCommunity = Omit<
   'auth' | 'ban' | 'expires'
 > & { days_until_expires?: number };
 
+export type RemoveBanFromCommunity = BanFromCommunity
+
 export type BanFromSite = Omit<BanPerson, 'auth' | 'ban' | 'expires'> & {
   days_until_expires?: number;
 };
+
+export type RemoveBanFromSite = BanFromSite
 
 export type SendPrivateMessage = Omit<CreatePrivateMessage, 'auth'>;
 

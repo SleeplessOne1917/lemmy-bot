@@ -138,6 +138,16 @@ class LemmyBot {
             ban: true
           })
       }),
+    removeBanFromCommunity: (form) =>
+      this.#performLoggedInBotAction({
+        logMessage: `Banning user ID ${form.person_id} from ${form.community_id}`,
+        action: () =>
+          this.#httpClient.banFromCommunity({
+            ...form,
+            auth: this.#auth!,
+            ban: false
+          })
+      }),
     banFromSite: ({ person_id, days_until_expires, reason, remove_data }) =>
       this.#performLoggedInBotAction({
         logMessage: `Banning user ID ${person_id} from ${this.#instance}`,
@@ -149,6 +159,24 @@ class LemmyBot {
             reason,
             remove_data,
             ban: true
+          })
+      }),
+    removeBanFromSite: ({
+      person_id,
+      days_until_expires,
+      reason,
+      remove_data
+    }) =>
+      this.#performLoggedInBotAction({
+        logMessage: `Banning user ID ${person_id} from ${this.#instance}`,
+        action: () =>
+          this.#httpClient.banPerson({
+            auth: this.#auth!,
+            person_id,
+            expires: days_until_expires,
+            reason,
+            remove_data,
+            ban: false
           })
       }),
     sendPrivateMessage: ({ recipient_id, content }) =>
@@ -440,10 +468,16 @@ class LemmyBot {
     if (this.#isRunning) {
       if (this.#auth || !this.#credentials) {
         checker(this.#auth);
-        const timeout = setTimeout(() => {
-          this.#runChecker(checker, secondsBetweenPolls);
-          this.#timeouts = this.#timeouts.filter((t) => t !== timeout);
-        }, 1000 * (secondsBetweenPolls < DEFAULT_SECONDS_BETWEEN_POLLS ? DEFAULT_SECONDS_BETWEEN_POLLS : secondsBetweenPolls));
+        const timeout = setTimeout(
+          () => {
+            this.#runChecker(checker, secondsBetweenPolls);
+            this.#timeouts = this.#timeouts.filter((t) => t !== timeout);
+          },
+          1000 *
+            (secondsBetweenPolls < DEFAULT_SECONDS_BETWEEN_POLLS
+              ? DEFAULT_SECONDS_BETWEEN_POLLS
+              : secondsBetweenPolls)
+        );
 
         this.#timeouts.push(timeout);
       } else if (this.#credentials && !this.#auth) {
