@@ -320,15 +320,9 @@ export type CreatePost = Omit<CreateClientPost, 'auth'>;
 
 export type CreateComment = Omit<CreateClientComment, 'auth' | 'form_id'>;
 
-export type EditPost = Omit<
-  ClientEditPost,
-  'auth' 
->
+export type EditPost = Omit<ClientEditPost, 'auth'>;
 
-export type EditComment = Omit<
-  ClientEditComment,
-  'auth' | 'form_id'
->
+export type EditComment = Omit<ClientEditComment, 'auth' | 'form_id'>;
 
 export type ReportPort = Omit<CreatePostReport, 'auth'>;
 
@@ -345,13 +339,13 @@ export type BanFromCommunity = Omit<
   'auth' | 'ban' | 'expires'
 > & { days_until_expires?: number };
 
-export type RemoveBanFromCommunity = BanFromCommunity
+export type RemoveBanFromCommunity = BanFromCommunity;
 
 export type BanFromSite = Omit<BanPerson, 'auth' | 'ban' | 'expires'> & {
   days_until_expires?: number;
 };
 
-export type RemoveBanFromSite = BanFromSite
+export type RemoveBanFromSite = BanFromSite;
 
 export type SendPrivateMessage = Omit<CreatePrivateMessage, 'auth'>;
 
