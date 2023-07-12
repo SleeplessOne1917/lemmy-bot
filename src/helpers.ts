@@ -55,4 +55,4 @@ export const getListingType = (options: BotFederationOptions): ListingType => {
 export const stripPort = (instance: string) => instance.replace(/:.*/, '');
 
 export const extractInstanceFromActorId = (actorId: string) =>
-  actorId.match(/https?:\/\/(.*)\/(?:c|u)\/.*/)![1];
+  actorId.match(/https?:\/\/(.*)\/(?:c|u|m)\/.*/)![1];

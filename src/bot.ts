@@ -186,7 +186,9 @@ class LemmyBot {
       remove_data
     }) =>
       this.#performLoggedInBotAction({
-        logMessage: `Removing site ban from user ID ${person_id} from ${this.#instance}`,
+        logMessage: `Removing site ban from user ID ${person_id} from ${
+          this.#instance
+        }`,
         action: () =>
           this.#httpClient.banPerson({
             auth: this.#auth!,
@@ -571,7 +573,7 @@ class LemmyBot {
                 }
               })
               .catch(() =>
-                console.log(`Could not subscribe to !${name}@${instance}`)
+              console.log(`Could not subscribe to !${name}@${instance}`)
               )
           )
         )
@@ -1332,13 +1334,19 @@ class LemmyBot {
     });
 
     if (type === 'Communities') {
-      return communities.find(
-        (community) =>
+      return communities.find((community) => {
+        let extractedInstance = '';
+        try {
+          extractedInstance = extractInstanceFromActorId(
+            community.community.actor_id
+          );
+        } catch {}
+        return (
           (community.community.name === localOptions.name ||
             community.community.title === localOptions.name) &&
-          extractInstanceFromActorId(community.community.actor_id) ===
-            instanceWithoutPort
-      )?.community.id;
+          extractedInstance === instanceWithoutPort
+        );
+      })?.community.id;
     } else {
       return users.find(
         (user) =>
