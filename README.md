@@ -241,6 +241,17 @@ The actions are as follows, grouped by access level in ascending order:
 - `uploadImage(image: Buffer)`: Upload an image to pictrs. Returns a promise with an `UploadImageResponse`.
 - `resolveObject(form: string | { community: string, instance: string })`: Resolves an object on a remote instance. Use this to federate with communities that aren't showing up on your local instance yet. **Note**: If passing in a string, make sure it is in the format "!'community name'@'instance domain'".
 - `followCommunity(community_id: number)`: Make your bot subscribe to a community.
+- `editPost(form: EditPost)`: Edit a post that was made previously by the bot. The `form` argument has the following properties:
+  - `post_id` number
+  - `name` _optional_ string
+  - `url` _optional_ string
+  - `body` _optional_ string
+  - `nsfw` _optional_ boolean
+  - `language_id` _optional_ number
+- `editComment(form: EditComment)`: Edit a comment previously made by the bot. The `form` argument has the following properties:
+  - `comment_id` number
+  - `content` _optional_ string
+  - `language_id` _optional_ number
 
 #### Community moderator
 
@@ -250,6 +261,7 @@ The actions are as follows, grouped by access level in ascending order:
   - `days_until_expires` _optional_ number
   - `reason` _optional_ string
   - `remove_data` _optional_ boolean
+- `removeBanFromCommunity(form: BanFromCommunity)`: Undoes ban from community. Takes same argument type as `banFromCommunity`.
 - `removePost(form: RemovePost)`: Remove a post. Accepts an object with the following properties:
   - `post_id` number
   - `reason` _optional_ string
@@ -274,6 +286,7 @@ The actions are as follows, grouped by access level in ascending order:
   - `days_until_expires` _optional_ number
   - `reason` _optional_ string
   - `remove_data` _optional_ boolean
+- `removeBanFromSite(form: BanFromSite)`: Unbans a user from the site. Argument type is the same that is passed to `banFromSite`
 - `approveRegistrationApplication(applicationId: number)`: Approve the creation of an account.
 - `rejectRegistrationApplication(applicationId: number, denyReason?: string)`: Deny a request to create an account on the instance.
 

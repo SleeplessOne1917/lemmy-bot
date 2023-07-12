@@ -488,10 +488,16 @@ class LemmyBot {
     if (this.#isRunning) {
       if (this.#auth || !this.#credentials) {
         checker(this.#auth);
-        const timeout = setTimeout(() => {
-          this.#runChecker(checker, secondsBetweenPolls);
-          this.#timeouts = this.#timeouts.filter((t) => t !== timeout);
-        }, 1000 * (secondsBetweenPolls < DEFAULT_SECONDS_BETWEEN_POLLS ? DEFAULT_SECONDS_BETWEEN_POLLS : secondsBetweenPolls));
+        const timeout = setTimeout(
+          () => {
+            this.#runChecker(checker, secondsBetweenPolls);
+            this.#timeouts = this.#timeouts.filter((t) => t !== timeout);
+          },
+          1000 *
+            (secondsBetweenPolls < DEFAULT_SECONDS_BETWEEN_POLLS
+              ? DEFAULT_SECONDS_BETWEEN_POLLS
+              : secondsBetweenPolls)
+        );
 
         this.#timeouts.push(timeout);
       } else if (this.#credentials && !this.#auth) {
