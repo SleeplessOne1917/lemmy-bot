@@ -1340,7 +1340,11 @@ class LemmyBot {
           extractedInstance = extractInstanceFromActorId(
             community.community.actor_id
           );
-        } catch {}
+        } catch {
+          console.log(
+            `Could not find !${localOptions.name}@${localOptions.instance}`
+          );
+        }
         return (
           (community.community.name === localOptions.name ||
             community.community.title === localOptions.name) &&
