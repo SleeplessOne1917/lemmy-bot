@@ -543,7 +543,7 @@ class LemmyBot {
       modBanFromSite: modBanFromSiteOptions
     } = this.#handlers;
 
-    await setupDB(this.#enableLogs, this.#dbFile);
+    await setupDB(this.#log, this.#dbFile);
 
     if (this.#credentials) {
       await this.#login();
@@ -681,11 +681,7 @@ class LemmyBot {
                     read: true
                   });
 
-                  if(this.#enableLogs){
-                    console.log(
-                      `Marked private message ID ${messageView.private_message.id} from ${messageView.creator.id} as read`
-                    );
-                  }
+                  this.#log(`Marked private message ID ${messageView.private_message.id} from ${messageView.creator.id} as read`);
 
                   return promise;
                 }
@@ -1156,39 +1152,29 @@ class LemmyBot {
   }
 
   start() {
-    if(this.#enableLogs){
-      console.log('Starting bot');
-    }
+    this.#log('Starting bot');
     this.#isRunning = true;
     this.#runBot();
   }
 
   stop() {
-    if(this.#enableLogs){
-      console.log('stopping bot');
-    }
+    this.#log('Stopping bot');
     this.#isRunning = false;
   }
 
   async #login() {
     if (this.#credentials) {
-      if(this.#enableLogs){
-        console.log('logging in');
-      }
+      this.#log('Logging in');
       const loginRes = await this.#httpClient.login({
         password: this.#credentials.password,
         username_or_email: this.#credentials.username
       });
       this.#auth = loginRes.jwt;
       if (this.#auth) {
-        if(this.#enableLogs){
-          console.log('logged in');
-        }
+        this.#log('Logged in');
 
         if (this.#markAsBot) {
-          if(this.#enableLogs){
-            console.log('Marking account as bot account');
-          }
+          this.#log('Marking account as bot account');
 
           await this.#httpClient
             .saveUserSettings({
@@ -1392,10 +1378,14 @@ class LemmyBot {
     action: () => Promise<T>;
   }) {
     if (this.#auth) {
-      if(this.#enableLogs){
-        console.log(logMessage);
-      }
+      this.#log(logMessage);
       await action();
+    }
+  }
+
+  #log = (output: string) => {
+    if (this.#enableLogs) {
+      console.log(output);
     }
   }
 }
