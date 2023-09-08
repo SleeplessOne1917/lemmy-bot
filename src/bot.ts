@@ -43,6 +43,7 @@ class LemmyBot {
   #timeouts: NodeJS.Timeout[] = [];
   #auth?: string;
   #markAsBot: boolean;
+  #enableLogs: boolean;
   #defaultMinutesUntilReprocess?: number;
   #federationOptions: BotFederationOptions;
   #tasks: ScheduledTask[] = [];
@@ -391,7 +392,8 @@ class LemmyBot {
     dbFile,
     federation,
     schedule,
-    markAsBot = true
+    markAsBot = true,
+    enableLogs = true
   }: BotOptions) {
     switch (federation) {
       case undefined:
@@ -468,6 +470,7 @@ class LemmyBot {
     this.#defaultSecondsBetweenPolls = defaultSecondsBetweenPolls;
     this.#isRunning = false;
     this.#markAsBot = markAsBot;
+    this.#enableLogs = enableLogs;
     this.#instance = instance;
     this.#defaultMinutesUntilReprocess = defaultMinutesUntilReprocess;
     this.#httpClient = new LemmyHttp(
@@ -540,7 +543,7 @@ class LemmyBot {
       modBanFromSite: modBanFromSiteOptions
     } = this.#handlers;
 
-    await setupDB(this.#dbFile);
+    await setupDB(this.#enableLogs, this.#dbFile);
 
     if (this.#credentials) {
       await this.#login();
@@ -678,9 +681,11 @@ class LemmyBot {
                     read: true
                   });
 
-                  console.log(
-                    `Marked private message ID ${messageView.private_message.id} from ${messageView.creator.id} as read`
-                  );
+                  if(this.#enableLogs){
+                    console.log(
+                      `Marked private message ID ${messageView.private_message.id} from ${messageView.creator.id} as read`
+                    );
+                  }
 
                   return promise;
                 }
@@ -1151,29 +1156,39 @@ class LemmyBot {
   }
 
   start() {
-    console.log('Starting bot');
+    if(this.#enableLogs){
+      console.log('Starting bot');
+    }
     this.#isRunning = true;
     this.#runBot();
   }
 
   stop() {
-    console.log('stopping bot');
+    if(this.#enableLogs){
+      console.log('stopping bot');
+    }
     this.#isRunning = false;
   }
 
   async #login() {
     if (this.#credentials) {
-      console.log('logging in');
+      if(this.#enableLogs){
+        console.log('logging in');
+      }
       const loginRes = await this.#httpClient.login({
         password: this.#credentials.password,
         username_or_email: this.#credentials.username
       });
       this.#auth = loginRes.jwt;
       if (this.#auth) {
-        console.log('logged in');
+        if(this.#enableLogs){
+          console.log('logged in');
+        }
 
         if (this.#markAsBot) {
-          console.log('Marking account as bot account');
+          if(this.#enableLogs){
+            console.log('Marking account as bot account');
+          }
 
           await this.#httpClient
             .saveUserSettings({
@@ -1377,7 +1392,9 @@ class LemmyBot {
     action: () => Promise<T>;
   }) {
     if (this.#auth) {
-      console.log(logMessage);
+      if(this.#enableLogs){
+        console.log(logMessage);
+      }
       await action();
     }
   }

@@ -82,6 +82,13 @@ export type BotOptions = {
    * @default true
    */
   markAsBot?: boolean;
+  /**
+   * If true, the bot will output verbose logs for any operation it conducts.
+   * If set to false, no internal logs will be produced.
+   *
+   * @default true
+   */
+  enableLogs?: boolean;
 };
 
 export type ParentType = 'post' | 'comment';
