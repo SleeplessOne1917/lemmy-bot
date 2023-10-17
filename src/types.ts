@@ -39,7 +39,17 @@ import {
   Comment,
   ResolveObjectResponse,
   EditComment as ClientEditComment,
-  EditPost as ClientEditPost
+  EditPost as ClientEditPost,
+  CommentReportResponse,
+  CommentResponse,
+  PostReportResponse,
+  PostResponse,
+  BanFromCommunityResponse,
+  BanPersonResponse,
+  PrivateMessageResponse,
+  PrivateMessageReportResponse,
+  RegistrationApplicationResponse,
+  CommunityResponse
 } from 'lemmy-js-client';
 
 export type BotOptions = {
@@ -92,33 +102,47 @@ export type ParentResponse = {
 };
 
 export type BotActions = {
-  reportComment: (form: ReportComment) => Promise<void>;
-  createComment: (form: CreateComment) => Promise<void>;
-  editComment: (form: EditComment) => Promise<void>;
-  reportPost: (form: ReportPort) => Promise<void>;
-  votePost: (form: VotePost) => Promise<void>;
-  createPost: (form: CreatePost) => Promise<void>;
-  editPost: (form: EditPost) => Promise<void>;
-  voteComment: (form: VoteComment) => Promise<void>;
-  banFromCommunity: (form: BanFromCommunity) => Promise<void>;
-  removeBanFromCommunity: (form: RemoveBanFromCommunity) => Promise<void>;
-  banFromSite: (form: BanFromSite) => Promise<void>;
-  removeBanFromSite: (form: RemoveBanFromCommunity) => Promise<void>;
-  sendPrivateMessage: (form: SendPrivateMessage) => Promise<void>;
-  reportPrivateMessage: (form: ReportPrivateMessage) => Promise<void>;
-  approveRegistrationApplication: (applicationId: number) => Promise<void>;
+  reportComment: (form: ReportComment) => Promise<CommentReportResponse>;
+  createComment: (form: CreateComment) => Promise<CommentResponse>;
+  editComment: (form: EditComment) => Promise<CommentResponse>;
+  reportPost: (form: ReportPort) => Promise<PostReportResponse>;
+  votePost: (form: VotePost) => Promise<PostResponse>;
+  createPost: (form: CreatePost) => Promise<PostResponse>;
+  editPost: (form: EditPost) => Promise<PostResponse>;
+  voteComment: (form: VoteComment) => Promise<CommentResponse>;
+  banFromCommunity: (
+    form: BanFromCommunity
+  ) => Promise<BanFromCommunityResponse>;
+  removeBanFromCommunity: (
+    form: RemoveBanFromCommunity
+  ) => Promise<BanFromCommunityResponse>;
+  banFromSite: (form: BanFromSite) => Promise<BanPersonResponse>;
+  removeBanFromSite: (
+    form: RemoveBanFromCommunity
+  ) => Promise<BanPersonResponse>;
+  sendPrivateMessage: (
+    form: SendPrivateMessage
+  ) => Promise<PrivateMessageResponse>;
+  reportPrivateMessage: (
+    form: ReportPrivateMessage
+  ) => Promise<PrivateMessageReportResponse>;
+  approveRegistrationApplication: (
+    applicationId: number
+  ) => Promise<RegistrationApplicationResponse>;
   rejectRegistrationApplication: (
     form: RejectApplicationApplication
-  ) => Promise<void>;
-  removePost: (form: RemovePost) => Promise<void>;
-  removeComment: (form: RemoveComment) => Promise<void>;
-  resolvePostReport: (postReportId: number) => Promise<void>;
-  resolveCommentReport: (commentReportId: number) => Promise<void>;
+  ) => Promise<RegistrationApplicationResponse>;
+  removePost: (form: RemovePost) => Promise<PostResponse>;
+  removeComment: (form: RemoveComment) => Promise<CommentResponse>;
+  resolvePostReport: (postReportId: number) => Promise<PostReportResponse>;
+  resolveCommentReport: (
+    commentReportId: number
+  ) => Promise<CommentReportResponse>;
   resolvePrivateMessageReport: (
     privateMessageReportId: number
-  ) => Promise<void>;
-  featurePost: (form: FeaturePost) => Promise<void>;
-  lockPost: (form: LockPost) => Promise<void>;
+  ) => Promise<PrivateMessageReportResponse>;
+  featurePost: (form: FeaturePost) => Promise<PostResponse>;
+  lockPost: (form: LockPost) => Promise<PostResponse>;
   /**
    * Gets a community ID by name.
    *
@@ -132,7 +156,7 @@ export type BotActions = {
   /**
    * Follows a community by its ID.
    */
-  followCommunity: (community_id: number) => Promise<void>;
+  followCommunity: (community_id: number) => Promise<CommunityResponse>;
   /**
    * Gets user ID by name.
    *

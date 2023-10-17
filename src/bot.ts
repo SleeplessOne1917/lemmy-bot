@@ -88,7 +88,7 @@ class LemmyBot {
       const prefix =
         vote === Vote.Upvote ? 'Up' : vote === Vote.Downvote ? 'Down' : 'Un';
 
-      await this.#performLoggedInBotAction({
+      return await this.#performLoggedInBotAction({
         logMessage: `${prefix}voting post ID ${post_id}`,
         action: () =>
           this.#httpClient.likePost({
@@ -136,7 +136,7 @@ class LemmyBot {
       const prefix =
         score === Vote.Upvote ? 'Up' : score === Vote.Downvote ? 'Down' : 'Un';
 
-      await this.#performLoggedInBotAction({
+      return await this.#performLoggedInBotAction({
         logMessage: `${prefix}voting comment ID ${comment_id}`,
         action: () =>
           this.#httpClient.likeComment({
@@ -266,7 +266,7 @@ class LemmyBot {
       this.#performLoggedInBotAction({
         logMessage: `Resolving post report ID ${report_id}`,
         action: () =>
-          this.#httpClient.resolveCommentReport({
+          this.#httpClient.resolvePostReport({
             auth: this.#auth!,
             report_id,
             resolved: true
@@ -1369,16 +1369,18 @@ class LemmyBot {
       auth
     });
 
-  async #performLoggedInBotAction<T>({
+  #performLoggedInBotAction<T>({
     logMessage,
     action
   }: {
     logMessage: string;
     action: () => Promise<T>;
-  }) {
+  }): Promise<T> {
     if (this.#auth) {
       console.log(logMessage);
-      await action();
+      return action();
+    } else {
+      throw new Error('Not logged in');
     }
   }
 }
