@@ -184,6 +184,12 @@ as a bot in the account's settings.
 
 Default value is `true`.
 
+#### `enableLogs`
+
+If true, the bot will log every action it does to the console.
+
+Default value is `true`.
+
 ---
 
 ### Bot Actions
