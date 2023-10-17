@@ -154,9 +154,9 @@ const createTable = (db: Database, table: string) => {
   db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_${table}_id ON ${table} (id);`);
 };
 
-export const setupDB = async (dbPath?: string) => {
+export const setupDB = async (log: (output: string) => void, dbPath?: string) => {
   if (dbPath && !existsSync(dbPath)) {
-    console.log('Creating database file');
+    log('Creating database file');
 
     try {
       await mkdir(path.dirname(dbPath), { recursive: true });
@@ -170,7 +170,7 @@ export const setupDB = async (dbPath?: string) => {
 
   await useDatabase(async (db) => {
     db.serialize(() => {
-      console.log('Initializing DB');
+      log('Initializing DB');
       for (const table of tableTypes) {
         createTable(db, table);
       }
