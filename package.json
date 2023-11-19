@@ -12,23 +12,31 @@
   "author": "SleeplessOne1917",
   "license": "AGPL-3.0",
   "devDependencies": {
-    "@types/node": "^20.9.0",
+    "@types/node": "^20.9.2",
     "@types/node-cron": "^3.0.11",
     "@typescript-eslint/eslint-plugin": "^6.11.0",
     "@typescript-eslint/parser": "^6.11.0",
-    "eslint": "^8.53.0",
+    "eslint": "^8.54.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^5.0.1",
     "prettier": "^3.1.0",
     "typescript": "^5.2.2"
   },
   "dependencies": {
-    "lemmy-js-client": "0.18.3-rc.3",
+    "lemmy-js-client": "0.19.0-alpha.18",
     "node-cron": "^3.0.3",
     "sqlite3": "^5.1.6"
   },
-  "files": ["/dist"],
-  "keywords": ["lemmy", "bot", "lemmy-bot", "fediverse", "fediverse-bot"],
+  "files": [
+    "/dist"
+  ],
+  "keywords": [
+    "lemmy",
+    "bot",
+    "lemmy-bot",
+    "fediverse",
+    "fediverse-bot"
+  ],
   "bugs": "https://github.com/SleeplessOne1917/lemmy-bot/issues",
   "repository": {
     "type": "git",
