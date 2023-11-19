@@ -39,6 +39,7 @@ const DEFAULT_MINUTES_UNTIL_REPROCESS: number | undefined = undefined;
 
 class LemmyBot {
   #isRunning: boolean;
+  #isLoggedIn = false;
   #instance: string;
   #timeouts: NodeJS.Timeout[] = [];
   #markAsBot: boolean;
@@ -80,12 +81,12 @@ class LemmyBot {
             reason
           })
       }),
-    votePost: async ({ post_id, vote }) => {
+    votePost: ({ post_id, vote }) => {
       const score = correctVote(vote);
       const prefix =
         vote === Vote.Upvote ? 'Up' : vote === Vote.Downvote ? 'Down' : 'Un';
 
-      return await this.#performLoggedInBotAction({
+      return this.#performLoggedInBotAction({
         logMessage: `${prefix}voting post ID ${post_id}`,
         action: () =>
           this.#httpClient.likePost({
@@ -299,7 +300,11 @@ class LemmyBot {
           })
       }),
     getUserId: (form) => this.#getId(form, 'Users'),
-    uploadImage: (image) => this.#httpClient.uploadImage({ image }),
+    uploadImage: (image) =>
+      this.#performLoggedInBotAction({
+        logMessage: 'Uploading image',
+        action: () => this.#httpClient.uploadImage({ image })
+      }),
     getPost: async (postId) => {
       const { post_view } = await this.#httpClient.getPost({
         id: postId
@@ -334,15 +339,19 @@ class LemmyBot {
       return moderators.some((mod) => mod.moderator.id === person_id);
     },
     resolveObject: (form) => {
+      let q: string;
+
       if (typeof form === 'string') {
-        return this.#httpClient.resolveObject({ q: form });
+        q = form;
       } else {
         const { communityName, instance } = form;
-
-        return this.#httpClient.resolveObject({
-          q: `!${communityName}@${instance}`
-        });
+        q = `!${communityName}@${instance}`;
       }
+
+      return this.#performLoggedInBotAction({
+        logMessage: `Resolving object: ${q}`,
+        action: () => this.#httpClient.resolveObject({ q })
+      });
     }
   };
 
@@ -459,7 +468,7 @@ class LemmyBot {
     secondsBetweenPolls: number = this.#defaultSecondsBetweenPolls
   ) {
     if (this.#isRunning) {
-      if (!this.#credentials) {
+      if (this.#isLoggedIn || !this.#credentials) {
         checker();
         const timeout = setTimeout(
           () => {
@@ -631,26 +640,25 @@ class LemmyBot {
           'messages',
           async ({ get, upsert }) => {
             await Promise.all(
-              private_messages.map(async (messageView) => {
-                const promise = this.#handleEntry({
-                  getStorageInfo: get,
-                  options: privateMessageOptions,
-                  entry: { messageView },
-                  id: messageView.private_message.id,
-                  upsert
-                });
-
-                await this.#httpClient.markPrivateMessageAsRead({
-                  private_message_id: messageView.private_message.id,
-                  read: true
-                });
-
-                this.#log(
-                  `Marked private message ID ${messageView.private_message.id} from ${messageView.creator.id} as read`
-                );
-
-                return promise;
-              })
+              private_messages.map(async (messageView) =>
+                Promise.all([
+                  this.#handleEntry({
+                    getStorageInfo: get,
+                    options: privateMessageOptions,
+                    entry: { messageView },
+                    id: messageView.private_message.id,
+                    upsert
+                  }),
+                  this.#performLoggedInBotAction({
+                    action: () =>
+                      this.#httpClient.markPrivateMessageAsRead({
+                        private_message_id: messageView.private_message.id,
+                        read: true
+                      }),
+                    logMessage: `Marked private message ID ${messageView.private_message.id} from ${messageView.creator.id} as read`
+                  })
+                ])
+              )
             );
           },
           this.#dbFile
@@ -698,22 +706,25 @@ class LemmyBot {
           'mentions',
           async ({ get, upsert }) => {
             await Promise.all(
-              mentions.map(async (mentionView) => {
-                const promise = this.#handleEntry({
-                  entry: { mentionView },
-                  options: mentionOptions,
-                  getStorageInfo: get,
-                  id: mentionView.person_mention.id,
-                  upsert
-                });
-
-                await this.#httpClient.markPersonMentionAsRead({
-                  person_mention_id: mentionView.person_mention.id,
-                  read: true
-                });
-
-                return promise;
-              })
+              mentions.map((mentionView) =>
+                Promise.all([
+                  this.#handleEntry({
+                    entry: { mentionView },
+                    options: mentionOptions,
+                    getStorageInfo: get,
+                    id: mentionView.person_mention.id,
+                    upsert
+                  }),
+                  this.#performLoggedInBotAction({
+                    action: () =>
+                      this.#httpClient.markPersonMentionAsRead({
+                        person_mention_id: mentionView.person_mention.id,
+                        read: true
+                      }),
+                    logMessage: `Marked mention ${mentionView.person_mention.id} from ${mentionView.creator.id} as read`
+                  })
+                ])
+              )
             );
           },
           this.#dbFile
@@ -733,22 +744,25 @@ class LemmyBot {
           'replies',
           async ({ get, upsert }) => {
             await Promise.all(
-              replies.map(async (replyView) => {
-                const promise = this.#handleEntry({
-                  entry: { replyView },
-                  options: replyOptions,
-                  getStorageInfo: get,
-                  id: replyView.comment_reply.id,
-                  upsert
-                });
-
-                await this.#httpClient.markPersonMentionAsRead({
-                  person_mention_id: replyView.comment_reply.id,
-                  read: true
-                });
-
-                return promise;
-              })
+              replies.map(async (replyView) =>
+                Promise.all([
+                  this.#handleEntry({
+                    entry: { replyView },
+                    options: replyOptions,
+                    getStorageInfo: get,
+                    id: replyView.comment_reply.id,
+                    upsert
+                  }),
+                  this.#performLoggedInBotAction({
+                    action: () =>
+                      this.#httpClient.markCommentReplyAsRead({
+                        comment_reply_id: replyView.comment_reply.id,
+                        read: true
+                      }),
+                    logMessage: `Marking reply ${replyView.comment_reply.id} from ${replyView.creator.id} as read`
+                  })
+                ])
+              )
             );
           },
           this.#dbFile
@@ -1096,6 +1110,7 @@ class LemmyBot {
   stop() {
     this.#log('Stopping bot');
     this.#isRunning = false;
+    this.#isLoggedIn = false;
   }
 
   async #login() {
@@ -1108,6 +1123,7 @@ class LemmyBot {
 
       this.#log('Logged in');
       this.#httpClient.setHeaders({ Authorization: `Bearer ${loginRes.jwt}` });
+      this.#isLoggedIn = true;
 
       if (this.#markAsBot) {
         this.#log('Marking account as bot account');
@@ -1116,7 +1132,7 @@ class LemmyBot {
           .saveUserSettings({
             bot_account: true
           })
-          .catch((err) => console.error(err));
+          .catch(console.error);
       }
     }
   }
@@ -1216,8 +1232,8 @@ class LemmyBot {
 
   #filterFromResponse<T extends PostView | CommentView>(response: T[]) {
     if ((this.#federationOptions.allowList?.length ?? 0) > 0) {
-      return response.filter((d) => {
-        const instance = extractInstanceFromActorId(d.community.actor_id);
+      return response.filter(({ community: { actor_id, id } }) => {
+        const instance = extractInstanceFromActorId(actor_id);
 
         return (
           this.#federationOptionMaps.allowMap.get(instance) === true ||
@@ -1225,7 +1241,7 @@ class LemmyBot {
             this.#federationOptionMaps.allowMap.get(instance) as
               | Set<number>
               | undefined
-          )?.has(d.community.id)
+          )?.has(id)
         );
       });
     } else if ((this.#federationOptions.blockList?.length ?? 0) > 0) {
@@ -1263,30 +1279,25 @@ class LemmyBot {
     });
 
     if (type === 'Communities') {
-      return communities.find((community) => {
+      return communities.find(({ community: { name, title, actor_id } }) => {
         let extractedInstance = '';
         try {
-          extractedInstance = extractInstanceFromActorId(
-            community.community.actor_id
-          );
+          extractedInstance = extractInstanceFromActorId(actor_id);
         } catch {
           console.log(
             `Could not find !${localOptions.name}@${localOptions.instance}`
           );
         }
         return (
-          (community.community.name === localOptions.name ||
-            community.community.title === localOptions.name) &&
+          (name === localOptions.name || title === localOptions.name) &&
           extractedInstance === instanceWithoutPort
         );
       })?.community.id;
     } else {
       return users.find(
-        (user) =>
-          (user.person.name === localOptions.name ||
-            user.person.display_name === localOptions.name) &&
-          extractInstanceFromActorId(user.person.actor_id) ===
-            instanceWithoutPort
+        ({ person: { name, display_name, actor_id } }) =>
+          (name === localOptions.name || display_name === localOptions.name) &&
+          extractInstanceFromActorId(actor_id) === instanceWithoutPort
       )?.person.id;
     }
   }
@@ -1297,15 +1308,23 @@ class LemmyBot {
       limit: 50
     });
 
-  #performLoggedInBotAction<T>({
+  async #performLoggedInBotAction<T>({
     logMessage,
     action
   }: {
     logMessage: string;
     action: () => Promise<T>;
   }): Promise<T> {
-    console.log(logMessage);
-    return action();
+    this.#log(logMessage);
+    try {
+      return await action();
+    } catch (err: any) {
+      if (err.error === 'not_logged_in') {
+        this.#isLoggedIn = false;
+      }
+
+      throw err;
+    }
   }
 
   #log = (output: string) => {
