@@ -296,6 +296,9 @@ The actions are as follows, grouped by access level in ascending order:
 - `approveRegistrationApplication(applicationId: number)`: Approve the creation of an account.
 - `rejectRegistrationApplication(applicationId: number, denyReason?: string)`: Deny a request to create an account on the instance.
 
+## HTTP Client
+If you need to use the [lemmy client](https://github.com/LemmyNet/lemmy-js-client) directly, the `__httpClient__` property is available so you don't need add it to your project separately. For your convenience, you can also access this in paramaters for polled event handlers and scheduled tasks.
+
 ## Examples
 
 ### Live Examples

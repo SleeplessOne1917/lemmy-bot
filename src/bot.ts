@@ -48,7 +48,7 @@ class LemmyBot {
   #federationOptions: BotFederationOptions;
   #tasks: ScheduledTask[] = [];
   #delayedTasks: (() => Promise<void>)[] = [];
-  httpClient: LemmyHttp;
+  __httpClient__: LemmyHttp;
   #dbFile?: string;
   #listingType: ListingType;
   #credentials?: BotCredentials;
@@ -62,13 +62,13 @@ class LemmyBot {
     createPost: (form) =>
       this.#performLoggedInBotAction({
         logMessage: 'Creating post',
-        action: () => this.httpClient.createPost(form)
+        action: () => this.__httpClient__.createPost(form)
       }),
     editPost: (form) =>
       this.#performLoggedInBotAction({
         logMessage: `Editing post ID ${form.post_id}`,
         action: () =>
-          this.httpClient.editPost({
+          this.__httpClient__.editPost({
             ...form
           })
       }),
@@ -76,7 +76,7 @@ class LemmyBot {
       this.#performLoggedInBotAction({
         logMessage: `Reporting to post ID ${post_id} for ${reason}`,
         action: () =>
-          this.httpClient.createPostReport({
+          this.__httpClient__.createPostReport({
             post_id,
             reason
           })
@@ -89,7 +89,7 @@ class LemmyBot {
       return this.#performLoggedInBotAction({
         logMessage: `${prefix}voting post ID ${post_id}`,
         action: () =>
-          this.httpClient.likePost({
+          this.__httpClient__.likePost({
             post_id,
             score
           })
@@ -101,7 +101,7 @@ class LemmyBot {
           ? `Replying to comment ID ${parent_id}`
           : `Replying to post ID ${post_id}`,
         action: () =>
-          this.httpClient.createComment({
+          this.__httpClient__.createComment({
             content,
             post_id,
             parent_id,
@@ -112,14 +112,14 @@ class LemmyBot {
       this.#performLoggedInBotAction({
         logMessage: `Editing comment ID ${form.comment_id}`,
         action: () =>
-          this.httpClient.editComment({
+          this.__httpClient__.editComment({
             ...form
           })
       }),
     reportComment: ({ comment_id, reason }) =>
       this.#performLoggedInBotAction({
         action: () =>
-          this.httpClient.createCommentReport({
+          this.__httpClient__.createCommentReport({
             comment_id,
             reason
           }),
@@ -133,7 +133,7 @@ class LemmyBot {
       return await this.#performLoggedInBotAction({
         logMessage: `${prefix}voting comment ID ${comment_id}`,
         action: () =>
-          this.httpClient.likeComment({
+          this.__httpClient__.likeComment({
             comment_id,
             score
           })
@@ -143,7 +143,7 @@ class LemmyBot {
       this.#performLoggedInBotAction({
         logMessage: `Banning user ID ${form.person_id} from ${form.community_id}`,
         action: () =>
-          this.httpClient.banFromCommunity({
+          this.__httpClient__.banFromCommunity({
             ...form,
             ban: true
           })
@@ -152,7 +152,7 @@ class LemmyBot {
       this.#performLoggedInBotAction({
         logMessage: `Removing community ban from user ID ${form.person_id} from ${form.community_id}`,
         action: () =>
-          this.httpClient.banFromCommunity({
+          this.__httpClient__.banFromCommunity({
             ...form,
             ban: false
           })
@@ -161,7 +161,7 @@ class LemmyBot {
       this.#performLoggedInBotAction({
         logMessage: `Banning user ID ${person_id} from ${this.#instance}`,
         action: () =>
-          this.httpClient.banPerson({
+          this.__httpClient__.banPerson({
             person_id,
             expires: days_until_expires,
             reason,
@@ -178,7 +178,7 @@ class LemmyBot {
       this.#performLoggedInBotAction({
         logMessage: `Removing site ban from user ID ${person_id} from ${this.#instance}`,
         action: () =>
-          this.httpClient.banPerson({
+          this.__httpClient__.banPerson({
             person_id,
             expires: days_until_expires,
             reason,
@@ -190,7 +190,7 @@ class LemmyBot {
       this.#performLoggedInBotAction({
         logMessage: `Sending private message to user ID ${recipient_id}`,
         action: () =>
-          this.httpClient.createPrivateMessage({
+          this.__httpClient__.createPrivateMessage({
             content,
             recipient_id
           })
@@ -199,7 +199,7 @@ class LemmyBot {
       this.#performLoggedInBotAction({
         logMessage: `Reporting private message ID ${private_message_id}. Reason: ${reason}`,
         action: () =>
-          this.httpClient.createPrivateMessageReport({
+          this.__httpClient__.createPrivateMessageReport({
             private_message_id,
             reason
           })
@@ -208,7 +208,7 @@ class LemmyBot {
       this.#performLoggedInBotAction({
         logMessage: `Approving application ID ${applicationId}`,
         action: () =>
-          this.httpClient.approveRegistrationApplication({
+          this.__httpClient__.approveRegistrationApplication({
             approve: true,
             id: applicationId
           })
@@ -217,7 +217,7 @@ class LemmyBot {
       this.#performLoggedInBotAction({
         logMessage: `Rejecting application ID ${id}`,
         action: () =>
-          this.httpClient.approveRegistrationApplication({
+          this.__httpClient__.approveRegistrationApplication({
             approve: false,
             id,
             deny_reason
@@ -227,7 +227,7 @@ class LemmyBot {
       this.#performLoggedInBotAction({
         logMessage: `Removing post ID ${post_id}`,
         action: () =>
-          this.httpClient.removePost({
+          this.__httpClient__.removePost({
             post_id,
             removed: true,
             reason
@@ -237,7 +237,7 @@ class LemmyBot {
       this.#performLoggedInBotAction({
         logMessage: `Removing comment ID ${comment_id}`,
         action: () =>
-          this.httpClient.removeComment({
+          this.__httpClient__.removeComment({
             comment_id,
             removed: true,
             reason
@@ -247,7 +247,7 @@ class LemmyBot {
       this.#performLoggedInBotAction({
         logMessage: `Resolving post report ID ${report_id}`,
         action: () =>
-          this.httpClient.resolvePostReport({
+          this.__httpClient__.resolvePostReport({
             report_id,
             resolved: true
           })
@@ -256,7 +256,7 @@ class LemmyBot {
       this.#performLoggedInBotAction({
         logMessage: `Resolving comment report ID ${report_id}`,
         action: () =>
-          this.httpClient.resolveCommentReport({
+          this.__httpClient__.resolveCommentReport({
             report_id,
             resolved: true
           })
@@ -265,7 +265,7 @@ class LemmyBot {
       this.#performLoggedInBotAction({
         logMessage: `Resolving private message report ID ${report_id}`,
         action: () =>
-          this.httpClient.resolvePrivateMessageReport({
+          this.__httpClient__.resolvePrivateMessageReport({
             report_id,
             resolved: true
           })
@@ -274,7 +274,7 @@ class LemmyBot {
       this.#performLoggedInBotAction({
         logMessage: `${featured ? 'F' : 'Unf'}eaturing report ID ${post_id}`,
         action: () =>
-          this.httpClient.featurePost({
+          this.__httpClient__.featurePost({
             post_id,
             featured,
             feature_type
@@ -284,7 +284,7 @@ class LemmyBot {
       this.#performLoggedInBotAction({
         logMessage: `${locked ? 'L' : 'Unl'}ocking report ID ${post_id}`,
         action: () =>
-          this.httpClient.lockPost({
+          this.__httpClient__.lockPost({
             post_id,
             locked
           })
@@ -294,7 +294,7 @@ class LemmyBot {
       this.#performLoggedInBotAction({
         logMessage: `Following community ID ${community_id}`,
         action: () =>
-          this.httpClient.followCommunity({
+          this.__httpClient__.followCommunity({
             community_id,
             follow: true
           })
@@ -303,17 +303,17 @@ class LemmyBot {
     uploadImage: (image) =>
       this.#performLoggedInBotAction({
         logMessage: 'Uploading image',
-        action: () => this.httpClient.uploadImage({ image })
+        action: () => this.__httpClient__.uploadImage({ image })
       }),
     getPost: async (postId) => {
-      const { post_view } = await this.httpClient.getPost({
+      const { post_view } = await this.__httpClient__.getPost({
         id: postId
       });
 
       return post_view;
     },
     getComment: async (commentId) =>
-      (await this.httpClient.getComment({ id: commentId })).comment_view,
+      (await this.__httpClient__.getComment({ id: commentId })).comment_view,
     getParentOfComment: async ({ path, post_id }) => {
       const pathList = path.split('.').filter((i) => i !== '0');
 
@@ -332,7 +332,7 @@ class LemmyBot {
       }
     },
     isCommunityMod: async ({ community_id, person_id }) => {
-      const { moderators } = await this.httpClient.getCommunity({
+      const { moderators } = await this.__httpClient__.getCommunity({
         id: community_id
       });
 
@@ -350,7 +350,7 @@ class LemmyBot {
 
       return this.#performLoggedInBotAction({
         logMessage: `Resolving object: ${q}`,
-        action: () => this.httpClient.resolveObject({ q })
+        action: () => this.__httpClient__.resolveObject({ q })
       });
     }
   };
@@ -433,7 +433,11 @@ class LemmyBot {
         this.#tasks.push(
           cron.schedule(
             task.cronExpression,
-            () => task.doTask(this.#botActions),
+            () =>
+              task.doTask({
+                botActions: this.#botActions,
+                __httpClient__: this.__httpClient__
+              }),
             task.timezone || task.runAtStart
               ? {
                   ...(task.timezone ? { timezone: task.timezone } : {}),
@@ -452,7 +456,7 @@ class LemmyBot {
     this.#enableLogs = enableLogs;
     this.#instance = instance;
     this.#defaultMinutesUntilReprocess = defaultMinutesUntilReprocess;
-    this.httpClient = new LemmyHttp(
+    this.__httpClient__ = new LemmyHttp(
       `http${this.#instance.includes('localhost') ? '' : 's'}://${
         this.#instance
       }`
@@ -547,7 +551,7 @@ class LemmyBot {
               })
               .then((community_id) => {
                 if (community_id) {
-                  return this.httpClient.followCommunity({
+                  return this.__httpClient__.followCommunity({
                     community_id,
                     follow: true
                   });
@@ -573,7 +577,7 @@ class LemmyBot {
 
     if (postOptions) {
       this.#runChecker(async () => {
-        const response = await this.httpClient.getPosts({
+        const response = await this.__httpClient__.getPosts({
           type_: this.#listingType,
           sort: postOptions.sort
         });
@@ -602,7 +606,7 @@ class LemmyBot {
 
     if (commentOptions) {
       this.#runChecker(async () => {
-        const response = await this.httpClient.getComments({
+        const response = await this.__httpClient__.getComments({
           type_: this.#listingType,
           sort: commentOptions.sort
         });
@@ -631,10 +635,11 @@ class LemmyBot {
 
     if (privateMessageOptions && this.#credentials) {
       this.#runChecker(async () => {
-        const { private_messages } = await this.httpClient.getPrivateMessages({
-          limit: 50,
-          unread_only: true
-        });
+        const { private_messages } =
+          await this.__httpClient__.getPrivateMessages({
+            limit: 50,
+            unread_only: true
+          });
 
         await useDatabaseFunctions(
           'messages',
@@ -651,7 +656,7 @@ class LemmyBot {
                   }),
                   this.#performLoggedInBotAction({
                     action: () =>
-                      this.httpClient.markPrivateMessageAsRead({
+                      this.__httpClient__.markPrivateMessageAsRead({
                         private_message_id: messageView.private_message.id,
                         read: true
                       }),
@@ -669,7 +674,7 @@ class LemmyBot {
     if (registrationApplicationOptions && this.#credentials) {
       this.#runChecker(async () => {
         const { registration_applications } =
-          await this.httpClient.listRegistrationApplications({
+          await this.__httpClient__.listRegistrationApplications({
             unread_only: true,
             limit: 50
           });
@@ -696,7 +701,7 @@ class LemmyBot {
 
     if (mentionOptions && this.#credentials) {
       this.#runChecker(async () => {
-        const { mentions } = await this.httpClient.getPersonMentions({
+        const { mentions } = await this.__httpClient__.getPersonMentions({
           limit: 50,
           unread_only: true,
           sort: 'New'
@@ -717,7 +722,7 @@ class LemmyBot {
                   }),
                   this.#performLoggedInBotAction({
                     action: () =>
-                      this.httpClient.markPersonMentionAsRead({
+                      this.__httpClient__.markPersonMentionAsRead({
                         person_mention_id: mentionView.person_mention.id,
                         read: true
                       }),
@@ -734,7 +739,7 @@ class LemmyBot {
 
     if (replyOptions && this.#credentials) {
       this.#runChecker(async () => {
-        const { replies } = await this.httpClient.getReplies({
+        const { replies } = await this.__httpClient__.getReplies({
           limit: 50,
           sort: 'New',
           unread_only: true
@@ -755,7 +760,7 @@ class LemmyBot {
                   }),
                   this.#performLoggedInBotAction({
                     action: () =>
-                      this.httpClient.markCommentReplyAsRead({
+                      this.__httpClient__.markCommentReplyAsRead({
                         comment_reply_id: replyView.comment_reply.id,
                         read: true
                       }),
@@ -772,10 +777,11 @@ class LemmyBot {
 
     if (commentReportOptions && this.#credentials) {
       this.#runChecker(async () => {
-        const { comment_reports } = await this.httpClient.listCommentReports({
-          unresolved_only: true,
-          limit: 50
-        });
+        const { comment_reports } =
+          await this.__httpClient__.listCommentReports({
+            unresolved_only: true,
+            limit: 50
+          });
 
         await useDatabaseFunctions(
           'commentReports',
@@ -799,7 +805,7 @@ class LemmyBot {
 
     if (postReportOptions && this.#credentials) {
       this.#runChecker(async () => {
-        const { post_reports } = await this.httpClient.listPostReports({
+        const { post_reports } = await this.__httpClient__.listPostReports({
           unresolved_only: true,
           limit: 50
         });
@@ -827,7 +833,7 @@ class LemmyBot {
     if (privateMessageReportOptions && this.#credentials) {
       this.#runChecker(async () => {
         const { private_message_reports } =
-          await this.httpClient.listPrivateMessageReports({
+          await this.__httpClient__.listPrivateMessageReports({
             limit: 50,
             unresolved_only: true
           });
@@ -1116,19 +1122,21 @@ class LemmyBot {
   async #login() {
     if (this.#credentials) {
       this.#log('Logging in');
-      const loginRes = await this.httpClient.login({
+      const loginRes = await this.__httpClient__.login({
         password: this.#credentials.password,
         username_or_email: this.#credentials.username
       });
 
       this.#log('Logged in');
-      this.httpClient.setHeaders({ Authorization: `Bearer ${loginRes.jwt}` });
+      this.__httpClient__.setHeaders({
+        Authorization: `Bearer ${loginRes.jwt}`
+      });
       this.#isLoggedIn = true;
 
       if (this.#markAsBot) {
         this.#log('Marking account as bot account');
 
-        await this.httpClient
+        await this.__httpClient__
           .saveUserSettings({
             bot_account: true
           })
@@ -1223,6 +1231,7 @@ class LemmyBot {
         botActions: this.#botActions,
         preventReprocess,
         reprocess,
+        __httpClient__: this.__httpClient__,
         ...entry
       });
 
@@ -1273,7 +1282,7 @@ class LemmyBot {
     }
     const instanceWithoutPort = stripPort(localOptions.instance);
 
-    const { communities, users } = await this.httpClient.search({
+    const { communities, users } = await this.__httpClient__.search({
       q: localOptions.name,
       type_: type
     });
@@ -1303,7 +1312,7 @@ class LemmyBot {
   }
 
   #getModlogItems = (type: ModlogActionType) =>
-    this.httpClient.getModlog({
+    this.__httpClient__.getModlog({
       type_: type,
       limit: 50
     });

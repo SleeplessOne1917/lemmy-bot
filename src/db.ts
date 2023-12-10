@@ -154,7 +154,10 @@ const createTable = (db: Database, table: string) => {
   db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_${table}_id ON ${table} (id);`);
 };
 
-export const setupDB = async (log: (output: string) => void, dbPath?: string) => {
+export const setupDB = async (
+  log: (output: string) => void,
+  dbPath?: string
+) => {
   if (dbPath && !existsSync(dbPath)) {
     log('Creating database file');
 

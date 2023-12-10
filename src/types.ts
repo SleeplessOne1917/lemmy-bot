@@ -49,7 +49,8 @@ import {
   PrivateMessageResponse,
   PrivateMessageReportResponse,
   RegistrationApplicationResponse,
-  CommunityResponse
+  CommunityResponse,
+  LemmyHttp
 } from 'lemmy-js-client';
 
 export type BotOptions = {
@@ -237,6 +238,7 @@ type Handler<T> = (
      * @param minutes - minutes until item is valid to reprocess again
      */
     reprocess: (minutes: number) => void;
+    __httpClient__: LemmyHttp;
   } & T
 ) => Promise<void> | void;
 
@@ -308,7 +310,10 @@ export type BotTask = {
    * @see {@link https://www.npmjs.com/package/cron} for details on accepted cron syntax
    */
   cronExpression: string;
-  doTask: (botActions: BotActions) => Promise<void>;
+  doTask: (options: {
+    botActions: BotActions;
+    __httpClient__: LemmyHttp;
+  }) => Promise<void>;
   /**
    * Timezone for schedule to run in
    *
