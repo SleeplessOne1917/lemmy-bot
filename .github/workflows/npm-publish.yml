@@ -16,14 +16,14 @@ jobs:
           ref: main
       - uses: actions/setup-node@v3
         with:
-          node-version: 18.x
+          node-version: 20.x
           registry-url: https://registry.npmjs.org/
       - uses: pnpm/action-setup@v2
         with:
-          version: 8.6.x
+          version: 8.12.x
           run_install: |
             - args: [ --frozen-lockfile ]
-      - run: pnpm build
+      - run: pnpm prepare
       - run: pnpm publish
         env:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
