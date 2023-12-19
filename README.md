@@ -25,6 +25,8 @@
 
 ## Installation
 
+**Note**: This library only works with Node versions 18 and above.
+
 Run
 
 ```
