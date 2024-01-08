@@ -12,8 +12,8 @@ dependencies:
     specifier: ^3.0.3
     version: 3.0.3
   sqlite3:
-    specifier: 5.1.7-rc.0
-    version: 5.1.7-rc.0
+    specifier: 5.1.7
+    version: 5.1.7
 
 devDependencies:
   '@types/node':
@@ -486,6 +486,7 @@ packages:
 
   /brace-expansion@1.1.11:
     resolution: {integrity: sha512-iCuPHDFgrHX7H2vEI/5xpz07zSHB00TpugqhmYtVmMO6518mCuRMoOYFldEBl0g187ufozdaHgWKcYFb61qGiA==}
+    requiresBuild: true
     dependencies:
       balanced-match: 1.0.2
       concat-map: 0.0.1
@@ -594,6 +595,7 @@ packages:
 
   /concat-map@0.0.1:
     resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
+    requiresBuild: true
 
   /console-control-strings@1.1.0:
     resolution: {integrity: sha512-ty/fTekppD2fIwRvnZAVdeOiGd1c7YXEixbgJTNzqcxJWKQnjJ/V1bNEEE6hygpM3WjwHFUVK6HTjWSzV4a8sQ==}
@@ -1757,8 +1759,8 @@ packages:
     dev: false
     optional: true
 
-  /sqlite3@5.1.7-rc.0:
-    resolution: {integrity: sha512-LBbru2WM4I259E+1pernw/vYKMjQa5elvxJPC15/7TgWYAaOBXuTnamyXdWJh7EH0qmhQrPmYEI9PbCMdoAW9Q==}
+  /sqlite3@5.1.7:
+    resolution: {integrity: sha512-GGIyOiFaG+TUra3JIfkI/zGP8yZYLPQ0pl1bH+ODjiX57sPhrLU5sQJn1y9bDKZUFYkX1crlrPfSYt0BKKdkog==}
     requiresBuild: true
     peerDependenciesMeta:
       node-gyp:
