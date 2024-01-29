@@ -1,6 +1,6 @@
 {
   "name": "lemmy-bot",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "A bot API for Lemmy, the fediverse link aggregator.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -26,16 +26,8 @@
     "node-cron": "^3.0.3",
     "sqlite3": "5.1.7"
   },
-  "files": [
-    "/dist"
-  ],
-  "keywords": [
-    "lemmy",
-    "bot",
-    "lemmy-bot",
-    "fediverse",
-    "fediverse-bot"
-  ],
+  "files": ["/dist"],
+  "keywords": ["lemmy", "bot", "lemmy-bot", "fediverse", "fediverse-bot"],
   "bugs": "https://github.com/SleeplessOne1917/lemmy-bot/issues",
   "repository": {
     "type": "git",
