@@ -100,6 +100,14 @@ export type BotOptions = {
    * @default true
    */
   enableLogs?: boolean;
+  /**
+   * If true, the bot will not actually perform any actions.
+   * If set to false, the bot will perform actions as normal.
+   * Useful for development and testing without affecting a production instance.
+   * 
+   * @default false;
+   */
+  dryRun?: boolean;
 };
 
 export type ParentType = 'post' | 'comment';
