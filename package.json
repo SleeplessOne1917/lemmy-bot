@@ -11,7 +11,7 @@
   "author": "SleeplessOne1917",
   "license": "AGPL-3.0",
   "devDependencies": {
-    "@types/node": "^20.11.5",
+    "@types/node": "^20.11.10",
     "@types/node-cron": "^3.0.11",
     "@typescript-eslint/eslint-plugin": "^6.19.1",
     "@typescript-eslint/parser": "^6.19.1",
@@ -22,7 +22,7 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "lemmy-js-client": "0.19.2-alpha.3",
+    "lemmy-js-client": "0.19.3-alpha.6",
     "node-cron": "^3.0.3",
     "sqlite3": "5.1.7"
   },
