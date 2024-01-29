@@ -189,6 +189,12 @@ as a bot in the account's settings.
 
 Default value is `true`.
 
+#### `dryRun`
+
+If true, no network requests will be made to your lemmy instance. If false, the bot will contact the instance configured in `instance`. Use this in combination with `enableLogs` and without `credentials` when doing development or testing to avoid unwanted actions in production.
+
+Default value is `false`.
+
 #### `enableLogs`
 
 If true, the bot will log every action it does to the console.

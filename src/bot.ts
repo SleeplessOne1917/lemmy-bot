@@ -38,6 +38,7 @@ const DEFAULT_SECONDS_BETWEEN_POLLS = 30;
 const DEFAULT_MINUTES_UNTIL_REPROCESS: number | undefined = undefined;
 
 class LemmyBot {
+  #isDryRun: boolean;
   #isRunning: boolean;
   #isLoggedIn = false;
   #instance: string;
@@ -372,7 +373,8 @@ class LemmyBot {
     federation,
     schedule,
     markAsBot = true,
-    enableLogs = true
+    enableLogs = true,
+    dryRun = false
   }: BotOptions) {
     switch (federation) {
       case undefined:
@@ -451,6 +453,7 @@ class LemmyBot {
 
     this.#credentials = credentials;
     this.#defaultSecondsBetweenPolls = defaultSecondsBetweenPolls;
+    this.#isDryRun = dryRun;
     this.#isRunning = false;
     this.#markAsBot = markAsBot;
     this.#enableLogs = enableLogs;
@@ -1325,6 +1328,11 @@ class LemmyBot {
     action: () => Promise<T>;
   }): Promise<T> {
     this.#log(logMessage);
+
+    if (this.#isDryRun) {
+      return Promise.reject();
+    }
+
     try {
       return await action();
     } catch (err: any) {
