@@ -11,7 +11,7 @@
 </div>
 <div align="center">
   <a href="https://github.com/LemmyNet/lemmy" rel="noopener">
-  <img src="images/lemmy_logo.svg" alt="Lemmy logo" width="250px" height="250px"/>
+  <img src="https://raw.githubusercontent.com/LemmyNet/lemmy-ui/main/src/assets/icons/favicon.svg" alt="Lemmy logo" width="250px" height="250px"/>
   
   <h1 align="center">lemmy-bot</h1>
   <p align="center">Library to make it easier to make bots for <a href="https://join-lemmy.org/">Lemmy</a>, the fediverse forum/link aggregator.</p>
@@ -49,9 +49,9 @@ pnpm install lemmy-bot
 
 For lemmy versions 0.17.x, use lemmy-bot 0.3.9 and lower.
 
-For lemmy versions 0.18.x, use lemmy-bot 0.4.0 and up.
+For lemmy versions 0.18.x, use lemmy-bot 0.4.x.
 
-For lemmy versions 0.19.x, use lemmy-bot 0.5.0 and up.
+For lemmy versions 0.19.x, use lemmy-bot 0.5.x or 0.6.x.
 
 ## Documentation
 
@@ -90,7 +90,7 @@ Options for the bot's connection. It is an object with the following properties:
 - `minutesBeforeRetryConnection`: If the bot's connection closes, the bot will wait this many minutes before opening another connection and trying again. Default value is 5. If you don't want the bot to attempt to reconnect, pass in `false`.
 - `secondsBetweenPolls`: Number of seconds between HTTP requests the bot will make to check for items to handle. Default value is 30.
 - `minutesUntilReprocess`: If the bot can to potentially handle the same item more than once (e.g. polling posts by top day every minute and replying to any with more than 25 points), `minutesUntilReprocess` specifies how many minutes must pass until an item is valid for reprocessing. If this value is undefined, items will not be reprocessed at all. Default value is undefined.
-  **NOTE**: It is possible that an item that is valid for reprocessing will not be handled again. Taking the example from before and polling every day instead of every minute, a post from the day before that is valid for reprocessing might not show up in the current day's top posts.
+  **Note**: It is possible that an item that is valid for reprocessing will not be handled again. Taking the example from before and polling every day instead of every minute, a post from the day before that is valid for reprocessing might not show up in the current day's top posts.
 
 #### `handlers`
 
@@ -168,6 +168,8 @@ Entries `allowList` and `blockList` can either be strings or objects. If the ent
 - `instance`: Domain name of the instance to allow/block from.
 - `communities`: List of community names on the instance that should be allowed/blocked.
 
+**Note**: If you want to limit checking on your local instance to only a few communities, do not pass `local`; instead, pass an object with an `allowList` with your local instance domain and desired communities.
+
 #### `schedule`
 
 Task object or list of task objects. Task objects have the following properties:
@@ -189,6 +191,12 @@ as a bot in the account's settings.
 
 Default value is `true`.
 
+#### `dryRun`
+
+If `true`, no network requests will be made to your lemmy instance. If `false`, the bot will contact the instance configured in `instance`. Use this in combination with `enableLogs` and without `credentials` when doing development or testing to avoid unwanted actions in production.
+
+Default value is `false`.
+
 #### `enableLogs`
 
 If true, the bot will log every action it does to the console.
@@ -205,16 +213,17 @@ The actions are as follows, grouped by access level in ascending order:
 
 #### No login required
 
-- `getCommunityId(options: string | SearchOptions)`: Retrieves a community ID based on name; returns undefined if not found. If passed a string, the bot will look for the community name on the local instance. Can also be passed a `SearchOptions` object with the following propertied:
-  - `instance`: Instance the community is on.
-  - `name`: Name of the community.
-- `getUserId(options: string | SearchOptions)`: Retrieves a user ID based on name; returns undefined if not found. Like `getCommunityId`, accepts either a string to search for a user by name on the local instance, or a `SearchOptions` object to search on another instance, only the name refers to a user instead of a community.
-- `getPost(postId: number)`: Retrieve a post based on its ID.
-- `getComment(commentId: number)`: Retrieve a comment based on its ID.
+- `getCommunity(form: GetCommunity)`: Retrieves community. the request form can accept either a community ID or a community name. If you are doing the latter, use `"{community name}@{instance}"` to get results more reliably.
+- `getPersonDetails(form: GetPersonDetails)`: Gets details about a person, including posts and comments they made and communities the moderate.
+- `getPost(form: GetPost)`: Retrieve a post based on its ID.
+- `getComment(form: GetComment)`: Retrieve a comment based on its ID.
 - `getParentOfComment(form: Comment)`: Retrieves the parent of a comment. Accepts a comment object, which is returned from handlers that deal with comments (e.g. comment handler, mention handler, reply handler, etc.). Returns an object with the following properties:
-  - `type` "post" or "comment"
-  - `data` PostView | CommentView
-- `isCommunityMod(form: {community_id: number, person_id: number})`: Returns whether or not a person is a moderator of a given community.
+  - `type` `"post"` or `"comment"`
+  When `type` is `"post"`:
+  - `post`: `GetPostResponse`
+  When `type` is `"comment"`:
+  - `comment`: `CommentResponse`
+- `isCommunityMod(form: {community: Community, person: Person})`: Returns whether or not a person is a moderator of a given community.
 
 #### Regular account
 
@@ -250,8 +259,8 @@ The actions are as follows, grouped by access level in ascending order:
   - `privateMessage_id` number
   - `reason` string
 - `uploadImage(image: Buffer)`: Upload an image to pictrs. Returns a promise with an `UploadImageResponse`.
-- `resolveObject(form: string | { community: string, instance: string })`: Resolves an object on a remote instance. Use this to federate with communities that aren't showing up on your local instance yet. **Note**: If passing in a string, make sure it is in the format "!'community name'@'instance domain'".
-- `followCommunity(community_id: number)`: Make your bot subscribe to a community.
+- `resolveObject(form: ResolveObject)`: Resolves an object on a remote instance. Use this to federate with communities that aren't showing up on your local instance yet. **Note**: If passing in a string, make sure it is in the format "!'community name'@'instance domain'".
+- `followCommunity(form: FollowCommunity)`: Subscribe to a community.
 - `editPost(form: EditPost)`: Edit a post that was made previously by the bot. The `form` argument has the following properties:
   - `post_id` number
   - `name` _optional_ string
@@ -266,22 +275,33 @@ The actions are as follows, grouped by access level in ascending order:
 
 #### Community moderator
 
-- `banFromCommunity(form: BanFromCommunity)`: Ban a user from a community. Accepts an object with the following properties:
+- `banFromCommunity(form: BanFromCommunity)`: Ban or unban a user from a community. Accepts an object with the following properties:
   - `community_id` number
-  - `personId` number
-  - `days_until_expires` _optional_ number
+  - `person_id` number
+  - `ban` boolean
+  - `expires` _optional_ number
   - `reason` _optional_ string
   - `remove_data` _optional_ boolean
-- `removeBanFromCommunity(form: BanFromCommunity)`: Undoes ban from community. Takes same argument type as `banFromCommunity`.
 - `removePost(form: RemovePost)`: Remove a post. Accepts an object with the following properties:
   - `post_id` number
+  - `removed` boolean
   - `reason` _optional_ string
+- `distinguishComment(form: DistinguishComment)`: Pin a comment to the top of a comment thread. Accepts an object with the following properties:
+  - `comment_id` number
+  - `distinguished` boolean
 - `removeComment(form: RemoveComment)`: Remove a comment. Accepts an object with the following properties:
   - `comment_id` number
+  - `removed` boolean
   - `reason` _optional_ string
-- `resolveCommentReport(commentReportId: number)`: Resolve a comment report.
-- `resolvePostReport(postReportId: number)`: Resolve a post report.
-- `resolveMessageReport(privateMessageReportId: number)`: Resolve a private message report.
+- `resolveCommentReport(form: ResolveCommentReport)`: Resolve a comment report. Accepts an object with the following properties:
+  - `report_id` number
+  - `resolved` boolean
+- `resolvePostReport(form: ResolvePostReport)`: Resolve a post report. Accepts an object with the following properties:
+  - `report_id` number
+  - `resolved` boolean
+- `resolveMessageReport(form: ResolvePrivateMessageReport)`: Resolve a private message report. Accepts an object with the following propertied:
+  - `report_id` number
+  - `resolved` boolean
 - `featurePost(form: FeaturePost)`: Feature a post. Accepts an object with the following properties:
   - `post_id` number
   - `feature_type`: PostFeatureType
@@ -292,14 +312,24 @@ The actions are as follows, grouped by access level in ascending order:
 
 #### Admin
 
-- `banFromSite(form: BanFromSite)`: Ban a user from the instance. Accepts an object with the following properties:
+- `getCommentVotes(form: ListCommentLikes)`: Show who voted on a comment, and what their vote is. Accepts an object with the following properties:
+  - `comment_id` number
+  - `page` __optional__ number
+  - `limit` __optional__ number
+- `getPostVotes(form: ListPostLikes)`: Show who voted on a post, and what their vote is. Accepts an object with the following properties:
+  - `post_id` number
+  - `page` __optional__ number
+  - `limit` __optional__ number
+- `banFromSite(form: BanFromSite)`: Ban or unban a user from the instance. Accepts an object with the following properties:
   - `person_id` number
-  - `days_until_expires` _optional_ number
+  - `ban` number
+  - `expires` _optional_ number
   - `reason` _optional_ string
   - `remove_data` _optional_ boolean
-- `removeBanFromSite(form: BanFromSite)`: Unbans a user from the site. Argument type is the same that is passed to `banFromSite`
-- `approveRegistrationApplication(applicationId: number)`: Approve the creation of an account.
-- `rejectRegistrationApplication(applicationId: number, denyReason?: string)`: Deny a request to create an account on the instance.
+- `approveRegistrationApplication(form: ApproveRegistrationApplication)`: Approve the creation of an account. Accepts an object with the following properties:
+  - `id` number
+  - `approve` boolean
+  - `deny_reason` __optional__ string
 
 ## HTTP Client
 If you need to use the [lemmy client](https://github.com/LemmyNet/lemmy-js-client) directly, the `__httpClient__` property is available so you don't need add it to your project separately. For your convenience, you can also access this in paramaters for polled event handlers and scheduled tasks.
@@ -313,103 +343,10 @@ There are templates for docker and systemd in the templates folder to help you r
 
 - [Translator bot](https://github.com/SleeplessOne1917/lemmy-translator-bot)
 - [OCR scanner bot](https://github.com/SleeplessOne1917/lemmy-ocr-bot)
-- [AI art bot](https://github.com/SleeplessOne1917/lemmy-stable-diffusion-bot)
 - [Piped link bot](https://github.com/TeamPiped/lemmy-piped-link-bot)
-
-### Like Me Bot
-
-This example bot will like users' posts and comments on request. Users can subscribe and unsubscribe to the liking by messaging the bot.
-
-```typescript
-import LemmyBot, { Vote } from 'lemmy-bot';
-
-const usersToLike: number[] = [];
-
-const bot = new LemmyBot({
-  instance: 'instance.xyz',
-  credentials: {
-    username: 'LikeMeBot',
-    password: 'password'
-  },
-  federation: 'all',
-  dbFile: 'db.sqlite3',
-  handlers: {
-    post: {
-      handle: ({
-        postView: {
-          post: { creator_id, id }
-        },
-        botActions: { votePost }
-      }) => {
-        if (usersToLike.includes(creator_id)) {
-          votePost({
-            post_id: id,
-            vote: Vote.Upvote
-          });
-        }
-      }
-    },
-    comment: ({
-      commentView: {
-        comment: { creator_id, id }
-      },
-      botActions: { voteComment }
-    }) => {
-      if (usersToLike.includes(creator_id)) {
-        voteComment({
-          comment_id: id,
-          vote: Vote.Upvote
-        });
-      }
-    },
-    privateMessage: ({
-      messageView: {
-        private_message: { content, creator_id }
-      },
-      botActions: { sendPrivateMessage }
-    }) => {
-      const lcContent = content.toLowerCase();
-      if (lcContent.includes('like me')) {
-        if (usersToLike.includes(creator_id)) {
-          sendPrivateMessage({
-            recipient_id: creator_id,
-            content:
-              'I am already liking your posts. Message "Stop" to unsubscribe.'
-          });
-        } else {
-          usersToLike.push(creator_id);
-          sendPrivateMessage({
-            recipient_id: creator_id,
-            content: 'You are now subscribed! I will like anything you post'
-          });
-        }
-      } else if (lcContent.includes('stop')) {
-        if (!usersToLike.includes(creator_id)) {
-          sendPrivateMessage({
-            recipient_id: creator_id,
-            content: 'You are already unsubscribed from my likes'
-          });
-        } else {
-          for (let i = 0; i < usersToLike.length; ++i) {
-            if (usersToLike[i] === creator_id) {
-              usersToLike.splice(i, 1);
-              break;
-            }
-          }
-        }
-      } else {
-        sendPrivateMessage({
-          recipient_id: creator_id,
-          content:
-            'Command not recognized. Send a message to me that says "Like me" if you want me to like your posts. If you don\'t want me to like your posts anymore, message me "Stop"'
-        });
-      }
-    }
-  }
-});
-
-bot.start();
-```
+- [Karma bot](https://github.com/programming-dot-dev/karma-bot)
+- [Link bot](https://github.com/PangoraWeb/link-bot)
+- [Basedcount automoderator](https://github.com/basedcount/lemmy-automoderator)
 
 ### Congratulator Bot
 
@@ -491,12 +428,13 @@ const bot = new LemmyBot({
         creator: { name },
         registration_application: { id }
       },
-      botActions: { rejectRegistrationApplication }
+      botActions: { approveRegistrationApplication }
     }) => {
       if (cringeNameRegex.test(name)) {
-        rejectRegistrationApplication({
+        approveRegistrationApplication({
           id,
-          deny_reason: 'No cringy usernames allowed'
+          deny_reason: 'No cringy usernames allowed',
+          approve: false
         });
       }
     }

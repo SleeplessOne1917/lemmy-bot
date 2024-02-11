@@ -3,7 +3,6 @@ import {
   CommentReportView,
   CommentSortType,
   CommentView,
-  CreatePost as CreateClientPost,
   ModAddCommunityView,
   ModAddView,
   ModBanFromCommunityView,
@@ -22,24 +21,16 @@ import {
   RegistrationApplicationView,
   SortType,
   UploadImageResponse,
-  CreateComment as CreateClientComment,
   CreatePostReport,
   CreateCommentReport,
   CreatePostLike,
   CreateCommentLike,
-  BanFromCommunity as ClientBanFromCommunity,
   CreatePrivateMessage,
   BanPerson,
   CreatePrivateMessageReport,
   ApproveRegistrationApplication,
-  RemoveComment as ClientRemoveComment,
-  RemovePost as ClientRemovePost,
-  FeaturePost as ClientFeaturePost,
-  LockPost as ClientLockPost,
   Comment,
   ResolveObjectResponse,
-  EditComment as ClientEditComment,
-  EditPost as ClientEditPost,
   CommentReportResponse,
   CommentResponse,
   PostReportResponse,
@@ -50,7 +41,35 @@ import {
   PrivateMessageReportResponse,
   RegistrationApplicationResponse,
   CommunityResponse,
-  LemmyHttp
+  LemmyHttp,
+  CreateComment,
+  EditComment,
+  CreatePost,
+  EditPost,
+  BanFromCommunity,
+  RemovePost,
+  RemoveComment,
+  ResolvePostReport,
+  ResolveCommentReport,
+  ResolvePrivateMessageReport,
+  FeaturePost,
+  LockPost,
+  GetCommunity,
+  GetCommunityResponse,
+  FollowCommunity,
+  GetPersonDetails,
+  GetPersonDetailsResponse,
+  GetPost,
+  GetPostResponse,
+  GetComment,
+  Person,
+  Community,
+  ResolveObject,
+  ListCommentLikes,
+  ListCommentLikesResponse,
+  ListPostLikes,
+  ListPostLikesResponse,
+  DistinguishComment
 } from 'lemmy-js-client';
 
 export type BotOptions = {
@@ -100,90 +119,80 @@ export type BotOptions = {
    * @default true
    */
   enableLogs?: boolean;
+  /**
+   * If true, the bot will not actually perform any actions.
+   * If set to false, the bot will perform actions as normal.
+   * Useful for development and testing without affecting a production instance.
+   *
+   * @default false;
+   */
+  dryRun?: boolean;
 };
 
-export type ParentType = 'post' | 'comment';
-
-export type ParentResponse = {
-  type: ParentType;
-  data: CommentView | PostView;
+type ParentPost = {
+  type: 'post';
+  post: GetPostResponse;
 };
+
+type ParentComment = {
+  type: 'comment';
+  comment: CommentResponse;
+};
+
+export type ParentResponse = ParentPost | ParentComment;
 
 export type BotActions = {
-  reportComment: (form: ReportComment) => Promise<CommentReportResponse>;
+  reportComment: (form: CreateCommentReport) => Promise<CommentReportResponse>;
   createComment: (form: CreateComment) => Promise<CommentResponse>;
   editComment: (form: EditComment) => Promise<CommentResponse>;
-  reportPost: (form: ReportPort) => Promise<PostReportResponse>;
-  votePost: (form: VotePost) => Promise<PostResponse>;
+  voteComment: (form: CreateCommentLike) => Promise<CommentResponse>;
+  getCommentVotes: (
+    form: ListCommentLikes
+  ) => Promise<ListCommentLikesResponse>;
+  distinguishComment: (form: DistinguishComment) => Promise<CommentResponse>;
+  reportPost: (form: CreatePostReport) => Promise<PostReportResponse>;
+  votePost: (form: CreatePostLike) => Promise<PostResponse>;
   createPost: (form: CreatePost) => Promise<PostResponse>;
   editPost: (form: EditPost) => Promise<PostResponse>;
-  voteComment: (form: VoteComment) => Promise<CommentResponse>;
+  getPostVotes: (form: ListPostLikes) => Promise<ListPostLikesResponse>;
   banFromCommunity: (
     form: BanFromCommunity
   ) => Promise<BanFromCommunityResponse>;
-  removeBanFromCommunity: (
-    form: RemoveBanFromCommunity
-  ) => Promise<BanFromCommunityResponse>;
-  banFromSite: (form: BanFromSite) => Promise<BanPersonResponse>;
-  removeBanFromSite: (
-    form: RemoveBanFromCommunity
-  ) => Promise<BanPersonResponse>;
+  banFromSite: (form: BanPerson) => Promise<BanPersonResponse>;
   sendPrivateMessage: (
-    form: SendPrivateMessage
+    form: CreatePrivateMessage
   ) => Promise<PrivateMessageResponse>;
   reportPrivateMessage: (
-    form: ReportPrivateMessage
+    form: CreatePrivateMessageReport
   ) => Promise<PrivateMessageReportResponse>;
   approveRegistrationApplication: (
-    applicationId: number
-  ) => Promise<RegistrationApplicationResponse>;
-  rejectRegistrationApplication: (
-    form: RejectApplicationApplication
+    form: ApproveRegistrationApplication
   ) => Promise<RegistrationApplicationResponse>;
   removePost: (form: RemovePost) => Promise<PostResponse>;
   removeComment: (form: RemoveComment) => Promise<CommentResponse>;
-  resolvePostReport: (postReportId: number) => Promise<PostReportResponse>;
+  resolvePostReport: (form: ResolvePostReport) => Promise<PostReportResponse>;
   resolveCommentReport: (
-    commentReportId: number
+    form: ResolveCommentReport
   ) => Promise<CommentReportResponse>;
   resolvePrivateMessageReport: (
-    privateMessageReportId: number
+    form: ResolvePrivateMessageReport
   ) => Promise<PrivateMessageReportResponse>;
   featurePost: (form: FeaturePost) => Promise<PostResponse>;
   lockPost: (form: LockPost) => Promise<PostResponse>;
-  /**
-   * Gets a community ID by name.
-   *
-   * @param options - If just a string, will search for the community on the bot's local instance. Pass a {@link SearchOptions} object to search for a community on another instance
-   *
-   * @returns The ID of the searched for community, or undefined if not found
-   */
-  getCommunityId: (
-    options: SearchOptions | string
-  ) => Promise<number | undefined>;
-  /**
-   * Follows a community by its ID.
-   */
-  followCommunity: (community_id: number) => Promise<CommunityResponse>;
-  /**
-   * Gets user ID by name.
-   *
-   * @param options - If just a string, will search for the user on the bot's local instance. Pass a {@link SearchOptions} object to search for a user on another instance
-   *
-   * @returns The ID of the searched for user, or undefined if not found
-   */
-  getUserId: (form: SearchOptions | string) => Promise<number | undefined>;
+  getCommunity: (form: GetCommunity) => Promise<GetCommunityResponse>;
+  followCommunity: (form: FollowCommunity) => Promise<CommunityResponse>;
+  getPersonDetails: (
+    form: GetPersonDetails
+  ) => Promise<GetPersonDetailsResponse>;
   uploadImage: (image: Buffer) => Promise<UploadImageResponse>;
-  getPost: (postId: number) => Promise<PostView>;
-  getComment: (commentId: number) => Promise<CommentView>;
+  getPost: (form: GetPost) => Promise<GetPostResponse>;
+  getComment: (commentId: GetComment) => Promise<CommentResponse>;
   getParentOfComment: (form: Comment) => Promise<ParentResponse>;
   isCommunityMod: (form: {
-    person_id: number;
-    community_id: number;
+    person: Person;
+    community: Community;
   }) => Promise<boolean>;
-  resolveObject: (
-    form: string | { instance: string; communityName: string }
-  ) => Promise<ResolveObjectResponse>;
+  resolveObject: (form: ResolveObject) => Promise<ResolveObjectResponse>;
 };
 
 export type InternalHandlers = {
@@ -346,56 +355,3 @@ export type BotCredentials = {
   username: string;
   password: string;
 };
-
-export type SearchOptions = {
-  name: string;
-  instance: string;
-};
-
-export type CreatePost = Omit<CreateClientPost, 'auth'>;
-
-export type CreateComment = Omit<CreateClientComment, 'auth' | 'form_id'>;
-
-export type EditPost = Omit<ClientEditPost, 'auth'>;
-
-export type EditComment = Omit<ClientEditComment, 'auth' | 'form_id'>;
-
-export type ReportPort = Omit<CreatePostReport, 'auth'>;
-
-export type ReportComment = Omit<CreateCommentReport, 'auth'>;
-
-export type VotePost = Omit<CreatePostLike, 'auth' | 'score'> & { vote: Vote };
-
-export type VoteComment = Omit<CreateCommentLike, 'auth' | 'score'> & {
-  vote: Vote;
-};
-
-export type BanFromCommunity = Omit<
-  ClientBanFromCommunity,
-  'auth' | 'ban' | 'expires'
-> & { days_until_expires?: number };
-
-export type RemoveBanFromCommunity = BanFromCommunity;
-
-export type BanFromSite = Omit<BanPerson, 'auth' | 'ban' | 'expires'> & {
-  days_until_expires?: number;
-};
-
-export type RemoveBanFromSite = BanFromSite;
-
-export type SendPrivateMessage = Omit<CreatePrivateMessage, 'auth'>;
-
-export type ReportPrivateMessage = Omit<CreatePrivateMessageReport, 'auth'>;
-
-export type RejectApplicationApplication = Omit<
-  ApproveRegistrationApplication,
-  'approve' | 'auth'
->;
-
-export type RemovePost = Omit<ClientRemovePost, 'auth' | 'removed'>;
-
-export type RemoveComment = Omit<ClientRemoveComment, 'auth' | 'removed'>;
-
-export type FeaturePost = Omit<ClientFeaturePost, 'auth'>;
-
-export type LockPost = Omit<ClientLockPost, 'auth'>;

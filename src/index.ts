@@ -9,36 +9,9 @@ export {
   BotInstanceFederationOptions,
   BotInstanceList,
   BotOptions,
-  SearchOptions,
   Vote
 } from './types';
 
 export { default as default, default as LemmyBot } from './bot';
 
-export {
-  CommentView,
-  CommentSortType,
-  PostView,
-  SortType,
-  PrivateMessageView,
-  RegistrationApplicationView,
-  PersonMentionView,
-  CommentReplyView,
-  CommentReportView,
-  PostReportView,
-  PrivateMessageReportView,
-  ModRemovePostView,
-  ModLockPostView,
-  ModFeaturePostView,
-  ModRemoveCommentView,
-  ModRemoveCommunityView,
-  ModBanFromCommunityView,
-  ModAddCommunityView,
-  ModTransferCommunityView,
-  ModAddView,
-  ModBanView,
-  UploadImageResponse,
-  PostFeatureType,
-  SearchType,
-  ListingType
-} from 'lemmy-js-client';
+export * from 'lemmy-js-client';
