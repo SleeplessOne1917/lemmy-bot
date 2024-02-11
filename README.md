@@ -304,6 +304,9 @@ The actions are as follows, grouped by access level in ascending order:
 ## HTTP Client
 If you need to use the [lemmy client](https://github.com/LemmyNet/lemmy-js-client) directly, the `__httpClient__` property is available so you don't need add it to your project separately. For your convenience, you can also access this in paramaters for polled event handlers and scheduled tasks.
 
+## Running Your Bot
+There are templates for docker and systemd in the templates folder to help you run your bot once you've made it.
+
 ## Examples
 
 ### Live Examples

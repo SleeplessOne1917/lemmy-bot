@@ -1,0 +1,13 @@
+[Unit]
+Description=/*Put description here*/
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/*Put working directory here*/
+User=/*Put OS user here*/
+ExecStart=/* Put start command here */
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
