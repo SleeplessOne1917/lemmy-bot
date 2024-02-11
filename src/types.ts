@@ -64,7 +64,12 @@ import {
   GetComment,
   Person,
   Community,
-  ResolveObject
+  ResolveObject,
+  ListCommentLikes,
+  ListCommentLikesResponse,
+  ListPostLikes,
+  ListPostLikesResponse,
+  DistinguishComment
 } from 'lemmy-js-client';
 
 export type BotOptions = {
@@ -126,12 +131,12 @@ export type BotOptions = {
 
 type ParentPost = {
   type: 'post';
-  post: PostView;
+  post: GetPostResponse;
 };
 
 type ParentComment = {
   type: 'comment';
-  comment: CommentView;
+  comment: CommentResponse;
 };
 
 export type ParentResponse = ParentPost | ParentComment;
@@ -140,11 +145,16 @@ export type BotActions = {
   reportComment: (form: CreateCommentReport) => Promise<CommentReportResponse>;
   createComment: (form: CreateComment) => Promise<CommentResponse>;
   editComment: (form: EditComment) => Promise<CommentResponse>;
+  voteComment: (form: CreateCommentLike) => Promise<CommentResponse>;
+  getCommentVotes: (
+    form: ListCommentLikes
+  ) => Promise<ListCommentLikesResponse>;
+  distinguishComment: (form: DistinguishComment) => Promise<CommentResponse>;
   reportPost: (form: CreatePostReport) => Promise<PostReportResponse>;
   votePost: (form: CreatePostLike) => Promise<PostResponse>;
   createPost: (form: CreatePost) => Promise<PostResponse>;
   editPost: (form: EditPost) => Promise<PostResponse>;
-  voteComment: (form: CreateCommentLike) => Promise<CommentResponse>;
+  getPostVotes: (form: ListPostLikes) => Promise<ListPostLikesResponse>;
   banFromCommunity: (
     form: BanFromCommunity
   ) => Promise<BanFromCommunityResponse>;
@@ -171,7 +181,9 @@ export type BotActions = {
   lockPost: (form: LockPost) => Promise<PostResponse>;
   getCommunity: (form: GetCommunity) => Promise<GetCommunityResponse>;
   followCommunity: (form: FollowCommunity) => Promise<CommunityResponse>;
-  getUser: (form: GetPersonDetails) => Promise<GetPersonDetailsResponse>;
+  getPersonDetails: (
+    form: GetPersonDetails
+  ) => Promise<GetPersonDetailsResponse>;
   uploadImage: (image: Buffer) => Promise<UploadImageResponse>;
   getPost: (form: GetPost) => Promise<GetPostResponse>;
   getComment: (commentId: GetComment) => Promise<CommentResponse>;

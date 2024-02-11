@@ -4,7 +4,8 @@ import {
   LemmyHttp,
   ListingType,
   ModlogActionType,
-  ApproveRegistrationApplication
+  ApproveRegistrationApplication,
+  GetCommunityResponse
 } from 'lemmy-js-client';
 import {
   correctVote,
@@ -85,14 +86,19 @@ class LemmyBot {
         score === Vote.Upvote ? 'Up' : score === Vote.Downvote ? 'Down' : 'Un';
 
       return this.#performLoggedInBotAction({
-        logMessage: `${prefix}voting post ID $form.{post_id}`,
+        logMessage: `${prefix}voting post ID ${form.post_id}`,
         action: () =>
           this.__httpClient__.likePost({
-            score,
-            ...form
+            ...form,
+            score
           })
       });
     },
+    getPostVotes: (form) =>
+      this.#performLoggedInBotAction({
+        logMessage: `Getting votes for post ${form.post_id}`,
+        action: () => this.__httpClient__.listPostLikes(form)
+      }),
     createComment: (form) =>
       this.#performLoggedInBotAction({
         logMessage: form.parent_id
@@ -110,6 +116,11 @@ class LemmyBot {
         action: () => this.__httpClient__.createCommentReport(form),
         logMessage: `Reporting to comment ID ${form.comment_id} for ${form.reason}`
       }),
+    distinguishComment: (form) =>
+      this.#performLoggedInBotAction({
+        logMessage: `Distinguishing comment ${form.comment_id}`,
+        action: () => this.__httpClient__.distinguishComment(form)
+      }),
     voteComment: async (form) => {
       const score = correctVote(form.score);
       const prefix =
@@ -119,11 +130,22 @@ class LemmyBot {
         logMessage: `${prefix}voting comment ID ${form.comment_id}`,
         action: () =>
           this.__httpClient__.likeComment({
-            score,
-            ...form
+            ...form,
+
+            score
           })
       });
     },
+    getCommentVotes: (form) =>
+      this.#performLoggedInBotAction({
+        logMessage: `Getting votes for comment ID ${form.comment_id}`,
+        action: () => this.__httpClient__.listCommentLikes(form)
+      }),
+    getCommunity: (form) =>
+      this.#performLoggedInBotAction({
+        logMessage: `Getting community ${form.id ? form.id : form.name}`,
+        action: () => this.__httpClient__.getCommunity(form)
+      }),
     banFromCommunity: (form) =>
       this.#performLoggedInBotAction({
         logMessage: `Banning user ID ${form.person_id} from ${form.community_id}`,
@@ -194,15 +216,15 @@ class LemmyBot {
         logMessage: 'Uploading image',
         action: () => this.__httpClient__.uploadImage({ image })
       }),
-    getPost: this.__httpClient__.getPost,
-    getComment: this.__httpClient__.getComment,
+    getPost: (options) => this.__httpClient__.getPost(options),
+    getComment: (options) => this.__httpClient__.getComment(options),
     getParentOfComment: async ({ path, post_id }) => {
       const pathList = path.split('.').filter((i) => i !== '0');
 
       if (pathList.length === 1) {
         return {
           type: 'post',
-          data: await this.#botActions.getPost({
+          post: await this.#botActions.getPost({
             id: post_id
           })
         };
@@ -211,7 +233,7 @@ class LemmyBot {
 
         return {
           type: 'comment',
-          data: await this.#botActions.getComment({ id: parentId })
+          comment: await this.#botActions.getComment({ id: parentId })
         };
       }
     },
@@ -226,6 +248,11 @@ class LemmyBot {
       this.#performLoggedInBotAction({
         logMessage: `Resolving object: ${form.q}`,
         action: () => this.__httpClient__.resolveObject(form)
+      }),
+    getPersonDetails: (form) =>
+      this.#performLoggedInBotAction({
+        logMessage: `Getting details for ${form.username ? form.username : `user with ID ${form.person_id}`}`,
+        action: () => this.__httpClient__.getPersonDetails(form)
       })
   };
 
@@ -417,22 +444,22 @@ class LemmyBot {
       subList.length === this.#federationOptions.allowList?.length
     ) {
       this.#listingType = 'Subscribed';
-      await Promise.all(
+      await Promise.allSettled(
         subList.flatMap(({ communities, instance }) =>
           communities.map((name) =>
             this.#botActions
-              .getCommunityId({
-                instance,
-                name
-              })
-              .then((community_id) => {
-                if (community_id) {
-                  return this.__httpClient__.followCommunity({
-                    community_id,
+              .getCommunity({ name: `${name}@${instance}` })
+              .then(
+                ({
+                  community_view: {
+                    community: { id }
+                  }
+                }) =>
+                  this.__httpClient__.followCommunity({
+                    community_id: id,
                     follow: true
-                  });
-                }
-              })
+                  })
+              )
               .catch(() =>
                 console.log(`Could not subscribe to !${name}@${instance}`)
               )
@@ -1022,7 +1049,7 @@ class LemmyBot {
   }
 
   async #getCommunityIdsForAllowList() {
-    await Promise.all(
+    await Promise.allSettled(
       this.#assignOptionsToMaps(
         this.#federationOptions.allowList,
         'allowMap'
@@ -1053,27 +1080,34 @@ class LemmyBot {
               (instanceOptions as BotInstanceFederationOptions).instance
             ),
             new Set(
-              await Promise.all(
-                (instanceOptions as BotInstanceFederationOptions).communities
-                  .map((c) =>
-                    this.#botActions
-                      .getCommunityId({
-                        instance: (
-                          instanceOptions as BotInstanceFederationOptions
-                        ).instance,
-                        name: c
-                      })
-                      .catch(() =>
-                        console.log(
-                          `Could not get !${c}@${
-                            (instanceOptions as BotInstanceFederationOptions)
-                              .instance
-                          }`
-                        )
-                      )
-                  )
-                  .filter((c) => c) as Promise<number>[]
+              (
+                await Promise.allSettled(
+                  (
+                    instanceOptions as BotInstanceFederationOptions
+                  ).communities.map(async (c) => {
+                    try {
+                      return await this.#botActions.getCommunity({
+                        name: `${name}@${(instanceOptions as BotInstanceFederationOptions).instance}`
+                      });
+                    } catch (e) {
+                      console.log(
+                        `Could not get !${c}@${
+                          (instanceOptions as BotInstanceFederationOptions)
+                            .instance
+                        }`
+                      );
+
+                      throw e;
+                    }
+                  })
+                )
               )
+                .filter((c) => c.status === 'fulfilled')
+                .map(
+                  (c) =>
+                    (c as PromiseFulfilledResult<GetCommunityResponse>).value
+                      .community_view.community.id
+                )
             )
           );
         }
