@@ -3,7 +3,8 @@ import {
   CommentView,
   LemmyHttp,
   ListingType,
-  ModlogActionType
+  ModlogActionType,
+  ApproveRegistrationApplication
 } from 'lemmy-js-client';
 import {
   correctVote,
@@ -73,287 +74,159 @@ class LemmyBot {
             ...form
           })
       }),
-    reportPost: ({ post_id, reason }) =>
+    reportPost: (form) =>
       this.#performLoggedInBotAction({
-        logMessage: `Reporting to post ID ${post_id} for ${reason}`,
-        action: () =>
-          this.__httpClient__.createPostReport({
-            post_id,
-            reason
-          })
+        logMessage: `Reporting to post ID ${form.post_id} for ${form.reason}`,
+        action: () => this.__httpClient__.createPostReport(form)
       }),
-    votePost: ({ post_id, vote }) => {
-      const score = correctVote(vote);
+    votePost: (form) => {
+      const score = correctVote(form.score);
       const prefix =
-        vote === Vote.Upvote ? 'Up' : vote === Vote.Downvote ? 'Down' : 'Un';
+        score === Vote.Upvote ? 'Up' : score === Vote.Downvote ? 'Down' : 'Un';
 
       return this.#performLoggedInBotAction({
-        logMessage: `${prefix}voting post ID ${post_id}`,
+        logMessage: `${prefix}voting post ID $form.{post_id}`,
         action: () =>
           this.__httpClient__.likePost({
-            post_id,
-            score
+            score,
+            ...form
           })
       });
     },
-    createComment: ({ parent_id, content, post_id, language_id }) =>
+    createComment: (form) =>
       this.#performLoggedInBotAction({
-        logMessage: parent_id
-          ? `Replying to comment ID ${parent_id}`
-          : `Replying to post ID ${post_id}`,
-        action: () =>
-          this.__httpClient__.createComment({
-            content,
-            post_id,
-            parent_id,
-            language_id
-          })
+        logMessage: form.parent_id
+          ? `Replying to comment ID ${form.parent_id}`
+          : `Replying to post ID ${form.post_id}`,
+        action: () => this.__httpClient__.createComment(form)
       }),
     editComment: (form) =>
       this.#performLoggedInBotAction({
         logMessage: `Editing comment ID ${form.comment_id}`,
-        action: () =>
-          this.__httpClient__.editComment({
-            ...form
-          })
+        action: () => this.__httpClient__.editComment(form)
       }),
-    reportComment: ({ comment_id, reason }) =>
+    reportComment: (form) =>
       this.#performLoggedInBotAction({
-        action: () =>
-          this.__httpClient__.createCommentReport({
-            comment_id,
-            reason
-          }),
-        logMessage: `Reporting to comment ID ${comment_id} for ${reason}`
+        action: () => this.__httpClient__.createCommentReport(form),
+        logMessage: `Reporting to comment ID ${form.comment_id} for ${form.reason}`
       }),
-    voteComment: async ({ comment_id, vote }) => {
-      const score = correctVote(vote);
+    voteComment: async (form) => {
+      const score = correctVote(form.score);
       const prefix =
         score === Vote.Upvote ? 'Up' : score === Vote.Downvote ? 'Down' : 'Un';
 
       return await this.#performLoggedInBotAction({
-        logMessage: `${prefix}voting comment ID ${comment_id}`,
+        logMessage: `${prefix}voting comment ID ${form.comment_id}`,
         action: () =>
           this.__httpClient__.likeComment({
-            comment_id,
-            score
+            score,
+            ...form
           })
       });
     },
     banFromCommunity: (form) =>
       this.#performLoggedInBotAction({
         logMessage: `Banning user ID ${form.person_id} from ${form.community_id}`,
-        action: () =>
-          this.__httpClient__.banFromCommunity({
-            ...form,
-            ban: true
-          })
+        action: () => this.__httpClient__.banFromCommunity(form)
       }),
-    removeBanFromCommunity: (form) =>
+    banFromSite: (form) =>
       this.#performLoggedInBotAction({
-        logMessage: `Removing community ban from user ID ${form.person_id} from ${form.community_id}`,
-        action: () =>
-          this.__httpClient__.banFromCommunity({
-            ...form,
-            ban: false
-          })
+        logMessage: `Banning user ID ${form.person_id} from ${this.#instance}`,
+        action: () => this.__httpClient__.banPerson(form)
       }),
-    banFromSite: ({ person_id, days_until_expires, reason, remove_data }) =>
+    sendPrivateMessage: (form) =>
       this.#performLoggedInBotAction({
-        logMessage: `Banning user ID ${person_id} from ${this.#instance}`,
-        action: () =>
-          this.__httpClient__.banPerson({
-            person_id,
-            expires: days_until_expires,
-            reason,
-            remove_data,
-            ban: true
-          })
+        logMessage: `Sending private message to user ID ${form.recipient_id}`,
+        action: () => this.__httpClient__.createPrivateMessage(form)
       }),
-    removeBanFromSite: ({
-      person_id,
-      days_until_expires,
-      reason,
-      remove_data
-    }) =>
+    reportPrivateMessage: (form) =>
       this.#performLoggedInBotAction({
-        logMessage: `Removing site ban from user ID ${person_id} from ${this.#instance}`,
-        action: () =>
-          this.__httpClient__.banPerson({
-            person_id,
-            expires: days_until_expires,
-            reason,
-            remove_data,
-            ban: false
-          })
+        logMessage: `Reporting private message ID ${form.private_message_id}. Reason: ${form.reason}`,
+        action: () => this.__httpClient__.createPrivateMessageReport(form)
       }),
-    sendPrivateMessage: ({ recipient_id, content }) =>
+    approveRegistrationApplication: (form: ApproveRegistrationApplication) =>
       this.#performLoggedInBotAction({
-        logMessage: `Sending private message to user ID ${recipient_id}`,
-        action: () =>
-          this.__httpClient__.createPrivateMessage({
-            content,
-            recipient_id
-          })
+        logMessage: `Approving application ID ${form.id}`,
+        action: () => this.__httpClient__.approveRegistrationApplication(form)
       }),
-    reportPrivateMessage: ({ private_message_id, reason }) =>
+    removePost: (form) =>
       this.#performLoggedInBotAction({
-        logMessage: `Reporting private message ID ${private_message_id}. Reason: ${reason}`,
-        action: () =>
-          this.__httpClient__.createPrivateMessageReport({
-            private_message_id,
-            reason
-          })
+        logMessage: `Removing post ID ${form.post_id}`,
+        action: () => this.__httpClient__.removePost(form)
       }),
-    approveRegistrationApplication: (applicationId) =>
+    removeComment: (form) =>
       this.#performLoggedInBotAction({
-        logMessage: `Approving application ID ${applicationId}`,
-        action: () =>
-          this.__httpClient__.approveRegistrationApplication({
-            approve: true,
-            id: applicationId
-          })
+        logMessage: `Removing comment ID ${form.comment_id}`,
+        action: () => this.__httpClient__.removeComment(form)
       }),
-    rejectRegistrationApplication: ({ id, deny_reason }) =>
+    resolvePostReport: (form) =>
       this.#performLoggedInBotAction({
-        logMessage: `Rejecting application ID ${id}`,
-        action: () =>
-          this.__httpClient__.approveRegistrationApplication({
-            approve: false,
-            id,
-            deny_reason
-          })
+        logMessage: `Resolving post report ID ${form.report_id}`,
+        action: () => this.__httpClient__.resolvePostReport(form)
       }),
-    removePost: ({ post_id, reason }) =>
+    resolveCommentReport: (form) =>
       this.#performLoggedInBotAction({
-        logMessage: `Removing post ID ${post_id}`,
-        action: () =>
-          this.__httpClient__.removePost({
-            post_id,
-            removed: true,
-            reason
-          })
+        logMessage: `Resolving comment report ID ${form.report_id}`,
+        action: () => this.__httpClient__.resolveCommentReport(form)
       }),
-    removeComment: ({ comment_id, reason }) =>
+    resolvePrivateMessageReport: (form) =>
       this.#performLoggedInBotAction({
-        logMessage: `Removing comment ID ${comment_id}`,
-        action: () =>
-          this.__httpClient__.removeComment({
-            comment_id,
-            removed: true,
-            reason
-          })
+        logMessage: `Resolving private message report ID ${form.report_id}`,
+        action: () => this.__httpClient__.resolvePrivateMessageReport(form)
       }),
-    resolvePostReport: (report_id) =>
+    featurePost: (form) =>
       this.#performLoggedInBotAction({
-        logMessage: `Resolving post report ID ${report_id}`,
-        action: () =>
-          this.__httpClient__.resolvePostReport({
-            report_id,
-            resolved: true
-          })
+        logMessage: `${form.featured ? 'F' : 'Unf'}eaturing report ID ${form.post_id}`,
+        action: () => this.__httpClient__.featurePost(form)
       }),
-    resolveCommentReport: (report_id) =>
+    lockPost: (form) =>
       this.#performLoggedInBotAction({
-        logMessage: `Resolving comment report ID ${report_id}`,
-        action: () =>
-          this.__httpClient__.resolveCommentReport({
-            report_id,
-            resolved: true
-          })
+        logMessage: `${form.locked ? 'L' : 'Unl'}ocking report ID ${form.post_id}`,
+        action: () => this.__httpClient__.lockPost(form)
       }),
-    resolvePrivateMessageReport: (report_id) =>
+    followCommunity: (form) =>
       this.#performLoggedInBotAction({
-        logMessage: `Resolving private message report ID ${report_id}`,
-        action: () =>
-          this.__httpClient__.resolvePrivateMessageReport({
-            report_id,
-            resolved: true
-          })
+        logMessage: `Following community ID ${form.community_id}`,
+        action: () => this.__httpClient__.followCommunity(form)
       }),
-    featurePost: ({ feature_type, featured, post_id }) =>
-      this.#performLoggedInBotAction({
-        logMessage: `${featured ? 'F' : 'Unf'}eaturing report ID ${post_id}`,
-        action: () =>
-          this.__httpClient__.featurePost({
-            post_id,
-            featured,
-            feature_type
-          })
-      }),
-    lockPost: ({ post_id, locked }) =>
-      this.#performLoggedInBotAction({
-        logMessage: `${locked ? 'L' : 'Unl'}ocking report ID ${post_id}`,
-        action: () =>
-          this.__httpClient__.lockPost({
-            post_id,
-            locked
-          })
-      }),
-    getCommunityId: (form) => this.#getId(form, 'Communities'),
-    followCommunity: (community_id) =>
-      this.#performLoggedInBotAction({
-        logMessage: `Following community ID ${community_id}`,
-        action: () =>
-          this.__httpClient__.followCommunity({
-            community_id,
-            follow: true
-          })
-      }),
-    getUserId: (form) => this.#getId(form, 'Users'),
     uploadImage: (image) =>
       this.#performLoggedInBotAction({
         logMessage: 'Uploading image',
         action: () => this.__httpClient__.uploadImage({ image })
       }),
-    getPost: async (postId) => {
-      const { post_view } = await this.__httpClient__.getPost({
-        id: postId
-      });
-
-      return post_view;
-    },
-    getComment: async (commentId) =>
-      (await this.__httpClient__.getComment({ id: commentId })).comment_view,
+    getPost: this.__httpClient__.getPost,
+    getComment: this.__httpClient__.getComment,
     getParentOfComment: async ({ path, post_id }) => {
       const pathList = path.split('.').filter((i) => i !== '0');
 
       if (pathList.length === 1) {
         return {
           type: 'post',
-          data: await this.#botActions.getPost(post_id)
+          data: await this.#botActions.getPost({
+            id: post_id
+          })
         };
       } else {
         const parentId = Number(pathList[pathList.length - 2]);
 
         return {
           type: 'comment',
-          data: await this.#botActions.getComment(parentId)
+          data: await this.#botActions.getComment({ id: parentId })
         };
       }
     },
-    isCommunityMod: async ({ community_id, person_id }) => {
-      const { moderators } = await this.__httpClient__.getCommunity({
-        id: community_id
+    isCommunityMod: async ({ community, person }) => {
+      const { moderates } = await this.__httpClient__.getPersonDetails({
+        person_id: person.id
       });
 
-      return moderators.some((mod) => mod.moderator.id === person_id);
+      return moderates.some((comm) => comm.community.id === community.id);
     },
-    resolveObject: (form) => {
-      let q: string;
-
-      if (typeof form === 'string') {
-        q = form;
-      } else {
-        const { communityName, instance } = form;
-        q = `!${communityName}@${instance}`;
-      }
-
-      return this.#performLoggedInBotAction({
-        logMessage: `Resolving object: ${q}`,
-        action: () => this.__httpClient__.resolveObject({ q })
-      });
-    }
+    resolveObject: (form) =>
+      this.#performLoggedInBotAction({
+        logMessage: `Resolving object: ${form.q}`,
+        action: () => this.__httpClient__.resolveObject(form)
+      })
   };
 
   constructor({
