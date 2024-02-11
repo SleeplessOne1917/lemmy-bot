@@ -51,7 +51,7 @@ For lemmy versions 0.17.x, use lemmy-bot 0.3.9 and lower.
 
 For lemmy versions 0.18.x, use lemmy-bot 0.4.x.
 
-For lemmy versions 0.19.x, use lemmy-bot 0.5.0 and up.
+For lemmy versions 0.19.x, use lemmy-bot 0.5.x or 0.6.x.
 
 ## Documentation
 
