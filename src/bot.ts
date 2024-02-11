@@ -29,7 +29,6 @@ import {
   BotHandlerOptions,
   BotInstanceFederationOptions,
   BotOptions,
-  SearchOptions,
   Vote,
   BotCredentials,
   InternalHandlers,
@@ -1177,47 +1176,6 @@ class LemmyBot {
       });
     } else {
       return response;
-    }
-  }
-
-  async #getId(form: SearchOptions | string, type: 'Users' | 'Communities') {
-    let localOptions: SearchOptions;
-    if (typeof form === 'string') {
-      localOptions = {
-        name: form,
-        instance: this.#instance
-      };
-    } else {
-      localOptions = form;
-    }
-    const instanceWithoutPort = stripPort(localOptions.instance);
-
-    const { communities, users } = await this.__httpClient__.search({
-      q: localOptions.name,
-      type_: type
-    });
-
-    if (type === 'Communities') {
-      return communities.find(({ community: { name, title, actor_id } }) => {
-        let extractedInstance = '';
-        try {
-          extractedInstance = extractInstanceFromActorId(actor_id);
-        } catch {
-          console.log(
-            `Could not find !${localOptions.name}@${localOptions.instance}`
-          );
-        }
-        return (
-          (name === localOptions.name || title === localOptions.name) &&
-          extractedInstance === instanceWithoutPort
-        );
-      })?.community.id;
-    } else {
-      return users.find(
-        ({ person: { name, display_name, actor_id } }) =>
-          (name === localOptions.name || display_name === localOptions.name) &&
-          extractInstanceFromActorId(actor_id) === instanceWithoutPort
-      )?.person.id;
     }
   }
 

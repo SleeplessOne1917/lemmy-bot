@@ -355,8 +355,3 @@ export type BotCredentials = {
   username: string;
   password: string;
 };
-
-export type SearchOptions = {
-  name: string;
-  instance: string;
-};

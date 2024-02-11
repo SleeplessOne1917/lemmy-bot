@@ -9,7 +9,6 @@ export {
   BotInstanceFederationOptions,
   BotInstanceList,
   BotOptions,
-  SearchOptions,
   Vote
 } from './types';
 
