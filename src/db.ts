@@ -95,17 +95,12 @@ const tableFuncMap = new Map(
   tableTypes.map((tt) => [
     tt,
     {
-      get: async (db: Database, id: number) => await getRow(db, id, tt),
-      upsert: async (
-        db: Database,
-        id: number,
-        minutesUntilReprocess?: number
-      ) => await upsert(db, id, tt, minutesUntilReprocess)
+      get: (db: Database, id: number) => getRow(db, id, tt),
+      upsert: (db: Database, id: number, minutesUntilReprocess?: number) =>
+        upsert(db, id, tt, minutesUntilReprocess)
     }
   ])
 );
-
-let memoryDb: Database | undefined = undefined;
 
 const useDatabase = async (
   doStuffWithDB: (db: Database) => Promise<void>,
@@ -114,12 +109,7 @@ const useDatabase = async (
   let db: Database;
 
   if (!dbPath) {
-    if (memoryDb) {
-      db = memoryDb;
-    } else {
-      memoryDb = new Database(':memory:');
-      db = memoryDb;
-    }
+    db = new Database(':memory:');
   } else {
     db = new sqlite.Database(dbPath);
   }

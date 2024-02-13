@@ -12,8 +12,7 @@ import {
   extractInstanceFromActorId,
   getListingType,
   parseHandlers,
-  shouldProcess,
-  stripPort
+  shouldProcess
 } from './helpers';
 import {
   RowUpserter,
@@ -273,13 +272,19 @@ class LemmyBot {
     schedule,
     markAsBot = true,
     enableLogs = true,
-    dryRun = false
+    dryRun = false,
+    secure = true
   }: BotOptions) {
+    if (!instance) {
+      console.log('Cannot use bot without instance!');
+      process.exit(1);
+    }
+
     switch (federation) {
       case undefined:
       case 'local': {
         this.#federationOptions = {
-          allowList: [stripPort(instance)]
+          allowList: [instance]
         };
 
         break;
@@ -312,12 +317,11 @@ class LemmyBot {
             this.#federationOptions.allowList &&
             !this.#federationOptions.allowList.some(
               (i) =>
-                i === stripPort(instance) ||
-                (i as BotInstanceFederationOptions).instance ===
-                  stripPort(instance)
+                i === instance ||
+                (i as BotInstanceFederationOptions).instance === instance
             )
           ) {
-            this.#federationOptions.allowList.push(stripPort(instance));
+            this.#federationOptions.allowList.push(instance);
           }
         }
       }
@@ -359,10 +363,9 @@ class LemmyBot {
     this.#instance = instance;
     this.#defaultMinutesUntilReprocess = defaultMinutesUntilReprocess;
     this.__httpClient__ = new LemmyHttp(
-      `http${this.#instance.includes('localhost') ? '' : 's'}://${
-        this.#instance
-      }`
+      `http${secure ? 's' : ''}://${this.#instance}`
     );
+    this.__httpClient__.setHeaders({ 'user-agent': 'Lemmy-Bot/0.6.0' });
     this.#dbFile = dbFile;
     this.#listingType = getListingType(this.#federationOptions);
 
@@ -1075,9 +1078,7 @@ class LemmyBot {
           )
         ) {
           this.#federationOptionMaps[map].set(
-            stripPort(
-              (instanceOptions as BotInstanceFederationOptions).instance
-            ),
+            (instanceOptions as BotInstanceFederationOptions).instance,
             new Set(
               (
                 await Promise.allSettled(
@@ -1086,7 +1087,7 @@ class LemmyBot {
                   ).communities.map(async (c) => {
                     try {
                       return await this.#botActions.getCommunity({
-                        name: `${name}@${(instanceOptions as BotInstanceFederationOptions).instance}`
+                        name: `${c}@${(instanceOptions as BotInstanceFederationOptions).instance}`
                       });
                     } catch (e) {
                       console.log(

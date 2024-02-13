@@ -124,9 +124,15 @@ export type BotOptions = {
    * If set to false, the bot will perform actions as normal.
    * Useful for development and testing without affecting a production instance.
    *
-   * @default false;
+   * @default false
    */
   dryRun?: boolean;
+  /**
+   *  If true, the bot uses HTTPS. If false, it uses HTTP.
+   *
+   * @default true
+   * */
+  secure?: boolean;
 };
 
 type ParentPost = {
