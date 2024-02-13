@@ -365,7 +365,7 @@ class LemmyBot {
     this.__httpClient__ = new LemmyHttp(
       `http${secure ? 's' : ''}://${this.#instance}`
     );
-    this.__httpClient__.setHeaders({ 'user-agent': 'Lemmy-Bot/0.6.0' });
+    this.__httpClient__.setHeaders({ 'user-agent': 'Lemmy-Bot/0.6.1' });
     this.#dbFile = dbFile;
     this.#listingType = getListingType(this.#federationOptions);
 

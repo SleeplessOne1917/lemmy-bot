@@ -179,6 +179,9 @@ Task object or list of task objects. Task objects have the following properties:
 - `timezone`: String stating the timezone the schedule should be in. See [here](https://momentjs.com/timezone/) for supported timezones.
 - `runAtStart`: Boolean value for whether or not the task should be run immediately. Defaults to false.
 
+#### `secure`
+If `true`, the bot will use HTTPS. If `false`, it will use HTTP. Default value is `true`.
+
 #### `dbFile`
 
 The bot tracks which items it has handled already in a SQLite database. Accepts a string path to the file to use a database: will create the file if it does not already exist.
