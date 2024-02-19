@@ -18,7 +18,7 @@ dependencies:
 devDependencies:
   '@types/node':
     specifier: ^20.11.17
-    version: 20.11.17
+    version: 20.11.19
   '@types/node-cron':
     specifier: ^3.0.11
     version: 3.0.11
@@ -175,8 +175,8 @@ packages:
     resolution: {integrity: sha512-0ikrnug3/IyneSHqCBeslAhlK2aBfYek1fGo4bP4QnZPmiqSGRK+Oy7ZMisLWkesffJvQ1cqAcBnJC+8+nxIAg==}
     dev: true
 
-  /@types/node@20.11.17:
-    resolution: {integrity: sha512-QmgQZGWu1Yw9TDyAP9ZzpFJKynYNeOvwMJmaxABfieQoVoiVOS6MN1WSpqpRcbeA5+RW82kraAVxCCJg+780Qw==}
+  /@types/node@20.11.19:
+    resolution: {integrity: sha512-7xMnVEcZFu0DikYjWOlRq7NTPETrm7teqUT2WkQjrTIkEgUyyGdWsj/Zg8bEJt5TNklzbPD1X3fqfsHw3SpapQ==}
     dependencies:
       undici-types: 5.26.5
     dev: true
@@ -1736,9 +1736,6 @@ packages:
   /sqlite3@5.1.7:
     resolution: {integrity: sha512-GGIyOiFaG+TUra3JIfkI/zGP8yZYLPQ0pl1bH+ODjiX57sPhrLU5sQJn1y9bDKZUFYkX1crlrPfSYt0BKKdkog==}
     requiresBuild: true
-    peerDependenciesMeta:
-      node-gyp:
-        optional: true
     dependencies:
       bindings: 1.5.0
       node-addon-api: 7.1.0
