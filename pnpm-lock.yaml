@@ -6,8 +6,8 @@ settings:
 
 dependencies:
   lemmy-js-client:
-    specifier: 0.19.4-alpha.4
-    version: 0.19.4-alpha.4
+    specifier: 0.19.4-alpha.6
+    version: 0.19.4-alpha.6
   node-cron:
     specifier: ^3.0.3
     version: 3.0.3
@@ -1158,8 +1158,8 @@ packages:
       json-buffer: 3.0.1
     dev: true
 
-  /lemmy-js-client@0.19.4-alpha.4:
-    resolution: {integrity: sha512-ZsE/1dRiNAzOjGNtyv+1JH7AzKWBkHY4FH4EGrdhkKtNY7EKDWt4uEkc3Bde+cQg4YTdbzXyuY94gAVCFm+L1w==}
+  /lemmy-js-client@0.19.4-alpha.6:
+    resolution: {integrity: sha512-x4htMlpoZ7hzrhrIk82aompVxbpu2ZDWtmWNGraM0+27nUCDf6gYxJH5nb5R/o39BQe5KSHq6zoBdliBwAY40w==}
     dependencies:
       cross-fetch: 4.0.0
       form-data: 4.0.0
