@@ -251,6 +251,21 @@ class LemmyBot {
       this.#performLoggedInBotAction({
         logMessage: `Getting details for ${form.username ? form.username : `user with ID ${form.person_id}`}`,
         action: () => this.__httpClient__.getPersonDetails(form)
+      }),
+    listMedia: (form = {}) =>
+      this.#performLoggedInBotAction({
+        logMessage: 'Listing media posted by bot',
+        action: () => this.__httpClient__.listMedia(form)
+      }),
+    listAllMedia: (form) =>
+      this.#performLoggedInBotAction({
+        logMessage: 'Listing all media posted on instance',
+        action: () => this.__httpClient__.listAllMedia(form)
+      }),
+    hidePost: (form) =>
+      this.#performLoggedInBotAction({
+        logMessage: `Hiding posts with IDs = ${form.post_ids.join(', ')}`,
+        action: () => this.__httpClient__.hidePost(form)
       })
   };
 

@@ -180,6 +180,7 @@ Task object or list of task objects. Task objects have the following properties:
 - `runAtStart`: Boolean value for whether or not the task should be run immediately. Defaults to false.
 
 #### `secure`
+
 If `true`, the bot will use HTTPS. If `false`, it will use HTTP. Default value is `true`.
 
 #### `dbFile`
@@ -222,9 +223,9 @@ The actions are as follows, grouped by access level in ascending order:
 - `getComment(form: GetComment)`: Retrieve a comment based on its ID.
 - `getParentOfComment(form: Comment)`: Retrieves the parent of a comment. Accepts a comment object, which is returned from handlers that deal with comments (e.g. comment handler, mention handler, reply handler, etc.). Returns an object with the following properties:
   - `type` `"post"` or `"comment"`
-  When `type` is `"post"`:
+    When `type` is `"post"`:
   - `post`: `GetPostResponse`
-  When `type` is `"comment"`:
+    When `type` is `"comment"`:
   - `comment`: `CommentResponse`
 - `isCommunityMod(form: {community: Community, person: Person})`: Returns whether or not a person is a moderator of a given community.
 
@@ -275,6 +276,12 @@ The actions are as follows, grouped by access level in ascending order:
   - `comment_id` number
   - `content` _optional_ string
   - `language_id` _optional_ number
+- `listMedia(form: ListMedia)`: List all media that was posted by the bot. The `form` argument is optional and has the following properties:
+  - `page`: number
+  - `limit`: number
+- `hidePost(form: HidePost)`: Hide posta so they don't show up in your feed. The `form` argument has the following properties:
+  - `postIds`: number[]
+  - `hide`: boolean
 
 #### Community moderator
 
@@ -317,12 +324,12 @@ The actions are as follows, grouped by access level in ascending order:
 
 - `getCommentVotes(form: ListCommentLikes)`: Show who voted on a comment, and what their vote is. Accepts an object with the following properties:
   - `comment_id` number
-  - `page` __optional__ number
-  - `limit` __optional__ number
+  - `page` **optional** number
+  - `limit` **optional** number
 - `getPostVotes(form: ListPostLikes)`: Show who voted on a post, and what their vote is. Accepts an object with the following properties:
   - `post_id` number
-  - `page` __optional__ number
-  - `limit` __optional__ number
+  - `page` **optional** number
+  - `limit` **optional** number
 - `banFromSite(form: BanFromSite)`: Ban or unban a user from the instance. Accepts an object with the following properties:
   - `person_id` number
   - `ban` number
@@ -332,12 +339,17 @@ The actions are as follows, grouped by access level in ascending order:
 - `approveRegistrationApplication(form: ApproveRegistrationApplication)`: Approve the creation of an account. Accepts an object with the following properties:
   - `id` number
   - `approve` boolean
-  - `deny_reason` __optional__ string
+  - `deny_reason` **optional** string
+- `listAllMedia(form: ListMedia)`: List all media that has been posted on the instance. Optionally accepts an object with the following properties:
+  - `page`: number
+  - `limit`: number
 
 ## HTTP Client
+
 If you need to use the [lemmy client](https://github.com/LemmyNet/lemmy-js-client) directly, the `__httpClient__` property is available so you don't need add it to your project separately. For your convenience, you can also access this in paramaters for polled event handlers and scheduled tasks.
 
 ## Running Your Bot
+
 There are templates for docker and systemd in the templates folder to help you run your bot once you've made it.
 
 ## Examples

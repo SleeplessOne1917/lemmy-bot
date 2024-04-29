@@ -69,7 +69,11 @@ import {
   ListCommentLikesResponse,
   ListPostLikes,
   ListPostLikesResponse,
-  DistinguishComment
+  DistinguishComment,
+  ListMedia,
+  ListMediaResponse,
+  HidePost,
+  SuccessResponse
 } from 'lemmy-js-client';
 
 export type BotOptions = {
@@ -199,6 +203,9 @@ export type BotActions = {
     community: Community;
   }) => Promise<boolean>;
   resolveObject: (form: ResolveObject) => Promise<ResolveObjectResponse>;
+  listMedia: (form?: ListMedia) => Promise<ListMediaResponse>;
+  listAllMedia: (form?: ListMedia) => Promise<ListMediaResponse>;
+  hidePost: (form: HidePost) => Promise<SuccessResponse>;
 };
 
 export type InternalHandlers = {
