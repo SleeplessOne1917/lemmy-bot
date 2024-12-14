@@ -15,7 +15,7 @@ importers:
         specifier: ^3.0.3
         version: 3.0.3
       sqlite3:
-        specifier: 5.1.7
+        specifier: ^5.1.7
         version: 5.1.7
     devDependencies:
       '@types/node':
