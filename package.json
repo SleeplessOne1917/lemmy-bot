@@ -1,6 +1,6 @@
 {
   "name": "lemmy-bot",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "description": "A bot API for Lemmy, the fediverse link aggregator.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,20 +11,20 @@
   "author": "SleeplessOne1917",
   "license": "AGPL-3.0",
   "devDependencies": {
-    "@types/node": "^22.0.2",
+    "@types/node": "^22.10.2",
     "@types/node-cron": "^3.0.11",
-    "@typescript-eslint/eslint-plugin": "^8.0.0",
-    "@typescript-eslint/parser": "^8.0.0",
-    "eslint": "^9.8.0",
+    "@typescript-eslint/eslint-plugin": "^8.18.0",
+    "@typescript-eslint/parser": "^8.18.0",
+    "eslint": "^9.17.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",
-    "prettier": "^3.3.3",
-    "typescript": "^5.5.4"
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2"
   },
   "dependencies": {
-    "lemmy-js-client": "0.20.0-alpha.1",
+    "lemmy-js-client": "0.19.6",
     "node-cron": "^3.0.3",
-    "sqlite3": "5.1.7"
+    "sqlite3": "^5.1.7"
   },
   "files": [
     "/dist"
@@ -45,5 +45,5 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "packageManager": "pnpm@9.6.0+sha512.38dc6fba8dba35b39340b9700112c2fe1e12f10b17134715a4aa98ccf7bb035e76fd981cf0bb384dfa98f8d6af5481c2bef2f4266a24bfa20c34eb7147ce0b5e"
+  "packageManager": "pnpm@9.15.0+sha512.76e2379760a4328ec4415815bcd6628dee727af3779aaa4c914e3944156c4299921a89f976381ee107d41f12cfa4b66681ca9c718f0668fa0831ed4c6d8ba56c"
 }
