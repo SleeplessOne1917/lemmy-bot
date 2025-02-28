@@ -1,9 +1,7 @@
-import { verbose, Database } from 'sqlite3';
+import type { sqlite3, Database } from 'sqlite3';
 import { existsSync } from 'fs';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
-
-const sqlite = verbose();
 
 const tableTypes = [
   'comments',
@@ -102,14 +100,31 @@ const tableFuncMap = new Map(
   ])
 );
 
+let sqlite: sqlite3 | null | undefined = undefined;
+
 const useDatabase = async (
   doStuffWithDB: (db: Database) => Promise<void>,
   dbPath?: string
 ) => {
-  let db: Database;
+  if (sqlite === null) {
+    return;
+  }
 
+  if (!sqlite) {
+    try {
+      const sqliteImport = await import('sqlite3');
+      sqlite = sqliteImport.verbose();
+    } catch {
+      console.warn(
+        'sqlite3 optional dependency is not available. This can cause your bot to respond to the same event more than once (e.g. replying multiple times to the same post). If you have intentionally chosen to omit the use of sqlite, ignore this message.'
+      );
+      return;
+    }
+  }
+
+  let db: Database;
   if (!dbPath) {
-    db = new Database(':memory:');
+    db = new sqlite.Database(':memory:');
   } else {
     db = new sqlite.Database(dbPath);
   }

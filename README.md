@@ -188,6 +188,8 @@ If `true`, the bot will use HTTPS. If `false`, it will use HTTP. Default value i
 The bot tracks which items it has handled already in a SQLite database. Accepts a string path to the file to use a database: will create the file if it does not already exist.
 If this option is not specified, the bot will store the SQLite DB in memory. This can be useful during development, but it is recommended to use a file when running in production.
 
+**Note**: If your bot doesn't need to keep track of events it has handled (e.g. it is posting new content to a community using a cronjob), you can omit optional dependencies to opt out of its use by installing the dependencies using `npm install --omit=optional` or your preferred package manager's equivalent.
+
 #### `markAsBot`
 
 If true, the bot will automatically mark its own account as a bot. If false, make sure to remember to mark the bot's account
