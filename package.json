@@ -1,6 +1,6 @@
 {
   "name": "lemmy-bot",
-  "version": "0.6.4",
+  "version": "0.6.5",
   "description": "A bot API for Lemmy, the fediverse link aggregator.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,7 +11,7 @@
   "author": "SleeplessOne1917",
   "license": "AGPL-3.0",
   "devDependencies": {
-    "@types/node": "^22.13.5",
+    "@types/node": "^22.13.8",
     "@types/node-cron": "^3.0.11",
     "@typescript-eslint/eslint-plugin": "^8.25.0",
     "@typescript-eslint/parser": "^8.25.0",
