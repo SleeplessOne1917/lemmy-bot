@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       lemmy-js-client:
-        specifier: '=0.19.6-beta.1'
-        version: 0.19.6-beta.1
+        specifier: '=0.19.9'
+        version: 0.19.9
       node-cron:
         specifier: ^3.0.3
         version: 3.0.3
@@ -605,8 +605,8 @@ packages:
   keyv@4.5.4:
     resolution: {integrity: sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw==}
 
-  lemmy-js-client@0.19.6-beta.1:
-    resolution: {integrity: sha512-CiTbTpqKA7t1daBMdkKVLVXUrpy2wSuxkoWrnK5sVvmBrlFq1jpqC9h9SgNngiVqSgx6Tvsg3asmvne7OaEZRQ==}
+  lemmy-js-client@0.19.9:
+    resolution: {integrity: sha512-MjeKtmtO8M9wHiKtm60LpZVd7ieI+4yctwwRhZTaxv6yUDI38bhltq8jFYaMDNQ3PKVHUhn33oDuGVnvV1sxKw==}
 
   levn@0.4.1:
     resolution: {integrity: sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ==}
@@ -1637,7 +1637,7 @@ snapshots:
     dependencies:
       json-buffer: 3.0.1
 
-  lemmy-js-client@0.19.6-beta.1: {}
+  lemmy-js-client@0.19.9: {}
 
   levn@0.4.1:
     dependencies:
