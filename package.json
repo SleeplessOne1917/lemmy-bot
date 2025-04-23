@@ -22,7 +22,7 @@
     "typescript": "^5.8.2"
   },
   "dependencies": {
-    "lemmy-js-client": "=0.19.6-beta.1",
+    "lemmy-js-client": "=0.19.9",
     "node-cron": "^3.0.3"
   },
   "optionalDependencies": {
