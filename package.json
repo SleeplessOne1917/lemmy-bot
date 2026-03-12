@@ -11,24 +11,24 @@
   "author": "SleeplessOne1917",
   "license": "AGPL-3.0",
   "devDependencies": {
-    "@types/node": "^20.1.5",
-    "@types/node-cron": "^3.0.7",
-    "@types/uuid": "^9.0.1",
-    "@types/websocket": "^1.0.5",
-    "@typescript-eslint/eslint-plugin": "^5.59.6",
-    "@typescript-eslint/parser": "^5.59.6",
-    "eslint": "^8.40.0",
-    "eslint-config-prettier": "^8.8.0",
-    "eslint-plugin-prettier": "^4.2.1",
-    "prettier": "^2.8.8",
-    "typescript": "^5.0.4"
+    "@types/node": "^25.4.0",
+    "@types/node-cron": "^3.0.11",
+    "@types/uuid": "^11.0.0",
+    "@types/websocket": "^1.0.10",
+    "@typescript-eslint/eslint-plugin": "^8.57.0",
+    "@typescript-eslint/parser": "^8.57.0",
+    "eslint": "^10.0.3",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "prettier": "^3.8.1",
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "lemmy-js-client": "0.17.2-rc.17",
-    "node-cron": "^3.0.2",
-    "sqlite3": "^5.1.6",
-    "uuid": "^9.0.0",
-    "websocket": "^1.0.34"
+    "node-cron": "^4.2.1",
+    "sqlite3": "^5.1.7",
+    "uuid": "^13.0.0",
+    "websocket": "^1.0.35"
   },
   "files": [
     "/dist"
