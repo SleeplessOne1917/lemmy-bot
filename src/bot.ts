@@ -275,9 +275,9 @@ class LemmyBot {
     handlers,
     connection: {
       minutesUntilReprocess:
-        defaultMinutesUntilReprocess = DEFAULT_MINUTES_UNTIL_REPROCESS,
+      defaultMinutesUntilReprocess = DEFAULT_MINUTES_UNTIL_REPROCESS,
       secondsBetweenPolls:
-        defaultSecondsBetweenPolls = DEFAULT_SECONDS_BETWEEN_POLLS
+      defaultSecondsBetweenPolls = DEFAULT_SECONDS_BETWEEN_POLLS
     } = {
       secondsBetweenPolls: DEFAULT_SECONDS_BETWEEN_POLLS,
       minutesUntilReprocess: DEFAULT_MINUTES_UNTIL_REPROCESS
@@ -360,9 +360,9 @@ class LemmyBot {
               }),
             task.timezone || task.runAtStart
               ? {
-                  ...(task.timezone ? { timezone: task.timezone } : {}),
-                  ...(task.runAtStart ? { runOnInit: task.runAtStart } : {})
-                }
+                ...(task.timezone ? { timezone: task.timezone } : {}),
+                ...(task.runAtStart ? { runOnInit: task.runAtStart } : {})
+              }
               : undefined
           )
         );
@@ -400,9 +400,9 @@ class LemmyBot {
             this.#timeouts = this.#timeouts.filter((t) => t !== timeout);
           },
           1000 *
-            (secondsBetweenPolls < DEFAULT_SECONDS_BETWEEN_POLLS
-              ? DEFAULT_SECONDS_BETWEEN_POLLS
-              : secondsBetweenPolls)
+          (secondsBetweenPolls < DEFAULT_SECONDS_BETWEEN_POLLS
+            ? DEFAULT_SECONDS_BETWEEN_POLLS
+            : secondsBetweenPolls)
         );
 
         this.#timeouts.push(timeout);
@@ -1106,9 +1106,8 @@ class LemmyBot {
                       });
                     } catch (e) {
                       console.log(
-                        `Could not get !${c}@${
-                          (instanceOptions as BotInstanceFederationOptions)
-                            .instance
+                        `Could not get !${c}@${(instanceOptions as BotInstanceFederationOptions)
+                          .instance
                         }`
                       );
 
@@ -1170,24 +1169,24 @@ class LemmyBot {
         const instance = extractInstanceFromActorId(actor_id);
 
         return (
-          this.#federationOptionMaps.allowMap.get(instance) === true ||
-          (
-            this.#federationOptionMaps.allowMap.get(instance) as
+          instance && (this.#federationOptionMaps.allowMap.get(instance) === true ||
+            (
+              this.#federationOptionMaps.allowMap.get(instance) as
               | Set<number>
               | undefined
-          )?.has(id)
+            )?.has(id))
         );
       });
     } else if ((this.#federationOptions.blockList?.length ?? 0) > 0) {
       return response.filter((d) => {
         const instance = extractInstanceFromActorId(d.community.actor_id);
         return !(
-          this.#federationOptionMaps.blockMap.get(instance) === true ||
-          (
-            this.#federationOptionMaps.blockMap.get(instance) as
+          instance && (this.#federationOptionMaps.blockMap.get(instance) === true ||
+            (
+              this.#federationOptionMaps.blockMap.get(instance) as
               | Set<number>
               | undefined
-          )?.has(d.community.id)
+            )?.has(d.community.id))
         );
       });
     } else {

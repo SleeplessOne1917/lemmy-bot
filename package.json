@@ -1,32 +1,32 @@
 {
   "name": "lemmy-bot",
-  "version": "0.6.5",
+  "version": "0.7.0",
   "description": "A bot API for Lemmy, the fediverse link aggregator.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "lint": "npx eslint .",
+    "lint": "eslint .",
     "prepare": "tsc"
   },
   "author": "SleeplessOne1917",
   "license": "AGPL-3.0",
   "devDependencies": {
-    "@types/node": "^24.1.0",
+    "@types/node": "^25.5.2",
     "@types/node-cron": "^3.0.11",
-    "@typescript-eslint/eslint-plugin": "^8.38.0",
-    "@typescript-eslint/parser": "^8.38.0",
-    "eslint": "^9.32.0",
+    "@typescript-eslint/eslint-plugin": "^8.58.0",
+    "@typescript-eslint/parser": "^8.58.0",
+    "eslint": "^10.2.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.3",
-    "prettier": "^3.6.2",
-    "typescript": "^5.9.2"
+    "eslint-plugin-prettier": "^5.5.5",
+    "prettier": "^3.8.1",
+    "typescript": "^6.0.2"
   },
   "dependencies": {
     "lemmy-js-client": "0.19.9",
     "node-cron": "^4.2.1"
   },
   "optionalDependencies": {
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^6.0.1"
   },
   "files": [
     "/dist"
@@ -45,7 +45,7 @@
   },
   "homepage": "https://www.npmjs.com/package/lemmy-bot",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=24.0.0"
   },
-  "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748"
+  "packageManager": "pnpm@10.33.0+sha512.10568bb4a6afb58c9eb3630da90cc9516417abebd3fabbe6739f0ae795728da1491e9db5a544c76ad8eb7570f5c4bb3d6c637b2cb41bfdcdb47fa823c8649319"
 }
