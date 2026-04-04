@@ -14,16 +14,8 @@
     "noImplicitReturns": true,
     "noPropertyAccessFromIndexSignature": true,
     "noUncheckedIndexedAccess": true,
-    "types": [
-      "node",
-      "node-cron"
-    ]
+    "types": ["better-sqlite3", "node", "node-cron"]
   },
-  "include": [
-    "src/**/*"
-  ],
-  "exclude": [
-    "node_modules/**/*",
-    "dist/**/*"
-  ]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules/**/*", "dist/**/*"]
 }

@@ -1,9 +1,6 @@
-import type { sqlite3, Database } from 'sqlite3';
-import { existsSync } from 'fs';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
+import type { Database } from 'better-sqlite3';
 
-const tableTypes = [
+const TABLE_TYPES = [
   'comments',
   'posts',
   'messages',
@@ -26,13 +23,11 @@ const tableTypes = [
   'siteBans'
 ] as const;
 
-type TableType = (typeof tableTypes)[number];
+type TableType = (typeof TABLE_TYPES)[number];
+type TableEntry = { id: number; reprocessTime: number };
 
-export type StorageInfoGetter = (id: number) => Promise<StorageInfo>;
-export type RowUpserter = (
-  id: number,
-  minutesUntilReprocess?: number
-) => Promise<void>;
+export type StorageInfoGetter = (id: number) => StorageInfo;
+export type RowUpserter = (id: number, minutesUntilReprocess?: number) => void;
 
 type DatabaseFunctions = {
   get: StorageInfoGetter;
@@ -44,97 +39,84 @@ export type StorageInfo = {
   reprocessTime: Date | null;
 };
 
-const getRow = (db: Database, id: number, table: string) =>
-  new Promise<StorageInfo>((resolve, reject) => {
-    db.get(
-      `SELECT id, reprocessTime FROM ${table} WHERE id=?;`,
-      id,
-      (err, row: { reprocessTime: number }) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve({
-            exists: !!row,
-            reprocessTime:
-              row && row.reprocessTime ? new Date(row.reprocessTime) : null
-          });
-        }
-      }
-    );
-  });
+type TableFunctions = Readonly<{
+  [k in TableType]: {
+    get(db: Database, id: number): StorageInfo;
+    upsert(db: Database, id: number, minutesUntilReprocess?: number): void;
+  };
+}>;
 
-const upsert = (
-  db: Database,
-  id: number,
-  table: string,
-  minutesUntilReprocess?: number
-) =>
-  new Promise<void>((resolve, reject) => {
-    db.run(
-      `INSERT INTO ${table} (id, reprocessTime) VALUES ($id, $reprocessTime) ON CONFLICT (id) DO UPDATE SET reprocessTime=$reprocessTime;`,
-      {
-        $id: id,
-        $reprocessTime:
-          minutesUntilReprocess && minutesUntilReprocess > 0
-            ? Date.now() + 1000 * 60 * minutesUntilReprocess
-            : null
-      },
-      (err) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve();
-        }
-      }
-    );
-  });
-
-const tableFuncMap = new Map(
-  tableTypes.map((tt) => [
-    tt,
-    {
+const TABLE_FUNCTIONS = TABLE_TYPES.reduce(
+  (acc, tt) => ({
+    ...acc,
+    [tt]: {
       get: (db: Database, id: number) => getRow(db, id, tt),
       upsert: (db: Database, id: number, minutesUntilReprocess?: number) =>
-        upsert(db, id, tt, minutesUntilReprocess)
+        upsertRow(db, id, tt, minutesUntilReprocess)
     }
-  ])
-);
+  }),
+  {}
+) as TableFunctions;
 
-let sqlite: sqlite3 | null | undefined = undefined;
+function getRow(db: Database, id: number, table: TableType): StorageInfo {
+  const statement = db.prepare(
+    `SELECT id, reprocessTime FROM ${table} WHERE id=?;`
+  );
+  const row = statement.get(id) as TableEntry | undefined;
 
-const useDatabase = async (
+  return {
+    exists: !!row,
+    reprocessTime: row?.reprocessTime ? new Date(row.reprocessTime) : null
+  };
+}
+
+function upsertRow(
+  db: Database,
+  id: number,
+  table: TableType,
+  minutesUntilReprocess?: number
+) {
+  const statement = db.prepare(
+    `INSERT INTO ${table} (id, reprocessTime) VALUES ($id, $reprocessTime) ON CONFLICT (id) DO UPDATE SET reprocessTime=$reprocessTime;`
+  );
+
+  statement.run({
+    id,
+    reprocessTime:
+      minutesUntilReprocess && minutesUntilReprocess > 0
+        ? Date.now() + 1000 * 60 * minutesUntilReprocess
+        : null
+  });
+}
+
+async function useDatabase(
   doStuffWithDB: (db: Database) => Promise<void>,
   dbPath?: string
-) => {
-  if (sqlite === null) {
+) {
+  let Database: typeof import('better-sqlite3');
+
+  try {
+    const { default: dbConstructor } = await import('better-sqlite3');
+    Database = dbConstructor;
+  } catch {
+    console.warn(
+      'better-sqlite3 optional dependency is not available. This can cause your bot to respond to the same event more than once (e.g. replying multiple times to the same post). If you have intentionally chosen to omit the use of sqlite, ignore this message.'
+    );
+
     return;
   }
 
-  if (!sqlite) {
-    try {
-      const sqliteImport = await import('sqlite3');
-      sqlite = sqliteImport.verbose();
-    } catch {
-      console.warn(
-        'sqlite3 optional dependency is not available. This can cause your bot to respond to the same event more than once (e.g. replying multiple times to the same post). If you have intentionally chosen to omit the use of sqlite, ignore this message.'
-      );
-      return;
-    }
-  }
+  // Empty string fallback creates a temporary database
+  // See docs for more detail: https://github.com/WiseLibs/better-sqlite3/blob/HEAD/docs/api.md#new-databasepath-options
+  const db = new Database(dbPath ?? '');
+  db.pragma('journal_mode = WAL');
 
-  let db: Database;
-  if (!dbPath) {
-    db = new sqlite.Database(':memory:');
-  } else {
-    db = new sqlite.Database(dbPath);
-  }
-
-  await doStuffWithDB(db);
-
-  if (dbPath) {
+  try {
+    await doStuffWithDB(db);
+  } finally {
     db.close();
   }
-};
+}
 
 export const useDatabaseFunctions = (
   table: TableType,
@@ -142,7 +124,7 @@ export const useDatabaseFunctions = (
   dbPath?: string
 ) =>
   useDatabase(async (db) => {
-    const { get, upsert } = tableFuncMap.get(table)!;
+    const { get, upsert } = TABLE_FUNCTIONS[table];
 
     await doStuff({
       get: (id: number) => get(db, id),
@@ -152,36 +134,23 @@ export const useDatabaseFunctions = (
   }, dbPath);
 
 const createTable = (db: Database, table: string) => {
-  db.run(
+  db.prepare(
     `CREATE TABLE IF NOT EXISTS ${table} (id INTEGER PRIMARY KEY, reprocessTime INTEGER) WITHOUT ROWID;`
-  );
+  ).run();
 
-  db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_${table}_id ON ${table} (id);`);
+  db.prepare(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_${table}_id ON ${table} (id);`
+  ).run();
 };
 
 export const setupDB = async (
   log: (output: string) => void,
   dbPath?: string
 ) => {
-  if (dbPath && !existsSync(dbPath)) {
-    log('Creating database file');
-
-    try {
-      await mkdir(path.dirname(dbPath), { recursive: true });
-      await writeFile(dbPath, '');
-    } catch (error) {
-      console.log('Error making database file: ' + error);
-
-      process.exit(1);
-    }
-  }
-
   await useDatabase(async (db) => {
-    db.serialize(() => {
-      log('Initializing DB');
-      for (const table of tableTypes) {
-        createTable(db, table);
-      }
-    });
+    log('Initializing DB');
+    for (const table of TABLE_TYPES) {
+      createTable(db, table);
+    }
   }, dbPath);
 };
