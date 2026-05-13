@@ -6,7 +6,7 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": false,
     "rootDir": "./src",
-    "outDir": "./dist",
+    "outDir": "dist",
     "declaration": true,
     "declarationDir": "./dist",
     "strictNullChecks": true,
@@ -16,6 +16,5 @@
     "noUncheckedIndexedAccess": true,
     "types": ["better-sqlite3", "node", "node-cron"]
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules/**/*", "dist/**/*"]
+  "include": ["src/**/*"]
 }
